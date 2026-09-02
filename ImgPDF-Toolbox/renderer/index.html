@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ImgPDF-Toolbox</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>ImgPDF-Toolbox</h1>
+      <p class="subtitle">Conversión y manipulación local sin conexión</p>
+    </header>
+
+    <main>
+      <section class="menu-grid">
+        <button class="card-btn" id="btn-conversor">
+          <span class="icon">🔄</span>
+          <span class="title">Imágenes ⟷ PDF</span>
+          <span class="desc">Convertir entre JPG, PNG y PDF</span>
+        </button>
+
+        <button class="card-btn" id="btn-separar">
+          <span class="icon">✂️</span>
+          <span class="title">Separar PDF</span>
+          <span class="desc">Por páginas, bloques o rangos</span>
+        </button>
+
+        <button class="card-btn" id="btn-unir">
+          <span class="icon">📑</span>
+          <span class="title">Unir PDFs</span>
+          <span class="desc">Fusionar varios archivos en orden</span>
+        </button>
+      </section>
+
+      <section class="workspace" id="workspace">
+        <p class="placeholder-text">Selecciona una opción del menú para comenzar</p>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

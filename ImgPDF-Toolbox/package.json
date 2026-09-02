@@ -1,0 +1,15 @@
+{
+  "name": "imgpdf-toolbox",
+  "version": "1.0.0",
+  "description": "Suite ligera para manipular imágenes y PDFs con Ghostscript e ImageMagick",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": ["pdf", "image", "converter", "electron"],
+  "author": "Juan Carlos De La Cruz Eligio",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}

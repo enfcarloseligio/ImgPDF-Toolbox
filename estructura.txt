@@ -1,0 +1,21 @@
+.gitignore
+estructura.bat
+estructura.txt
+LICENSE
+README.md
+
+================================
+ ImgPDF-Toolbox
+================================
+Listado de rutas de carpetas
+El número de serie del volumen es 6076-4BBE
+D:\USERS\JUAN.DELACRUZ\DOCUMENTS\PROYECTOS\IMGPDF-TOOLBOX\IMGPDF-TOOLBOX
+¦   main.js
+¦   package.json
+¦   preload.js
+¦   
++---renderer
+        app.js
+        index.html
+        style.css
+        
