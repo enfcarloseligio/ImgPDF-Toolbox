@@ -513,3 +513,20 @@ body {
 }
 .app-footer a { color: var(--primary); text-decoration: underline; transition: color var(--t); }
 .app-footer a:hover { color: var(--primary-darker); }
+
+/* ── Drag & Drop y Resumen ───────────────────────────────────────────────── */
+.file-zone.drag-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  transform: scale(1.01);
+}
+
+.summary-box {
+  background: var(--info-bg);
+  border: 1px dashed var(--info-border);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  color: var(--info-text);
+  line-height: 1.5;
+}

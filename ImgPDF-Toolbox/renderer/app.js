@@ -23,14 +23,12 @@ async function runSplash() {
     [95,  'Casi listo...'],
   ];
 
-  // Animación de barra con mensajes progresivos
   for (const [pct, msg] of msgs) {
     loaderFill.style.width = pct + '%';
     loaderMsg.textContent = msg;
     await delay(380);
   }
 
-  // Llamada real a check-tools
   const tools = await window.api.checkTools();
   state.tools = tools;
 
@@ -38,13 +36,11 @@ async function runSplash() {
   loaderMsg.textContent = 'Escaneo completado.';
   await delay(300);
 
-  // Ocultar loader, mostrar resultado del escaneo
   document.getElementById('splash-loader').style.display = 'none';
   updateScanStep('scan-im', tools.imageMagick, tools.imVersion);
   updateScanStep('scan-gs', tools.ghostscript, tools.gsVersion);
   await delay(200);
 
-  // Mostrar panel de resultado
   const resultPanel = document.getElementById('splash-result');
   resultPanel.style.display = 'flex';
   resultPanel.style.flexDirection = 'column';
@@ -56,10 +52,8 @@ async function runSplash() {
     buildInstallPanel(tools);
   }
 
-  // Botón entrar
   document.getElementById('btn-enter').addEventListener('click', enterApp);
 
-  // Botón skip
   if (!allOk) {
     const skipBtn = document.getElementById('btn-skip');
     skipBtn.style.display = 'block';
@@ -118,14 +112,12 @@ function buildInstallPanel(tools) {
         btn.textContent = '✓ Instalado';
       } else {
         btn.textContent = 'Error';
-        // Mostrar opción manual
         document.getElementById('install-manual').style.display = 'flex';
         document.getElementById('install-manual').style.flexDirection = 'column';
         document.getElementById('install-manual').style.gap = '0.5rem';
       }
     });
 
-    // Botón descarga manual
     document.getElementById('btn-gs-manual').addEventListener('click', () => {
       window.api.openUrl('https://www.ghostscript.com/releases/gsdnld.html');
     });
@@ -292,6 +284,25 @@ function renderFileList(containerId, files, onRemove) {
   });
 }
 
+// ── Drag & Drop Global ────────────────────────────────────────────────────────
+function bindDragDrop(zoneId, extensions, onDrop) {
+  const zone = document.getElementById(zoneId);
+  if (!zone) return;
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-active'); });
+  zone.addEventListener('dragleave', e => { e.preventDefault(); zone.classList.remove('drag-active'); });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-active');
+    
+    // Aquí usamos la nueva API para saltar la seguridad de Electron y obtener la ruta real
+    const paths = Array.from(e.dataTransfer.files).map(f => window.api.getFilePath(f)).filter(Boolean);
+    const valid = paths.filter(p => extensions.includes(p.split('.').pop().toLowerCase()));
+    
+    if (valid.length) onDrop(valid);
+  });
+}
+
 // ── Módulo 1: IMG → PDF ───────────────────────────────────────────────────────
 function renderImgToPdf() {
   let files = [], quality = 100;
@@ -302,9 +313,10 @@ function renderImgToPdf() {
       <label>Calidad</label>
       <div class="option-row" id="q-row"></div>
     </div>
-    <div class="file-zone">
+    <div class="file-zone" id="zone-i2p">
       <div class="btn-row">
         <button class="btn-secondary" id="pick-imgs">📂 Seleccionar imágenes (PNG / JPG)</button>
+        <span style="font-size:0.75rem; color:var(--muted); margin-left:10px; align-self:center;">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="img-list"><span style="font-size:0.78rem;color:var(--muted)">Ningún archivo seleccionado</span></div>
     </div>
@@ -322,13 +334,25 @@ function renderImgToPdf() {
     { label:'25% — Baja',    value:25  },
   ], 100, v => { quality = v; });
 
+  const onRemove = f => {
+    files = files.filter(x => x !== f);
+    renderFileList('img-list', files, onRemove);
+    updateRun();
+  };
+
   document.getElementById('pick-imgs').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{ name:'Imágenes', extensions:['png','jpg','jpeg'] }]);
     if (picked.length) {
       files = [...files, ...picked.filter(f => !files.includes(f))];
-      renderFileList('img-list', files, f => { files = files.filter(x => x !== f); renderFileList('img-list', files, arguments.callee); updateRun(); });
+      renderFileList('img-list', files, onRemove);
       updateRun();
     }
+  });
+
+  bindDragDrop('zone-i2p', ['png','jpg','jpeg'], dropped => {
+    files = [...files, ...dropped.filter(f => !files.includes(f))];
+    renderFileList('img-list', files, onRemove);
+    updateRun();
   });
 
   document.getElementById('i2p-pick').addEventListener('click', () => pickOutputDir('i2p-path').then(updateRun));
@@ -357,8 +381,11 @@ function renderPdfToImg() {
     <div class="option-group"><label>Formato de salida</label><div class="option-row" id="fmt-row"></div></div>
     <div class="option-group"><label>Calidad (DPI)</label><div class="option-row" id="dpi-row"></div></div>
     <div class="option-group"><label>Fondo</label><div class="option-row" id="bg-row"></div></div>
-    <div class="file-zone">
-      <div class="btn-row"><button class="btn-secondary" id="pick-pdfs2">📂 Seleccionar PDFs</button></div>
+    <div class="file-zone" id="zone-p2i">
+      <div class="btn-row">
+        <button class="btn-secondary" id="pick-pdfs2">📂 Seleccionar PDFs</button>
+        <span style="font-size:0.75rem; color:var(--muted); margin-left:10px; align-self:center;">O arrastra y suelta aquí</span>
+      </div>
       <div class="file-list" id="pdf2-list"><span style="font-size:0.78rem;color:var(--muted)">Ningún archivo seleccionado</span></div>
     </div>
     ${outputDirRow('p2i')}
@@ -387,13 +414,25 @@ function renderPdfToImg() {
   }
   updateBg();
 
+  const onRemove = f => {
+    files = files.filter(x => x !== f);
+    renderFileList('pdf2-list', files, onRemove);
+    updateRun();
+  };
+
   document.getElementById('pick-pdfs2').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{ name:'PDF', extensions:['pdf'] }]);
     if (picked.length) {
       files = [...files, ...picked.filter(f => !files.includes(f))];
-      renderFileList('pdf2-list', files, f => { files = files.filter(x => x !== f); renderFileList('pdf2-list', files, arguments.callee); updateRun(); });
+      renderFileList('pdf2-list', files, onRemove);
       updateRun();
     }
+  });
+
+  bindDragDrop('zone-p2i', ['pdf'], dropped => {
+    files = [...files, ...dropped.filter(f => !files.includes(f))];
+    renderFileList('pdf2-list', files, onRemove);
+    updateRun();
   });
 
   document.getElementById('p2i-pick').addEventListener('click', () => pickOutputDir('p2i-path').then(updateRun));
@@ -420,8 +459,11 @@ function renderMerge() {
   ws.innerHTML = `<div class="module">
     <div class="module-title">📑 Unir PDFs</div>
     <p style="font-size:0.8rem;color:var(--muted)">Selecciona los archivos en el orden en que quieres unirlos. Usa ↑↓ para reordenar.</p>
-    <div class="file-zone">
-      <div class="btn-row"><button class="btn-secondary" id="pick-merge">📂 Agregar PDFs</button></div>
+    <div class="file-zone" id="zone-mrg">
+      <div class="btn-row">
+        <button class="btn-secondary" id="pick-merge">📂 Agregar PDFs</button>
+        <span style="font-size:0.75rem; color:var(--muted); margin-left:10px; align-self:center;">O arrastra y suelta aquí</span>
+      </div>
       <div class="file-list" id="merge-list"><span style="font-size:0.78rem;color:var(--muted)">Ningún archivo seleccionado</span></div>
     </div>
     ${outputDirRow('mrg')}
@@ -465,6 +507,13 @@ function renderMerge() {
     if (dups.length) document.getElementById('merge-result').innerHTML = resultBox('warning', `⚠ ${dups.length} archivo(s) ya estaban en la lista`, dups.map(basename));
   });
 
+  bindDragDrop('zone-mrg', ['pdf'], dropped => {
+    const dups = dropped.filter(f => files.includes(f));
+    files = [...files, ...dropped.filter(f => !files.includes(f))];
+    renderList(); updateRun();
+    if (dups.length) document.getElementById('merge-result').innerHTML = resultBox('warning', `⚠ ${dups.length} archivo(s) ya estaban en la lista`, dups.map(basename));
+  });
+
   document.getElementById('clear-merge').addEventListener('click', () => { files = []; renderList(); updateRun(); document.getElementById('merge-result').innerHTML = ''; });
   document.getElementById('mrg-pick').addEventListener('click', () => pickOutputDir('mrg-path').then(updateRun));
 
@@ -482,80 +531,151 @@ function renderMerge() {
   });
 }
 
-// ── Módulo 4: Separar PDF ─────────────────────────────────────────────────────
+// ── Módulo 4: Separar PDF (Con Múltiples Rangos Personalizados) ───────────────
 function renderSplit() {
-  let file = null, mode = 'individual', blockSize = 5, rangeStart = 1, rangeEnd = 5;
+  let file = null, totalPages = 0;
+  let mode = 'individual', blockSize = 5, customRanges = '1-5, 6-10';
   const ws = document.getElementById('workspace');
+
   ws.innerHTML = `<div class="module">
     <div class="module-title">✂️ Separar PDF</div>
-    <div class="file-zone">
-      <div class="btn-row"><button class="btn-secondary" id="pick-split">📂 Seleccionar PDF</button></div>
+    
+    <!-- PASO 1: Archivo -->
+    <div class="file-zone" id="zone-spl">
+      <div class="btn-row">
+        <button class="btn-secondary" id="pick-split">📂 Seleccionar PDF</button>
+        <span style="font-size:0.75rem; color:var(--muted); margin-left:10px; align-self:center;">O arrastra y suelta aquí</span>
+      </div>
       <div class="file-list" id="split-file"><span style="font-size:0.78rem;color:var(--muted)">Ningún archivo seleccionado</span></div>
     </div>
-    <div class="option-group"><label>Modo de separación</label><div class="option-row" id="mode-row"></div></div>
-    <div id="mode-opts"></div>
-    ${outputDirRow('spl')}
-    <div class="btn-row"><button class="btn-primary" id="run-split" disabled style="width:auto">Separar PDF</button></div>
-    <div id="split-result"></div>
+
+    <!-- PASO 2: Opciones (Se muestran tras cargar el PDF) -->
+    <div id="split-wizard" style="display:none; flex-direction:column; gap:1.25rem;">
+      <div class="option-group"><label>Modo de separación</label><div class="option-row" id="mode-row"></div></div>
+      <div id="mode-opts"></div>
+      
+      <!-- RESUMEN -->
+      <div class="summary-box" id="split-summary"></div>
+
+      ${outputDirRow('spl')}
+      <div class="btn-row"><button class="btn-primary" id="run-split" disabled style="width:auto">Ejecutar separación</button></div>
+      <div id="split-result"></div>
+    </div>
   </div>`;
 
+  // Bind Select & Drop
   document.getElementById('pick-split').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{ name:'PDF', extensions:['pdf'] }]);
-    if (picked.length) {
-      file = picked[0];
-      document.getElementById('split-file').innerHTML = `
-        <div class="file-item">
-          <span class="file-name">📄 ${basename(file)}</span>
-          <button class="file-remove" id="rm-split">✕</button>
-        </div>`;
-      document.getElementById('rm-split').addEventListener('click', () => {
-        file = null;
-        document.getElementById('split-file').innerHTML = '<span style="font-size:0.78rem;color:var(--muted)">Ningún archivo seleccionado</span>';
-        updateRun();
-      });
-      updateRun();
-    }
+    if (picked.length) processFile(picked[0]);
+  });
+  
+  bindDragDrop('zone-spl', ['pdf'], dropped => {
+    if(dropped.length) processFile(dropped[0]); 
   });
 
+  // Procesar archivo y contar páginas
+  async function processFile(selectedPath) {
+    file = selectedPath;
+    document.getElementById('split-file').innerHTML = `
+      <div class="file-item">
+        <span class="file-name">📄 ${basename(file)}</span>
+        <span style="font-size:0.75rem;color:var(--warning);" id="calc-pages">⏳ Calculando páginas...</span>
+        <button class="file-remove" id="rm-split">✕</button>
+      </div>`;
+    
+    document.getElementById('rm-split').addEventListener('click', () => {
+      file = null; totalPages = 0;
+      document.getElementById('split-file').innerHTML = '<span style="font-size:0.78rem;color:var(--muted)">Ningún archivo seleccionado</span>';
+      document.getElementById('split-wizard').style.display = 'none';
+      document.getElementById('run-split').disabled = true;
+    });
+
+    // Llamada rápida a Magick para no saturar memoria
+    const info = await window.api.getPdfInfo(file);
+    if (!info.ok || info.pages === 0) {
+      document.getElementById('calc-pages').textContent = '✗ Error al leer PDF';
+      document.getElementById('calc-pages').style.color = 'var(--error)';
+      return;
+    }
+
+    totalPages = info.pages;
+    customRanges = `1-${totalPages}`; // Resetear rango al total del archivo
+    document.getElementById('calc-pages').textContent = `✓ ${totalPages} páginas`;
+    document.getElementById('calc-pages').style.color = 'var(--success)';
+    
+    // Mostrar Wizard
+    document.getElementById('split-wizard').style.display = 'flex';
+    renderModeOpts();
+    updateSummary();
+  }
+
+  // Modos
   optButtons(document.getElementById('mode-row'), [
-    { label:'Hojas individuales', value:'individual' },
-    { label:'Por bloques',        value:'block'      },
-    { label:'Rango específico',   value:'range'      },
-  ], 'individual', v => { mode = v; renderModeOpts(); });
+    { label:'Página por página',  value:'individual' },
+    { label:'Bloques fijos',      value:'block'      },
+    { label:'Rangos múltiples',   value:'custom'     },
+  ], 'individual', v => { mode = v; renderModeOpts(); updateSummary(); });
 
   function renderModeOpts() {
     const el = document.getElementById('mode-opts');
     if (mode === 'individual') {
-      el.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">Cada página del PDF se guardará como un archivo independiente.</p>`;
+      el.innerHTML = '';
     } else if (mode === 'block') {
-      el.innerHTML = `<div class="range-row"><span>Páginas por bloque:</span><input type="number" class="num-input" id="bsize" value="${blockSize}" min="1" max="999"></div>`;
-      document.getElementById('bsize').addEventListener('input', e => { blockSize = parseInt(e.target.value) || 5; });
+      el.innerHTML = `<div class="range-row"><span>Dividir en bloques de:</span><input type="number" class="num-input" id="bsize" value="${blockSize}" min="1"> <span>páginas.</span></div>`;
+      document.getElementById('bsize').addEventListener('input', e => { blockSize = parseInt(e.target.value) || 1; updateSummary(); });
     } else {
-      el.innerHTML = `<div class="range-row"><span>De página</span><input type="number" class="num-input" id="rstart" value="${rangeStart}" min="1"><span>a página</span><input type="number" class="num-input" id="rend" value="${rangeEnd}" min="1"></div>`;
-      document.getElementById('rstart').addEventListener('input', e => { rangeStart = parseInt(e.target.value) || 1; });
-      document.getElementById('rend').addEventListener('input',   e => { rangeEnd   = parseInt(e.target.value) || 1; });
+      el.innerHTML = `<div class="range-row" style="flex-direction:column; align-items:flex-start;">
+        <span style="font-size:0.8rem; color:var(--muted)">Puedes extraer capítulos enteros. Escribe los rangos separados por comas:</span>
+        <input type="text" class="num-input" style="width:100%; text-align:left;" id="cranges" value="${customRanges}" placeholder="Ejemplo: 1-15, 16-30, 31-40">
+      </div>`;
+      document.getElementById('cranges').addEventListener('input', e => { customRanges = e.target.value; updateSummary(); });
     }
   }
-  renderModeOpts();
 
-  document.getElementById('spl-pick').addEventListener('click', () => pickOutputDir('spl-path').then(updateRun));
-  function updateRun() { document.getElementById('run-split').disabled = !(file && state.outputDir); }
+  // Resumen Dinámico
+  function updateSummary() {
+    const el = document.getElementById('split-summary');
+    let text = `<strong>Resumen de la operación:</strong><br>`;
+
+    let isValid = true;
+    if (mode === 'individual') {
+      text += `↳ Se generarán <strong>${totalPages} documentos nuevos</strong> (1 página cada uno).`;
+    } else if (mode === 'block') {
+      const parts = Math.ceil(totalPages / blockSize);
+      text += `↳ Se generarán <strong>${parts} documentos nuevos</strong> (de máximo ${blockSize} páginas cada uno).`;
+    } else {
+      const parts = customRanges.split(',').map(s => s.trim()).filter(s => s);
+      if (!parts.length) { 
+        text += `<span style="color:var(--error)">⚠ Ingresa al menos un rango válido (Ej: 1-12, 13-20).</span>`; 
+        isValid = false; 
+      } else { 
+        text += `↳ Se extraerán <strong>${parts.length} capítulos/documentos independientes</strong>.`; 
+      }
+    }
+    
+    el.innerHTML = text;
+    document.getElementById('run-split').disabled = !(file && state.outputDir && isValid);
+  }
+
+  // Ejecución
+  document.getElementById('spl-pick').addEventListener('click', () => pickOutputDir('spl-path').then(updateSummary));
 
   document.getElementById('run-split').addEventListener('click', async () => {
     const btn = document.getElementById('run-split');
     btn.disabled = true; btn.textContent = 'Procesando...';
     document.getElementById('split-result').innerHTML = progressBar(30);
-    const res = await window.api.splitPdf({ file, mode, blockSize, rangeStart, rangeEnd, outputDir: state.outputDir });
+    
+    const res = await window.api.splitPdf({ file, mode, blockSize, customRanges, outputDir: state.outputDir, totalPages });
+    
     if (!res.ok) {
       document.getElementById('split-result').innerHTML = resultBox('error', '✗ Error', [res.error]);
     } else {
       const ok = res.results.filter(r => r.ok), err = res.results.filter(r => !r.ok);
       document.getElementById('split-result').innerHTML =
-        resultBox('info', `📄 Total de páginas: ${res.totalPages}`) +
         (ok.length  ? resultBox('success', `✓ ${ok.length} archivo(s) generado(s)`, ok.map(r => `📄 ${basename(r.out)}`)) : '') +
         (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => r.error)) : '');
     }
-    btn.disabled = false; btn.textContent = 'Separar PDF';
+    btn.disabled = false; btn.textContent = 'Ejecutar separación';
   });
 }
 
