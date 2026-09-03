@@ -188,17 +188,21 @@ ipcMain.handle('merge-pdfs', async (event, { files, outputDir }) => {
   }
 });
 
-ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, rangeStart, rangeEnd, outputDir }) => {
+// ── IPC: Separar PDF (Con Detección Previa y Múltiples Rangos) ────────────────
+
+ipcMain.handle('get-pdf-info', async (event, file) => {
+  try {
+    const countStr = await run(`magick identify -ping -format "%n " "${file}"`);
+    const pages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+    return { ok: true, pages };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+});
+
+ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, customRanges, outputDir, totalPages }) => {
   const gs = findGhostscript();
   const name = path.basename(file, '.pdf');
-  let totalPages = 0;
-  try {
-    const identify = await run(`magick identify "${file}"`);
-    totalPages = identify.trim().split('\n').length;
-  } catch (_) {
-    return { ok: false, error: 'No se pudo leer el PDF. Verifica que ImageMagick y Ghostscript estén instalados.' };
-  }
-
   const results = [];
 
   if (mode === 'individual') {
@@ -207,9 +211,7 @@ ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, rangeStart, r
       try {
         await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${i} -dLastPage=${i} -sOutputFile="${out}" "${file}"`);
         results.push({ page: i, out, ok: true });
-      } catch (e) {
-        results.push({ page: i, ok: false, error: e });
-      }
+      } catch (e) { results.push({ page: i, ok: false, error: e }); }
     }
   } else if (mode === 'block') {
     let block = 1;
@@ -218,22 +220,26 @@ ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, rangeStart, r
       const out = path.join(outputDir, `${name}-bloque${String(block).padStart(2, '0')}.pdf`);
       try {
         await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${i} -dLastPage=${end} -sOutputFile="${out}" "${file}"`);
-        results.push({ block, pages: `${i}-${end}`, out, ok: true });
+        results.push({ block, out, ok: true });
         block++;
-      } catch (e) {
-        results.push({ block, ok: false, error: e });
-        block++;
-      }
+      } catch (e) { results.push({ block, ok: false, error: e }); block++; }
     }
-  } else if (mode === 'range') {
-    const out = path.join(outputDir, `${name}-pag${rangeStart}-${rangeEnd}.pdf`);
-    try {
-      await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${rangeStart} -dLastPage=${rangeEnd} -sOutputFile="${out}" "${file}"`);
-      results.push({ out, ok: true });
-    } catch (e) {
-      results.push({ ok: false, error: e });
+  } else if (mode === 'custom') {
+    // Procesar rangos personalizados (Ej: 1-5, 6-10, 15)
+    const parts = customRanges.split(',').map(s => s.trim()).filter(s => s);
+    let partNum = 1;
+    for (const part of parts) {
+      const out = path.join(outputDir, `${name}-parte${String(partNum).padStart(2, '0')}.pdf`);
+      let first = part, last = part;
+      if (part.includes('-')) {
+        [first, last] = part.split('-').map(s => s.trim());
+      }
+      try {
+        await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${first} -dLastPage=${last} -sOutputFile="${out}" "${file}"`);
+        results.push({ out, ok: true });
+        partNum++;
+      } catch (e) { results.push({ ok: false, error: e }); partNum++; }
     }
   }
-
   return { ok: true, totalPages, results };
 });
