@@ -11,9 +11,74 @@
 </head>
 <body>
 
-  <div class="app-container">
+  <!-- ── SPLASH / BIENVENIDA ───────────────────────────────────────────── -->
+  <div class="splash" id="splash">
+    <div class="splash-card">
 
-    <!-- HEADER -->
+      <div class="splash-brand">
+        <div class="splash-logo">🖼️</div>
+        <h1 class="splash-title">ImgPDF Toolbox</h1>
+        <p class="splash-by">
+          Una herramienta de
+          <a href="#" class="splash-link" id="splash-author-link">@enfcarloseligio</a>
+        </p>
+        <p class="splash-site" id="splash-site-link">enfcarloseligio.com</p>
+      </div>
+
+      <!-- Estado del escaneo -->
+      <div class="splash-scan" id="splash-scan">
+        <div class="scan-step" id="scan-im">
+          <div class="scan-icon spinning">⏳</div>
+          <div class="scan-info">
+            <span class="scan-name">ImageMagick</span>
+            <span class="scan-status">Buscando...</span>
+          </div>
+        </div>
+        <div class="scan-step" id="scan-gs">
+          <div class="scan-icon spinning">⏳</div>
+          <div class="scan-info">
+            <span class="scan-name">Ghostscript</span>
+            <span class="scan-status">Buscando...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado del escaneo -->
+      <div class="splash-result" id="splash-result" style="display:none">
+
+        <!-- Panel de instalación si falta algo -->
+        <div id="install-panel" style="display:none">
+          <div class="install-notice">
+            <p class="install-title">⚠️ Faltan dependencias requeridas</p>
+            <p class="install-desc">Algunas funciones no estarán disponibles hasta instalarlas.</p>
+          </div>
+          <div id="install-actions"></div>
+          <div class="install-manual" id="install-manual" style="display:none">
+            <p class="manual-title">📥 Instalación manual requerida:</p>
+            <p class="manual-desc">Ghostscript no puede instalarse automáticamente en todos los sistemas. Descárgalo desde su sitio oficial y vuelve a abrir la aplicación.</p>
+            <button class="btn-accent" id="btn-gs-manual">Descargar Ghostscript</button>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="splash-actions">
+          <button class="btn-primary" id="btn-enter">Entrar a la aplicación →</button>
+          <button class="btn-ghost" id="btn-skip" style="display:none">Continuar sin instalar</button>
+        </div>
+
+      </div>
+
+      <div class="splash-loader" id="splash-loader">
+        <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+        <p class="loader-msg" id="loader-msg">Preparando entorno...</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── APP PRINCIPAL ──────────────────────────────────────────────────── -->
+  <div class="app-container" id="app" style="display:none; opacity:0">
+
     <header class="app-header">
       <div class="header-brand">
         <span class="brand-icon">🖼️</span>
@@ -22,14 +87,13 @@
           <p class="brand-sub">Conversión y manipulación local · Sin conexión requerida</p>
         </div>
       </div>
-      <div class="tools-status" id="tools-status">
+      <div class="tools-status" id="tools-status" title="Ver estado de herramientas">
         <span class="status-dot checking"></span>
-        <span class="status-label">Verificando herramientas...</span>
+        <span class="status-label">Verificando...</span>
       </div>
     </header>
 
-    <!-- MENU PRINCIPAL -->
-    <nav class="menu-grid" id="main-menu">
+    <nav class="menu-grid">
       <button class="card-btn" data-module="img-to-pdf">
         <span class="card-icon">🖼️</span>
         <span class="card-title">IMG → PDF</span>
@@ -50,18 +114,22 @@
         <span class="card-title">Separar PDF</span>
         <span class="card-desc">Por páginas, bloques o rangos</span>
       </button>
+      <button class="card-btn" data-module="update">
+        <span class="card-icon">🔄</span>
+        <span class="card-title">Actualizar</span>
+        <span class="card-desc">Actualiza ImageMagick y Ghostscript</span>
+      </button>
     </nav>
 
-    <!-- WORKSPACE -->
     <section class="workspace" id="workspace">
       <p class="workspace-placeholder">Selecciona una opción para comenzar</p>
     </section>
 
-    <!-- FOOTER -->
     <footer class="app-footer">
-      Creado por <a href="https://enfcarloseligio.com/" target="_blank">enfcarloseligio</a>
-      · Requiere <a href="https://imagemagick.org" target="_blank">ImageMagick</a>
-      y <a href="https://www.ghostscript.com" target="_blank">Ghostscript</a>
+      Creado por
+      <a href="#" id="footer-author">@enfcarloseligio</a> ·
+      <a href="#" id="footer-site">enfcarloseligio.com</a> ·
+      Requiere <a href="#" id="footer-im">ImageMagick</a> y <a href="#" id="footer-gs">Ghostscript</a>
     </footer>
 
   </div>

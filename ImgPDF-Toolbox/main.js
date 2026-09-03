@@ -1,9 +1,9 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
-// ─── Utilidades ────────────────────────────────────────────────────────────────
+// ── Utilidades ────────────────────────────────────────────────────────────────
 
 function run(cmd) {
   return new Promise((resolve, reject) => {
@@ -14,29 +14,30 @@ function run(cmd) {
   });
 }
 
-// Busca gswin64c o gswin32c en rutas comunes
 function findGhostscript() {
   const candidates = [
     'gswin64c', 'gswin32c',
-    'C:\\Program Files\\gs\\gs10.04.0\\bin\\gswin64c.exe',
-    'C:\\Program Files\\gs\\gs10.03.1\\bin\\gswin64c.exe',
-    'C:\\Program Files\\gs\\gs10.02.1\\bin\\gswin64c.exe',
-    'C:\\Program Files (x86)\\gs\\gs10.04.0\\bin\\gswin32c.exe',
   ];
-  for (const c of candidates) {
-    try {
-      // Si la ruta existe como archivo o está en PATH, la usamos
-      if (c.includes('\\')) {
-        if (fs.existsSync(c)) return `"${c}"`;
-      } else {
-        return c; // comandos en PATH se intentan directamente
+  // Buscar en Program Files con versiones comunes
+  const pfDirs = [
+    'C:\\Program Files\\gs',
+    'C:\\Program Files (x86)\\gs',
+  ];
+  for (const base of pfDirs) {
+    if (fs.existsSync(base)) {
+      const subs = fs.readdirSync(base);
+      for (const sub of subs) {
+        const p64 = path.join(base, sub, 'bin', 'gswin64c.exe');
+        const p32 = path.join(base, sub, 'bin', 'gswin32c.exe');
+        if (fs.existsSync(p64)) return `"${p64}"`;
+        if (fs.existsSync(p32)) return `"${p32}"`;
       }
-    } catch (_) {}
+    }
   }
-  return 'gswin64c'; // fallback, mostrará error descriptivo si no existe
+  return 'gswin64c'; // fallback PATH
 }
 
-// ─── Ventana principal ─────────────────────────────────────────────────────────
+// ── Ventana principal ─────────────────────────────────────────────────────────
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -65,7 +66,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// ─── IPC: Selección de archivos ────────────────────────────────────────────────
+// ── IPC: Selección de archivos ────────────────────────────────────────────────
 
 ipcMain.handle('select-files', async (event, filters) => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -82,7 +83,11 @@ ipcMain.handle('select-folder', async () => {
   return canceled ? null : filePaths[0];
 });
 
-// ─── IPC: Verificar herramientas instaladas ────────────────────────────────────
+ipcMain.handle('open-url', async (event, url) => {
+  shell.openExternal(url);
+});
+
+// ── IPC: Verificar herramientas ───────────────────────────────────────────────
 
 ipcMain.handle('check-tools', async () => {
   const result = { imageMagick: false, ghostscript: false, imVersion: '', gsVersion: '' };
@@ -104,7 +109,37 @@ ipcMain.handle('check-tools', async () => {
   return result;
 });
 
-// ─── IPC: Conversiones de imagen ───────────────────────────────────────────────
+// ── IPC: Instalar herramientas ────────────────────────────────────────────────
+
+ipcMain.handle('install-tool', async (event, tool) => {
+  const cmds = {
+    imagemagick: 'winget install --id ImageMagick.ImageMagick -e --accept-source-agreements --accept-package-agreements',
+    ghostscript:  'winget install --id ArtifexSoftware.GhostScript -e --accept-source-agreements --accept-package-agreements',
+  };
+  const cmd = cmds[tool];
+  if (!cmd) return { ok: false, error: 'Herramienta desconocida' };
+  try {
+    await run(cmd);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+});
+
+ipcMain.handle('update-tools', async () => {
+  const results = {};
+  try {
+    const im = await run('winget upgrade --id ImageMagick.ImageMagick');
+    results.imagemagick = im.includes('successfully') || im.includes('No applicable') ? 'ok' : 'check';
+  } catch (e) { results.imagemagick = 'error'; }
+  try {
+    const gs = await run('winget upgrade --id ArtifexSoftware.GhostScript');
+    results.ghostscript = gs.includes('successfully') || gs.includes('No applicable') ? 'ok' : 'check';
+  } catch (e) { results.ghostscript = 'error'; }
+  return results;
+});
+
+// ── IPC: Conversiones ─────────────────────────────────────────────────────────
 
 ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }) => {
   const results = [];
@@ -123,17 +158,13 @@ ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }
 
 ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, background, outputDir }) => {
   const results = [];
-  const gs = findGhostscript();
-
   for (const file of files) {
     const name = path.basename(file, '.pdf');
     const outPattern = path.join(outputDir, `${name}-%03d.${format}`);
-
     let bgFlags = '';
     if (background !== 'original') {
       bgFlags = `-background "${background}" -alpha remove -alpha off`;
     }
-
     try {
       await run(`magick -density ${density} "${file}" ${bgFlags} -scene 1 "${outPattern}"`);
       results.push({ file, ok: true });
@@ -144,14 +175,11 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
   return results;
 });
 
-// ─── IPC: Unir PDFs ────────────────────────────────────────────────────────────
-
 ipcMain.handle('merge-pdfs', async (event, { files, outputDir }) => {
   const gs = findGhostscript();
   const outName = path.basename(files[0], '.pdf') + '-combinado.pdf';
   const out = path.join(outputDir, outName);
   const inputs = files.map(f => `"${f}"`).join(' ');
-
   try {
     await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dAutoRotatePages=/None -sOutputFile="${out}" ${inputs}`);
     return { ok: true, out };
@@ -160,21 +188,15 @@ ipcMain.handle('merge-pdfs', async (event, { files, outputDir }) => {
   }
 });
 
-// ─── IPC: Separar PDF ──────────────────────────────────────────────────────────
-
 ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, rangeStart, rangeEnd, outputDir }) => {
   const gs = findGhostscript();
   const name = path.basename(file, '.pdf');
-
-  // Obtener número de páginas
   let totalPages = 0;
   try {
-    const info = await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=nullpage "${file}"`);
-    // Alternativa: usar magick para obtener páginas
     const identify = await run(`magick identify "${file}"`);
     totalPages = identify.trim().split('\n').length;
   } catch (_) {
-    return { ok: false, error: 'No se pudo leer el PDF. Verifica que Ghostscript esté instalado.' };
+    return { ok: false, error: 'No se pudo leer el PDF. Verifica que ImageMagick y Ghostscript estén instalados.' };
   }
 
   const results = [];
