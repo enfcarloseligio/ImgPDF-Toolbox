@@ -19,7 +19,8 @@
     "productName": "ImgPDF Toolbox",
     "win": {
       "target": "nsis",
-      "icon": "renderer/assets/icon.ico"
+      "icon": "renderer/assets/icon.ico",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
