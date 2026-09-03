@@ -3,22 +3,29 @@ const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
-// ── Utilidades ────────────────────────────────────────────────────────────────
+// ── Control de procesos y cancelación ─────────────────────────────────────────
+
+let currentProcess = null;
+let isCancelled = false;
 
 function run(cmd) {
   return new Promise((resolve, reject) => {
-    exec(cmd, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
-      if (error) reject(stderr || error.message);
-      else resolve(stdout);
+    currentProcess = exec(cmd, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
+      currentProcess = null;
+      if (error) {
+        if (isCancelled) {
+          reject('Operación cancelada por el usuario.');
+        } else {
+          reject(stderr || error.message);
+        }
+      } else {
+        resolve(stdout);
+      }
     });
   });
 }
 
 function findGhostscript() {
-  const candidates = [
-    'gswin64c', 'gswin32c',
-  ];
-  // Buscar en Program Files con versiones comunes
   const pfDirs = [
     'C:\\Program Files\\gs',
     'C:\\Program Files (x86)\\gs',
@@ -34,7 +41,26 @@ function findGhostscript() {
       }
     }
   }
-  return 'gswin64c'; // fallback PATH
+  return 'gswin64c';
+}
+
+// Genera un nombre de archivo único con sufijo incremental para no sobreescribir
+function getUniqueFilePath(targetPath) {
+  if (!fs.existsSync(targetPath)) return targetPath;
+
+  const dir = path.dirname(targetPath);
+  const ext = path.extname(targetPath);
+  const base = path.basename(targetPath, ext);
+
+  let counter = 1;
+  let candidate = path.join(dir, `${base} (${counter})${ext}`);
+
+  while (fs.existsSync(candidate)) {
+    counter++;
+    candidate = path.join(dir, `${base} (${counter})${ext}`);
+  }
+
+  return candidate;
 }
 
 // ── Ventana principal ─────────────────────────────────────────────────────────
@@ -66,7 +92,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// ── IPC: Selección de archivos ────────────────────────────────────────────────
+// ── IPC: Utilidades del sistema ───────────────────────────────────────────────
 
 ipcMain.handle('select-files', async (event, filters) => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -85,6 +111,28 @@ ipcMain.handle('select-folder', async () => {
 
 ipcMain.handle('open-url', async (event, url) => {
   shell.openExternal(url);
+});
+
+ipcMain.handle('open-folder', async (event, dirPath) => {
+  if (dirPath && fs.existsSync(dirPath)) {
+    await shell.openPath(dirPath);
+    return true;
+  }
+  return false;
+});
+
+ipcMain.handle('play-beep', () => {
+  shell.beep();
+});
+
+ipcMain.handle('cancel-operation', () => {
+  isCancelled = true;
+  if (currentProcess) {
+    try {
+      currentProcess.kill();
+    } catch (_) {}
+  }
+  return true;
 });
 
 // ── IPC: Verificar herramientas ───────────────────────────────────────────────
@@ -109,7 +157,7 @@ ipcMain.handle('check-tools', async () => {
   return result;
 });
 
-// ── IPC: Instalar herramientas ────────────────────────────────────────────────
+// ── IPC: Instalar y actualizar herramientas ───────────────────────────────────
 
 ipcMain.handle('install-tool', async (event, tool) => {
   const cmds = {
@@ -128,39 +176,82 @@ ipcMain.handle('install-tool', async (event, tool) => {
 
 ipcMain.handle('update-tools', async () => {
   const results = {};
+
+  const isUpToDate = (output) => {
+    const text = (output || '').toLowerCase();
+    return (
+      text.includes('successfully') ||
+      text.includes('correctamente') ||
+      text.includes('no applicable') ||
+      text.includes('no se ha encontrado ninguna actualizaci') ||
+      text.includes('no hay versiones más recientes') ||
+      text.includes('no hay versiones mas recientes') ||
+      text.includes('no se encontró ningún paquete') ||
+      text.includes('no se encontro ningun paquete')
+    );
+  };
+
   try {
     const im = await run('winget upgrade --id ImageMagick.ImageMagick');
-    results.imagemagick = im.includes('successfully') || im.includes('No applicable') ? 'ok' : 'check';
-  } catch (e) { results.imagemagick = 'error'; }
+    results.imagemagick = isUpToDate(im) ? 'ok' : 'check';
+  } catch (e) {
+    results.imagemagick = isUpToDate(e) ? 'ok' : 'error';
+  }
+
   try {
     const gs = await run('winget upgrade --id ArtifexSoftware.GhostScript');
-    results.ghostscript = gs.includes('successfully') || gs.includes('No applicable') ? 'ok' : 'check';
-  } catch (e) { results.ghostscript = 'error'; }
+    results.ghostscript = isUpToDate(gs) ? 'ok' : 'check';
+  } catch (e) {
+    results.ghostscript = isUpToDate(e) ? 'ok' : 'error';
+  }
+
   return results;
 });
 
 // ── IPC: Conversiones ─────────────────────────────────────────────────────────
 
 ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }) => {
+  isCancelled = false;
   const results = [];
   for (const file of files) {
+    if (isCancelled) {
+      results.push({ file, ok: false, error: 'Cancelado' });
+      break;
+    }
     const name = path.basename(file, path.extname(file));
-    const out = path.join(outputDir, `${name}.pdf`);
+    const targetOut = path.join(outputDir, `${name}.pdf`);
+    const out = getUniqueFilePath(targetOut);
+
     try {
       await run(`magick "${file}" -quality ${quality} "${out}"`);
       results.push({ file, out, ok: true });
     } catch (e) {
       results.push({ file, ok: false, error: e });
+      if (isCancelled) break;
     }
   }
   return results;
 });
 
 ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, background, outputDir }) => {
+  isCancelled = false;
   const results = [];
   for (const file of files) {
+    if (isCancelled) {
+      results.push({ file, ok: false, error: 'Cancelado' });
+      break;
+    }
     const name = path.basename(file, '.pdf');
-    const outPattern = path.join(outputDir, `${name}-%03d.${format}`);
+    
+    // Si ya existe la primera página esperada, incrementamos el prefijo base
+    let basePatternName = name;
+    let counter = 1;
+    while (fs.existsSync(path.join(outputDir, `${basePatternName}-001.${format}`))) {
+      basePatternName = `${name} (${counter})`;
+      counter++;
+    }
+
+    const outPattern = path.join(outputDir, `${basePatternName}-%03d.${format}`);
     let bgFlags = '';
     if (background !== 'original') {
       bgFlags = `-background "${background}" -alpha remove -alpha off`;
@@ -170,16 +261,19 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
       results.push({ file, ok: true });
     } catch (e) {
       results.push({ file, ok: false, error: e });
+      if (isCancelled) break;
     }
   }
   return results;
 });
 
 ipcMain.handle('merge-pdfs', async (event, { files, outputDir }) => {
+  isCancelled = false;
   const gs = findGhostscript();
-  const outName = path.basename(files[0], '.pdf') + '-combinado.pdf';
-  const out = path.join(outputDir, outName);
+  const baseOutName = path.basename(files[0], '.pdf') + '-combinado.pdf';
+  const out = getUniqueFilePath(path.join(outputDir, baseOutName));
   const inputs = files.map(f => `"${f}"`).join(' ');
+
   try {
     await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dAutoRotatePages=/None -sOutputFile="${out}" ${inputs}`);
     return { ok: true, out };
@@ -188,7 +282,7 @@ ipcMain.handle('merge-pdfs', async (event, { files, outputDir }) => {
   }
 });
 
-// ── IPC: Separar PDF (Con Detección Previa y Múltiples Rangos) ────────────────
+// ── IPC: Separar PDF (Con Detección Previa y Rangos Múltiples) ────────────────
 
 ipcMain.handle('get-pdf-info', async (event, file) => {
   try {
@@ -201,35 +295,48 @@ ipcMain.handle('get-pdf-info', async (event, file) => {
 });
 
 ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, customRanges, outputDir, totalPages }) => {
+  isCancelled = false;
   const gs = findGhostscript();
   const name = path.basename(file, '.pdf');
   const results = [];
 
   if (mode === 'individual') {
     for (let i = 1; i <= totalPages; i++) {
-      const out = path.join(outputDir, `${name}-pag${String(i).padStart(3, '0')}.pdf`);
+      if (isCancelled) break;
+      const targetOut = path.join(outputDir, `${name}-pag${String(i).padStart(3, '0')}.pdf`);
+      const out = getUniqueFilePath(targetOut);
       try {
         await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${i} -dLastPage=${i} -sOutputFile="${out}" "${file}"`);
         results.push({ page: i, out, ok: true });
-      } catch (e) { results.push({ page: i, ok: false, error: e }); }
+      } catch (e) {
+        results.push({ page: i, ok: false, error: e });
+        if (isCancelled) break;
+      }
     }
   } else if (mode === 'block') {
     let block = 1;
     for (let i = 1; i <= totalPages; i += blockSize) {
+      if (isCancelled) break;
       const end = Math.min(i + blockSize - 1, totalPages);
-      const out = path.join(outputDir, `${name}-bloque${String(block).padStart(2, '0')}.pdf`);
+      const targetOut = path.join(outputDir, `${name}-bloque${String(block).padStart(2, '0')}.pdf`);
+      const out = getUniqueFilePath(targetOut);
       try {
         await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${i} -dLastPage=${end} -sOutputFile="${out}" "${file}"`);
         results.push({ block, out, ok: true });
         block++;
-      } catch (e) { results.push({ block, ok: false, error: e }); block++; }
+      } catch (e) {
+        results.push({ block, ok: false, error: e });
+        block++;
+        if (isCancelled) break;
+      }
     }
   } else if (mode === 'custom') {
-    // Procesar rangos personalizados (Ej: 1-5, 6-10, 15)
     const parts = customRanges.split(',').map(s => s.trim()).filter(s => s);
     let partNum = 1;
     for (const part of parts) {
-      const out = path.join(outputDir, `${name}-parte${String(partNum).padStart(2, '0')}.pdf`);
+      if (isCancelled) break;
+      const targetOut = path.join(outputDir, `${name}-parte${String(partNum).padStart(2, '0')}.pdf`);
+      const out = getUniqueFilePath(targetOut);
       let first = part, last = part;
       if (part.includes('-')) {
         [first, last] = part.split('-').map(s => s.trim());
@@ -238,8 +345,13 @@ ipcMain.handle('split-pdf', async (event, { file, mode, blockSize, customRanges,
         await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${first} -dLastPage=${last} -sOutputFile="${out}" "${file}"`);
         results.push({ out, ok: true });
         partNum++;
-      } catch (e) { results.push({ ok: false, error: e }); partNum++; }
+      } catch (e) {
+        results.push({ ok: false, error: e });
+        partNum++;
+        if (isCancelled) break;
+      }
     }
   }
-  return { ok: true, totalPages, results };
+
+  return { ok: true, totalPages, results, wasCancelled: isCancelled };
 });
