@@ -530,3 +530,57 @@ body {
   color: var(--info-text);
   line-height: 1.5;
 }
+
+/* ── Botón Cancelar y Acciones de Proceso ─────────────────────────────────── */
+.btn-danger {
+  background: var(--error);
+  border: 1px solid var(--error);
+  color: #F8FAFC;
+  border-radius: 8px;
+  padding: 0.55rem 1.2rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t);
+}
+.btn-danger:hover {
+  background: #B91C1C;
+  border-color: #B91C1C;
+}
+
+.btn-open-dir {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--deep);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  align-self: flex-start;
+  transition: all var(--t);
+}
+.btn-open-dir:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.file-zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.file-count-badge {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
