@@ -3,41 +3,67 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ImgPDF-Toolbox</title>
+  <title>ImgPDF Toolbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <div class="app-container">
-    <header>
-      <h1>ImgPDF-Toolbox</h1>
-      <p class="subtitle">Conversión y manipulación local sin conexión</p>
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="header-brand">
+        <span class="brand-icon">🖼️</span>
+        <div>
+          <h1 class="brand-title">ImgPDF Toolbox</h1>
+          <p class="brand-sub">Conversión y manipulación local · Sin conexión requerida</p>
+        </div>
+      </div>
+      <div class="tools-status" id="tools-status">
+        <span class="status-dot checking"></span>
+        <span class="status-label">Verificando herramientas...</span>
+      </div>
     </header>
 
-    <main>
-      <section class="menu-grid">
-        <button class="card-btn" id="btn-conversor">
-          <span class="icon">🔄</span>
-          <span class="title">Imágenes ⟷ PDF</span>
-          <span class="desc">Convertir entre JPG, PNG y PDF</span>
-        </button>
+    <!-- MENU PRINCIPAL -->
+    <nav class="menu-grid" id="main-menu">
+      <button class="card-btn" data-module="img-to-pdf">
+        <span class="card-icon">🖼️</span>
+        <span class="card-title">IMG → PDF</span>
+        <span class="card-desc">Convierte PNG o JPG a PDF</span>
+      </button>
+      <button class="card-btn" data-module="pdf-to-img">
+        <span class="card-icon">📄</span>
+        <span class="card-title">PDF → IMG</span>
+        <span class="card-desc">Extrae páginas como PNG o JPG</span>
+      </button>
+      <button class="card-btn" data-module="merge">
+        <span class="card-icon">📑</span>
+        <span class="card-title">Unir PDFs</span>
+        <span class="card-desc">Fusiona varios archivos en orden</span>
+      </button>
+      <button class="card-btn" data-module="split">
+        <span class="card-icon">✂️</span>
+        <span class="card-title">Separar PDF</span>
+        <span class="card-desc">Por páginas, bloques o rangos</span>
+      </button>
+    </nav>
 
-        <button class="card-btn" id="btn-separar">
-          <span class="icon">✂️</span>
-          <span class="title">Separar PDF</span>
-          <span class="desc">Por páginas, bloques o rangos</span>
-        </button>
+    <!-- WORKSPACE -->
+    <section class="workspace" id="workspace">
+      <p class="workspace-placeholder">Selecciona una opción para comenzar</p>
+    </section>
 
-        <button class="card-btn" id="btn-unir">
-          <span class="icon">📑</span>
-          <span class="title">Unir PDFs</span>
-          <span class="desc">Fusionar varios archivos en orden</span>
-        </button>
-      </section>
+    <!-- FOOTER -->
+    <footer class="app-footer">
+      Creado por <a href="https://enfcarloseligio.com/" target="_blank">enfcarloseligio</a>
+      · Requiere <a href="https://imagemagick.org" target="_blank">ImageMagick</a>
+      y <a href="https://www.ghostscript.com" target="_blank">Ghostscript</a>
+    </footer>
 
-      <section class="workspace" id="workspace">
-        <p class="placeholder-text">Selecciona una opción del menú para comenzar</p>
-      </section>
-    </main>
   </div>
 
   <script src="app.js"></script>
