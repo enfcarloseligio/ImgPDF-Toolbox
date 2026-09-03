@@ -55,6 +55,9 @@ dist/
 build/
 out/
 release/
+extraResources/
+**/dist/
+**/extraResources/
 
 # Operating System files
 Thumbs.db
