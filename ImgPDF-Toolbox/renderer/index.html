@@ -7,25 +7,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styles/global.css">
+  <link rel="stylesheet" href="styles/modules.css">
 </head>
 <body>
 
-  <!-- ── SPLASH / BIENVENIDA ───────────────────────────────────────────── -->
+  <!-- SPLASH -->
   <div class="splash" id="splash">
     <div class="splash-card">
-
       <div class="splash-brand">
         <div class="splash-logo">🖼️</div>
         <h1 class="splash-title">ImgPDF Toolbox</h1>
-        <p class="splash-by">
-          Una herramienta de
-          <a href="#" class="splash-link" id="splash-author-link">@enfcarloseligio</a>
-        </p>
+        <p class="splash-by">Una herramienta de <a href="#" class="splash-link" id="splash-author-link">@enfcarloseligio</a></p>
         <p class="splash-site" id="splash-site-link">enfcarloseligio.com</p>
       </div>
 
-      <!-- Estado del escaneo -->
       <div class="splash-scan" id="splash-scan">
         <div class="scan-step" id="scan-im">
           <div class="scan-icon spinning">⏳</div>
@@ -43,10 +39,7 @@
         </div>
       </div>
 
-      <!-- Resultado del escaneo -->
       <div class="splash-result" id="splash-result" style="display:none">
-
-        <!-- Panel de instalación si falta algo -->
         <div id="install-panel" style="display:none">
           <div class="install-notice">
             <p class="install-title">⚠️ Faltan dependencias requeridas</p>
@@ -54,29 +47,25 @@
           </div>
           <div id="install-actions"></div>
           <div class="install-manual" id="install-manual" style="display:none">
-            <p class="manual-title">📥 Instalación manual requerida:</p>
-            <p class="manual-desc">Ghostscript no puede instalarse automáticamente en todos los sistemas. Descárgalo desde su sitio oficial y vuelve a abrir la aplicación.</p>
+            <p class="manual-title">📥 Instalación manual requerida</p>
+            <p class="manual-desc">Ghostscript no pudo instalarse automáticamente. Descárgalo desde su sitio oficial y vuelve a abrir la aplicación.</p>
             <button class="btn-accent" id="btn-gs-manual">Descargar Ghostscript</button>
           </div>
         </div>
-
-        <!-- Botones de acción -->
         <div class="splash-actions">
           <button class="btn-primary" id="btn-enter">Entrar a la aplicación →</button>
-          <button class="btn-ghost" id="btn-skip" style="display:none">Continuar sin instalar</button>
+          <button class="btn-ghost"   id="btn-skip" style="display:none">Continuar sin instalar</button>
         </div>
-
       </div>
 
       <div class="splash-loader" id="splash-loader">
         <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
         <p class="loader-msg" id="loader-msg">Preparando entorno...</p>
       </div>
-
     </div>
   </div>
 
-  <!-- ── APP PRINCIPAL ──────────────────────────────────────────────────── -->
+  <!-- APP PRINCIPAL -->
   <div class="app-container" id="app" style="display:none; opacity:0">
 
     <header class="app-header">
@@ -87,7 +76,7 @@
           <p class="brand-sub">Conversión y manipulación local · Sin conexión requerida</p>
         </div>
       </div>
-      <div class="tools-status" id="tools-status" title="Ver estado de herramientas">
+      <div class="tools-status" id="tools-status" title="Estado de herramientas">
         <span class="status-dot checking"></span>
         <span class="status-label">Verificando...</span>
       </div>
@@ -117,7 +106,7 @@
       <button class="card-btn" data-module="update">
         <span class="card-icon">🔄</span>
         <span class="card-title">Actualizar</span>
-        <span class="card-desc">Actualiza ImageMagick y Ghostscript</span>
+        <span class="card-desc">Actualiza las dependencias</span>
       </button>
     </nav>
 
@@ -126,14 +115,22 @@
     </section>
 
     <footer class="app-footer">
-      Creado por
-      <a href="#" id="footer-author">@enfcarloseligio</a> ·
+      Creado por <a href="#" id="footer-author">@enfcarloseligio</a> ·
       <a href="#" id="footer-site">enfcarloseligio.com</a> ·
       Requiere <a href="#" id="footer-im">ImageMagick</a> y <a href="#" id="footer-gs">Ghostscript</a>
     </footer>
 
   </div>
 
+  <!-- Orden de carga: core primero, módulos después, orquestador al final -->
+  <script src="core/state.js"></script>
+  <script src="core/ui-utils.js"></script>
+  <script src="core/notifications.js"></script>
+  <script src="modules/img-to-pdf.js"></script>
+  <script src="modules/pdf-to-img.js"></script>
+  <script src="modules/merge.js"></script>
+  <script src="modules/split.js"></script>
+  <script src="modules/update.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

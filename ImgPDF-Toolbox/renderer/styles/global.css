@@ -1,0 +1,377 @@
+/* ── global.css ──────────────────────────────────────────────────────────────
+   Variables de identidad, reset, layout general, header, footer y splash.
+   NO contiene estilos de módulos específicos (esos van en modules.css).
+────────────────────────────────────────────────────────────────────────────── */
+
+/* ── Variables de identidad ──────────────────────────────────────────────── */
+:root {
+  --primary:          #0A66C2;
+  --primary-dark:     #084C94;
+  --primary-darker:   #063A73;
+  --primary-soft:     #E6F0FA;
+  --accent:           #06B6D4;
+  --accent-dark:      #0891B2;
+  --accent-deeper:    #0E7490;
+  --deep:             #0F172A;
+  --text:             #475569;
+  --bg:               #F8FAFC;
+  --surface:          #FFFFFF;
+  --border:           #E2E8F0;
+  --muted:            #A5B4C3;
+  --success:          #16A34A;
+  --success-bg:       #F0FDF4;
+  --success-border:   #86EFAC;
+  --warning:          #F59E0B;
+  --warning-bg:       #FFFBEB;
+  --warning-border:   #FDE68A;
+  --error:            #DC2626;
+  --error-bg:         #FEF2F2;
+  --error-border:     #FECACA;
+  --info-bg:          #EFF6FF;
+  --info-border:      #BFDBFE;
+  --info-text:        #1E40AF;
+  --radius:           10px;
+  --shadow-sm:        0 2px 8px  rgba(15,23,42,0.06);
+  --shadow-md:        0 4px 20px rgba(15,23,42,0.10);
+  --shadow-lg:        0 8px 40px rgba(15,23,42,0.14);
+  --t:                0.18s ease;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+a { color: var(--primary); text-decoration: underline; transition: color var(--t); }
+a:hover { color: var(--primary-darker); }
+
+/* ── Layout principal ────────────────────────────────────────────────────── */
+.app-container {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 1.75rem 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  transition: opacity 0.4s ease;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-brand { display: flex; align-items: center; gap: 0.9rem; }
+.brand-icon   { font-size: 2rem; }
+
+.brand-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--deep);
+  line-height: 1.2;
+}
+
+.brand-sub {
+  font-size: 0.8rem;
+  font-weight: 300;
+  color: var(--muted);
+}
+
+.tools-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 0.35rem 0.85rem;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color var(--t);
+}
+.tools-status:hover { border-color: var(--primary); }
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.checking { background: var(--warning); animation: pulse 1.2s infinite; }
+.status-dot.ok       { background: var(--success); }
+.status-dot.warn     { background: var(--warning); }
+.status-dot.error    { background: var(--error);   }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Menú de tarjetas ────────────────────────────────────────────────────── */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.card-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  text-align: center;
+}
+.card-btn:hover  { transform: translateY(-3px); border-color: var(--primary); box-shadow: var(--shadow-md); }
+.card-btn.active { border-color: var(--primary); background: var(--primary-soft); box-shadow: var(--shadow-md); }
+
+.card-icon  { font-size: 1.75rem; }
+.card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 700; color: var(--deep); }
+.card-desc  { font-size: 0.72rem; font-weight: 300; color: var(--muted); }
+
+/* ── Workspace ────────────────────────────────────────────────────────────── */
+.workspace {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  min-height: 260px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transition: border-color var(--t);
+}
+.workspace.active { border-style: solid; }
+.workspace-placeholder { font-size: 0.88rem; color: var(--muted); margin: auto; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.app-footer {
+  font-size: 0.73rem;
+  font-weight: 300;
+  color: var(--muted);
+  text-align: center;
+  padding-bottom: 0.5rem;
+}
+
+/* ── SPLASH ──────────────────────────────────────────────────────────────── */
+.splash {
+  position: fixed; inset: 0;
+  background: linear-gradient(135deg, #0F172A 0%, #172540 60%, #0A66C2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+.splash.fade-out { opacity: 0; pointer-events: none; }
+
+.splash-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  padding: 2.5rem 2.75rem;
+  width: 420px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-lg);
+}
+
+.splash-brand { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+
+.splash-logo { font-size: 3rem; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+
+.splash-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #F8FAFC;
+  letter-spacing: -0.02em;
+}
+
+.splash-by   { font-size: 0.84rem; color: rgba(255,255,255,0.55); }
+.splash-link { color: var(--accent); text-decoration: none; font-weight: 500; transition: color var(--t); }
+.splash-link:hover { color: #F8FAFC; }
+.splash-site { font-size: 0.75rem; color: rgba(255,255,255,0.35); cursor: pointer; transition: color var(--t); }
+.splash-site:hover { color: var(--accent); }
+
+.splash-scan { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.scan-step {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  transition: border-color 0.3s;
+}
+.scan-step.ok   { border-color: rgba(22,163,74,0.4);  background: rgba(22,163,74,0.08); }
+.scan-step.warn { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
+
+.scan-icon { font-size: 1.3rem; width: 24px; text-align: center; flex-shrink: 0; }
+.scan-icon.spinning { animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.scan-info { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
+.scan-name   { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.88rem; font-weight: 600; color: #F8FAFC; }
+.scan-status { font-size: 0.76rem; color: rgba(255,255,255,0.45); }
+.scan-step.ok   .scan-status { color: #4ADE80; }
+.scan-step.warn .scan-status { color: #FCD34D; }
+
+.splash-loader { display: flex; flex-direction: column; gap: 0.5rem; }
+.loader-bar    { height: 4px; background: rgba(255,255,255,0.1); border-radius: 99px; overflow: hidden; }
+.loader-fill   { height: 100%; background: linear-gradient(90deg, var(--accent), var(--primary)); border-radius: 99px; width: 0%; transition: width 0.4s ease; }
+.loader-msg    { font-size: 0.78rem; color: rgba(255,255,255,0.4); text-align: center; }
+
+.splash-result { display: flex; flex-direction: column; gap: 1rem; }
+.splash-actions { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.install-notice {
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+.install-title { font-size: 0.9rem; font-weight: 600; color: #FCD34D; margin-bottom: 0.2rem; }
+.install-desc  { font-size: 0.78rem; color: rgba(255,255,255,0.5); }
+
+.install-actions { display: flex; flex-direction: column; gap: 0.5rem; }
+.install-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 7px;
+}
+.install-tool-name { font-size: 0.84rem; font-weight: 600; color: #F8FAFC; }
+.install-tool-note { font-size: 0.72rem; color: rgba(255,255,255,0.4); }
+
+.install-manual {
+  background: rgba(6,182,212,0.08);
+  border: 1px solid rgba(6,182,212,0.2);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.manual-title { font-size: 0.85rem; font-weight: 600; color: var(--accent); }
+.manual-desc  { font-size: 0.76rem; color: rgba(255,255,255,0.45); }
+
+/* ── Botones globales ────────────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--primary); border: 1px solid var(--primary); color: #F8FAFC;
+  border-radius: 8px; padding: 0.65rem 1.4rem;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; transition: all var(--t); width: 100%;
+}
+.btn-primary:hover    { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn-primary:active   { background: var(--primary-darker); }
+.btn-primary:disabled { background: var(--muted); border-color: var(--muted); cursor: not-allowed; }
+
+.btn-secondary {
+  background: transparent; border: 1px solid var(--primary); color: var(--primary);
+  border-radius: 8px; padding: 0.55rem 1.2rem;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.88rem; font-weight: 600;
+  cursor: pointer; transition: all var(--t);
+}
+.btn-secondary:hover { background: var(--primary-soft); }
+.btn-secondary:disabled { border-color: var(--muted); color: var(--muted); cursor: not-allowed; }
+
+.btn-accent {
+  background: var(--accent); border: 1px solid var(--accent); color: var(--deep);
+  border-radius: 8px; padding: 0.5rem 1.1rem;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 600;
+  cursor: pointer; transition: all var(--t);
+}
+.btn-accent:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+.btn-danger {
+  background: var(--error); border: 1px solid var(--error); color: #F8FAFC;
+  border-radius: 8px; padding: 0.55rem 1.1rem;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 600;
+  cursor: pointer; transition: all var(--t);
+}
+.btn-danger:hover { background: #B91C1C; border-color: #B91C1C; }
+
+.btn-ghost {
+  background: transparent; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5);
+  border-radius: 8px; padding: 0.55rem 1.2rem;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 500;
+  cursor: pointer; transition: all var(--t); width: 100%;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.06); color: #F8FAFC; }
+
+.btn-open-dir {
+  background: transparent; border: 1px solid var(--primary); color: var(--primary);
+  border-radius: 6px; padding: 0.3rem 0.75rem;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all var(--t);
+  margin-top: 0.35rem; display: inline-block;
+}
+.btn-open-dir:hover { background: var(--primary-soft); }
+
+.btn-sm { padding: 0.38rem 0.85rem !important; font-size: 0.8rem !important; }
+
+/* ── Notificaciones (toasts) ─────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 1rem;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-md);
+  pointer-events: all;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  max-width: 320px;
+}
+.toast-visible { opacity: 1; transform: translateX(0); }
+.toast-hiding  { opacity: 0; transform: translateX(20px); }
+
+.toast-success { background: var(--success-bg); border: 1px solid var(--success-border); color: #166534; }
+.toast-error   { background: var(--error-bg);   border: 1px solid var(--error-border);   color: #991B1B; }
+.toast-warning { background: var(--warning-bg); border: 1px solid var(--warning-border); color: #92400E; }
+.toast-info    { background: var(--info-bg);    border: 1px solid var(--info-border);    color: var(--info-text); }
+
+.toast-icon  { font-size: 1rem; flex-shrink: 0; }
+.toast-msg   { flex: 1; }
+.toast-close {
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.5; font-size: 0.9rem; padding: 0 0.2rem;
+  transition: opacity var(--t);
+}
+.toast-close:hover { opacity: 1; }
