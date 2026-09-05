@@ -97,9 +97,13 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\IMGPDF-TOOLBOX\IMGPDF-TOOLBOX
 ¦       ¦       zh-TW.pak
 ¦       ¦       
 ¦       +---resources
-¦               app.asar
-¦               elevate.exe
-¦               
+¦           ¦   app.asar
+¦           ¦   elevate.exe
+¦           ¦   
+¦           +---bin
+¦                   gs10071w64.exe
+¦                   ImageMagick-7.1.2-30-Q16-HDRI-x64-dll.exe
+¦                   
 +---extraResources
 ¦       gs10071w64.exe
 ¦       ImageMagick-7.1.2-30-Q16-HDRI-x64-dll.exe
@@ -9750,8 +9754,23 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\IMGPDF-TOOLBOX\IMGPDF-TOOLBOX
 +---renderer
     ¦   app.js
     ¦   index.html
-    ¦   style.css
     ¦   
     +---assets
-            icon.ico
+    ¦       icon.ico
+    ¦       
+    +---core
+    ¦       notifications.js
+    ¦       state.js
+    ¦       ui-utils.js
+    ¦       
+    +---modules
+    ¦       img-to-pdf.js
+    ¦       merge.js
+    ¦       pdf-to-img.js
+    ¦       split.js
+    ¦       update.js
+    ¦       
+    +---styles
+            global.css
+            modules.css
             

@@ -1,0 +1,235 @@
+/* ── modules.css ─────────────────────────────────────────────────────────────
+   Estilos específicos del workspace y módulos funcionales.
+   Variables y reset en global.css.
+────────────────────────────────────────────────────────────────────────────── */
+
+/* ── Módulo base ─────────────────────────────────────────────────────────── */
+.module { width: 100%; display: flex; flex-direction: column; gap: 1.25rem; }
+
+.module-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--deep);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.module-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: -0.5rem;
+}
+
+/* ── Grupos de opciones ──────────────────────────────────────────────────── */
+.option-group { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.option-group label {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--deep);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.option-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.opt-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.38rem 0.85rem;
+  font-family: 'Roboto', sans-serif;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--t);
+}
+.opt-btn:hover  { border-color: var(--primary); color: var(--primary); }
+.opt-btn.active { background: var(--primary); border-color: var(--primary); color: #F8FAFC; }
+
+/* ── Zona de archivos ────────────────────────────────────────────────────── */
+.file-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color var(--t), background var(--t);
+}
+.file-zone:hover    { border-color: var(--accent); }
+.file-zone.drag-active {
+  border-color: var(--accent);
+  background: rgba(6,182,212,0.04);
+}
+
+.file-zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-count-badge {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 99px;
+  padding: 0.15rem 0.65rem;
+}
+
+.file-list  { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.file-empty {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text);
+  border: 1px solid var(--border);
+  transition: border-color var(--t);
+}
+.file-item:hover { border-color: var(--primary); }
+
+.file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.file-order {
+  color: var(--muted);
+  font-size: 0.72rem;
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.file-actions { display: flex; gap: 0.2rem; }
+
+.file-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0 0.2rem;
+  transition: color var(--t);
+  line-height: 1;
+}
+.file-remove:hover { color: var(--error); }
+
+/* ── Carpeta de salida ───────────────────────────────────────────────────── */
+.output-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.output-path {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+/* ── Fila de botones ─────────────────────────────────────────────────────── */
+.btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+/* ── Inputs numéricos y de texto ─────────────────────────────────────────── */
+.num-input {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.38rem 0.6rem;
+  font-size: 0.83rem;
+  color: var(--deep);
+  background: var(--bg);
+  transition: border-color var(--t);
+  width: 80px;
+}
+.num-input:focus { outline: none; border-color: var(--primary); }
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.83rem;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+
+/* ── Cajas de resultado ──────────────────────────────────────────────────── */
+.result-box {
+  border-radius: var(--radius);
+  padding: 0.85rem 1.1rem;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.result-box + .result-box { margin-top: 0.5rem; }
+
+.result-box.success { background: var(--success-bg); border: 1px solid var(--success-border); color: #166534; }
+.result-box.error   { background: var(--error-bg);   border: 1px solid var(--error-border);   color: #991B1B; }
+.result-box.warning { background: var(--warning-bg); border: 1px solid var(--warning-border); color: #92400E; }
+.result-box.info    { background: var(--info-bg);    border: 1px solid var(--info-border);    color: var(--info-text); }
+
+.result-title { font-weight: 600; font-size: 0.86rem; }
+.result-item  { font-size: 0.76rem; opacity: 0.85; }
+
+/* ── Barra de progreso ───────────────────────────────────────────────────── */
+.progress-bar  { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--primary); border-radius: 99px; transition: width 0.3s ease; }
+
+/* ── Resumen de operación (split) ────────────────────────────────────────── */
+.summary-box {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: var(--info-text);
+  line-height: 1.6;
+}
+
+/* ── Módulo Actualizar ───────────────────────────────────────────────────── */
+.update-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  transition: border-color var(--t);
+}
+.update-card:hover { border-color: var(--primary); }
+
+.update-tool-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; color: var(--deep); font-size: 0.9rem; }
+.update-tool-ver  { font-size: 0.75rem; color: var(--muted); }
+
+.update-badge {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.update-badge.ok   { background: var(--success-bg); color: #166534; border: 1px solid var(--success-border); }
+.update-badge.miss { background: var(--error-bg);   color: #991B1B; border: 1px solid var(--error-border);   }
