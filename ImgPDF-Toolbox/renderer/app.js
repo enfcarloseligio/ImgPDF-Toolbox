@@ -4,13 +4,8 @@
 //   - Inicializar la app principal
 //   - Enrutar módulos
 //   - Bindear links externos
-// Todo lo demás vive en core/ o modules/
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Recuperar carpeta de salida guardada
-  const savedDir = await window.api.storeGet('lastOutputDir');
-  if (savedDir) setOutputDir(savedDir);
-
   bindExternalLinks();
   await runSplash();
 });
@@ -22,30 +17,29 @@ async function runSplash() {
   const loaderMsg  = document.getElementById('loader-msg');
 
   const steps = [
-    [10,  'Iniciando entorno...'],
-    [30,  'Buscando ImageMagick...'],
-    [55,  'Buscando Ghostscript...'],
-    [80,  'Verificando versiones...'],
-    [95,  'Casi listo...'],
+    [15, 'Iniciando entorno...'],
+    [40, 'Buscando ImageMagick...'],
+    [65, 'Buscando Ghostscript...'],
+    [90, 'Comprobando librerías...'],
   ];
 
   for (const [pct, msg] of steps) {
     loaderFill.style.width = pct + '%';
     loaderMsg.textContent  = msg;
-    await delay(380);
+    await delay(300);
   }
 
   const tools = await window.api.checkTools();
   setTools(tools);
 
   loaderFill.style.width = '100%';
-  loaderMsg.textContent  = 'Escaneo completado.';
-  await delay(300);
+  loaderMsg.textContent  = 'Verificación lista.';
+  await delay(200);
 
   document.getElementById('splash-loader').style.display = 'none';
   updateScanStep('scan-im', tools.imageMagick, tools.imVersion);
   updateScanStep('scan-gs', tools.ghostscript, tools.gsVersion);
-  await delay(200);
+  await delay(150);
 
   const resultPanel = document.getElementById('splash-result');
   resultPanel.style.cssText = 'display:flex; flex-direction:column; gap:1rem';
@@ -64,20 +58,22 @@ async function runSplash() {
 
 function updateScanStep(id, ok, version) {
   const el   = document.getElementById(id);
+  if (!el) return;
   const icon = el.querySelector('.scan-icon');
   const stat = el.querySelector('.scan-status');
   el.classList.add(ok ? 'ok' : 'warn');
   icon.textContent = ok ? '✅' : '⚠️';
   icon.classList.remove('spinning');
-  stat.textContent = ok ? `v${version} — Detectado` : 'No encontrado';
+  stat.textContent = ok ? `v${version} — Listo` : 'No encontrado';
 }
 
 function buildInstallPanel(tools) {
   const panel   = document.getElementById('install-panel');
   const actions = document.getElementById('install-actions');
   panel.style.cssText = 'display:flex; flex-direction:column; gap:0.75rem';
+  actions.innerHTML   = '';
 
-  const addRow = (tool, label, note, btnId, scanId, onFail) => {
+  const addRow = (tool, label, note, btnId, scanId) => {
     const row = document.createElement('div');
     row.className = 'install-row';
     row.innerHTML = `
@@ -87,37 +83,41 @@ function buildInstallPanel(tools) {
       </div>
       <button class="btn-accent btn-sm" id="${btnId}">Instalar</button>`;
     actions.appendChild(row);
-
-    row.querySelector(`#${btnId}`).addEventListener('click', async () => {
-      const btn = row.querySelector(`#${btnId}`);
-      btn.textContent = 'Instalando...';
-      btn.disabled    = true;
-      const res = await window.api.installTool(tool);
-      if (res.ok) {
-        updateScanStep(scanId, true, 'instalado');
-        btn.textContent = '✓ Listo';
-        notify.success(`${label} instalado correctamente.`);
-      } else {
-        btn.textContent = 'Error';
-        btn.disabled    = false;
-        notify.error(`No se pudo instalar ${label}.`);
-        if (onFail) onFail(res);
-      }
-    });
+    row.querySelector(`#${btnId}`).addEventListener('click', () =>
+      installToolAction(tool, btnId, scanId)
+    );
   };
 
   if (!tools.imageMagick) {
-    addRow('imagemagick', 'ImageMagick', 'Se instalará vía winget o instalador local', 'install-im', 'scan-im', null);
+    addRow('imagemagick', 'ImageMagick', 'Instalador silencioso integrado', 'install-im', 'scan-im');
   }
 
   if (!tools.ghostscript) {
-    addRow('ghostscript', 'Ghostscript', 'Puede requerir instalación manual', 'install-gs', 'scan-gs', () => {
-      const manual = document.getElementById('install-manual');
-      manual.style.cssText = 'display:flex; flex-direction:column; gap:0.5rem';
-    });
+    addRow('ghostscript', 'Ghostscript', 'Puede requerir instalación manual', 'install-gs', 'scan-gs');
     document.getElementById('btn-gs-manual').addEventListener('click', () => {
       window.api.openUrl('https://www.ghostscript.com/releases/gsdnld.html');
     });
+  }
+}
+
+async function installToolAction(tool, btnId, scanId) {
+  const btn = document.getElementById(btnId);
+  btn.textContent = 'Instalando...';
+  btn.disabled    = true;
+
+  const res = await window.api.installTool(tool);
+  if (res.ok) {
+    updateScanStep(scanId, true, 'instalado');
+    btn.textContent = '✓ Listo';
+    notify.success(`${tool} instalado correctamente.`);
+  } else {
+    btn.textContent = 'Error';
+    btn.disabled    = false;
+    notify.error(`Fallo al instalar ${tool}.`);
+    if (tool === 'ghostscript') {
+      const manual = document.getElementById('install-manual');
+      manual.style.cssText = 'display:flex; flex-direction:column; gap:0.5rem';
+    }
   }
 }
 
@@ -139,6 +139,9 @@ function initApp() {
   updateStatusBadge();
   bindMenu();
   bindFooterLinks();
+  // Cargar módulo por defecto al entrar (mejora de Gemini — mejor UX)
+  loadModule('img-to-pdf');
+  document.querySelector('.card-btn[data-module="img-to-pdf"]')?.classList.add('active');
 }
 
 function updateStatusBadge() {
@@ -179,7 +182,7 @@ function bindMenu() {
   document.querySelectorAll('.card-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       if (state.isProcessing) {
-        notify.warning('Hay un proceso activo. Espera a que termine o cancélalo.');
+        notify.warning('Hay una operación en curso. Espera o cancélala antes de cambiar de módulo.');
         return;
       }
       document.querySelectorAll('.card-btn').forEach(b => b.classList.remove('active'));

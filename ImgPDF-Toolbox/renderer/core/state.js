@@ -15,6 +15,15 @@ const state = {
   }
 };
 
+// ── Carga asíncrona inicial (mejora de Gemini) ────────────────────────────────
+// Se ejecuta al cargar el script, antes de DOMContentLoaded en app.js
+(async () => {
+  if (window.api?.storeGet) {
+    const saved = await window.api.storeGet('lastOutputDir');
+    if (saved) state.outputDir = saved;
+  }
+})();
+
 // ── Mutaciones ────────────────────────────────────────────────────────────────
 
 function setOutputDir(dir) {
@@ -24,8 +33,9 @@ function setOutputDir(dir) {
 
 function setProcessing(val) {
   state.isProcessing = val;
+  // Bloquea visualmente el menú mientras hay un proceso activo
   document.querySelectorAll('.card-btn').forEach(btn => {
-    btn.style.opacity      = val ? '0.5' : '1';
+    btn.style.opacity       = val ? '0.5' : '1';
     btn.style.pointerEvents = val ? 'none' : '';
   });
 }

@@ -1,11 +1,11 @@
 // ── modules/update.js ─────────────────────────────────────────────────────────
 function renderUpdate() {
-  const t  = state.tools;
+  const t = state.tools;
   const ws = document.getElementById('workspace');
 
   ws.innerHTML = `<div class="module">
     <div class="module-title">🔄 Actualizar dependencias</div>
-    <p class="module-desc">Verifica e instala actualizaciones disponibles para ImageMagick y Ghostscript.</p>
+    <p class="module-desc">Verifica e instala actualizaciones disponibles para ImageMagick y Ghostscript vía winget.</p>
 
     <div class="update-card">
       <div>
@@ -23,58 +23,44 @@ function renderUpdate() {
       <span class="update-badge ${t.ghostscript ? 'ok' : 'miss'}">${t.ghostscript ? '✓ Instalado' : '✗ Faltante'}</span>
     </div>
 
-    ${!t.winget ? `<div class="result-box warning">
-      <div class="result-title">⚠ winget no disponible</div>
-      <div class="result-item">Las actualizaciones automáticas requieren winget (Windows Package Manager).
-        Descarga las herramientas manualmente desde los botones de abajo.</div>
-    </div>` : ''}
-
     <div class="btn-row">
-      <button class="btn-primary" id="run-update" style="width:auto" ${!t.winget ? 'disabled title="winget no disponible"' : ''}>
-        ${t.winget ? 'Buscar y aplicar actualizaciones' : 'winget no disponible'}
-      </button>
-      <button class="btn-accent" id="open-im-site">↗ ImageMagick</button>
-      <button class="btn-accent" id="open-gs-site">↗ Ghostscript</button>
+      <button class="btn-primary" id="run-update" style="width:auto">Buscar actualizaciones</button>
+      <button class="btn-accent"  id="open-im-site">Descargar ImageMagick web</button>
+      <button class="btn-accent"  id="open-gs-site">Descargar Ghostscript web</button>
     </div>
     <div id="update-result"></div>
   </div>`;
 
-  document.getElementById('open-im-site').addEventListener('click', () =>
-    window.api.openUrl('https://imagemagick.org/script/download.php'));
-  document.getElementById('open-gs-site').addEventListener('click', () =>
-    window.api.openUrl('https://www.ghostscript.com/releases/gsdnld.html'));
+  document.getElementById('open-im-site').addEventListener('click', () => {
+    window.api.openUrl('https://imagemagick.org/script/download.php');
+  });
 
-  const runBtn = document.getElementById('run-update');
-  if (!runBtn || runBtn.disabled) return;
+  document.getElementById('open-gs-site').addEventListener('click', () => {
+    window.api.openUrl('https://www.ghostscript.com/releases/gsdnld.html');
+  });
 
-  runBtn.addEventListener('click', async () => {
-    runBtn.disabled = true; runBtn.textContent = 'Actualizando...';
+  document.getElementById('run-update').addEventListener('click', async () => {
+    const btn = document.getElementById('run-update');
+    btn.disabled = true; btn.textContent = 'Verificando...';
     document.getElementById('update-result').innerHTML = progressBar(40);
-    notify.info('Buscando actualizaciones...');
 
     const res = await window.api.updateTools();
     window.api.playBeep();
 
     if (!res.wingetAvailable) {
-      document.getElementById('update-result').innerHTML = resultBox('warning',
-        '⚠ winget no disponible',
-        ['No se pudieron verificar actualizaciones automáticamente.',
-         'Usa los botones de descarga para instalar manualmente.']);
-      notify.warning('winget no disponible en este sistema.');
+      document.getElementById('update-result').innerHTML = resultBox('warning', '⚠ winget no está disponible en este equipo', [
+        'Utiliza los botones de descarga manual para obtener las versiones más recientes.'
+      ]);
+      notify.warning('winget no disponible.');
     } else {
-      const imOk = res.imagemagick === 'ok';
-      const gsOk = res.ghostscript  === 'ok';
-      document.getElementById('update-result').innerHTML = resultBox('info',
-        '🔄 Proceso de actualización completado', [
-          `ImageMagick: ${imOk ? '✓ Actualizado o al día' : '⚠ Revisar manualmente'}`,
-          `Ghostscript: ${gsOk ? '✓ Actualizado o al día' : '⚠ Revisar manualmente'}`,
-          'Si se instaló alguna actualización, reinicia la aplicación para detectar la nueva versión.',
-        ]);
-      imOk && gsOk
-        ? notify.success('Ambas herramientas están al día.')
-        : notify.warning('Alguna herramienta puede requerir revisión manual.');
+      document.getElementById('update-result').innerHTML = resultBox('info', '🔄 Estado de actualizaciones', [
+        `ImageMagick: ${res.imagemagick === 'ok' ? '✓ Al día' : '⚠ Revisar actualización manual'}`,
+        `Ghostscript:  ${res.ghostscript  === 'ok' ? '✓ Al día' : '⚠ Revisar actualización manual'}`,
+        'Si se aplicó alguna actualización, reinicia la app para detectarla.'
+      ]);
+      notify.info('Comprobación finalizada.');
     }
 
-    runBtn.disabled = false; runBtn.textContent = 'Buscar y aplicar actualizaciones';
+    btn.disabled = false; btn.textContent = 'Buscar actualizaciones';
   });
 }
