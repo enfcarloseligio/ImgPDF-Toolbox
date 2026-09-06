@@ -2,9 +2,10 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
+const os = require('os');
+const https = require('https');
 
 // ── Persistencia con archivo JSON en userData ─────────────────────────────────
-// Reemplaza localStorage — más robusto y correcto para Electron en producción
 
 function getStorePath() {
   return path.join(app.getPath('userData'), 'settings.json');
@@ -290,7 +291,6 @@ ipcMain.handle('split-pdf', async (_, { file, mode, blockSize, customRanges, out
   const name = path.basename(file, '.pdf');
   const results = [];
 
-  // Validar rangos antes de ejecutar
   if (mode === 'custom') {
     const parts = customRanges.split(',').map(s => s.trim()).filter(s => s);
     for (const part of parts) {
@@ -344,4 +344,259 @@ ipcMain.handle('split-pdf', async (_, { file, mode, blockSize, customRanges, out
   }
 
   return { ok: true, totalPages, results, wasCancelled: isCancelled };
+});
+
+// ── IPC: Escanear fuentes del sistema ─────────────────────────────────────────
+
+ipcMain.handle('get-system-fonts', async () => {
+  const fontDirs = [
+    'C:\\Windows\\Fonts',
+    path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'Windows', 'Fonts'),
+  ];
+  const validExts = ['.ttf', '.otf', '.TTF', '.OTF'];
+  const fonts = [];
+
+  for (const dir of fontDirs) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const ext = path.extname(file);
+        if (!validExts.includes(ext)) continue;
+        const fullPath = path.join(dir, file);
+        const name = path.basename(file, ext)
+          .replace(/[-_]/g, ' ')
+          .replace(/([a-z])([A-Z])/g, '$1 $2');
+        fonts.push({ name, path: fullPath, file });
+      }
+    } catch (_) {}
+  }
+
+  return fonts.sort((a, b) => a.name.localeCompare(b.name));
+});
+
+// ── IPC: Descargar fuente de Google Fonts temporalmente ───────────────────────
+
+ipcMain.handle('download-google-font', async (_, { family, url }) => {
+  const fontsDir = path.join(app.getPath('userData'), 'fonts');
+  if (!fs.existsSync(fontsDir)) fs.mkdirSync(fontsDir, { recursive: true });
+
+  const fontPath = path.join(fontsDir, `${family.replace(/\s+/g, '_')}.ttf`);
+  if (fs.existsSync(fontPath)) return { ok: true, path: fontPath };
+
+  try {
+    await new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(fontPath);
+      https.get(url, res => {
+        res.pipe(file);
+        file.on('finish', () => { file.close(); resolve(); });
+      }).on('error', err => {
+        fs.unlink(fontPath, () => {});
+        reject(err);
+      });
+    });
+    return { ok: true, path: fontPath };
+  } catch (e) {
+    return { ok: false, error: e.toString() };
+  }
+});
+
+// ── IPC: Compresión de PDF ────────────────────────────────────────────────────
+
+ipcMain.handle('compress-pdf', async (_, { files, profile, outputDir }) => {
+  isCancelled = false;
+  const gs = findGhostscript();
+  const results = [];
+
+  const profileMap = {
+    screen:    '/screen',
+    ebook:     '/ebook',
+    printer:   '/printer',
+    prepress:  '/prepress',
+  };
+  const gsProfile = profileMap[profile] || '/ebook';
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    const name       = path.basename(file, '.pdf');
+    const out        = getUniqueFilePath(path.join(outputDir, `${name}-comprimido.pdf`));
+    const sizeBefore = fs.existsSync(file) ? fs.statSync(file).size : 0;
+
+    try {
+      await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dCompatibilityLevel=1.4 -dPDFSETTINGS=${gsProfile} -sOutputFile="${out}" "${file}"`);
+      const sizeAfter = fs.existsSync(out) ? fs.statSync(out).size : 0;
+      results.push({ file, out, ok: true, sizeBefore, sizeAfter });
+    } catch (e) {
+      results.push({ file, ok: false, error: String(e) });
+      if (isCancelled) break;
+    }
+  }
+  return results;
+});
+
+// ── IPC: Rotación masiva ──────────────────────────────────────────────────────
+
+ipcMain.handle('rotate-files', async (_, { files, angle, target, outputDir }) => {
+  isCancelled = false;
+  const gs = findGhostscript();
+  const results = [];
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    const ext   = path.extname(file).toLowerCase();
+    const name  = path.basename(file, ext);
+    const isPdf = ext === '.pdf';
+
+    if (!isPdf) {
+      const out = getUniqueFilePath(path.join(outputDir, `${name}-rot${angle}${ext}`));
+      try {
+        await run(`magick "${file}" -rotate ${angle} "${out}"`);
+        results.push({ file, out, ok: true });
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+      }
+    } else {
+      try {
+        const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
+        const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+        const tempDir    = path.join(app.getPath('temp'), `imgpdf_rot_${Date.now()}`);
+        fs.mkdirSync(tempDir, { recursive: true });
+
+        const pageParts = [];
+
+        for (let i = 1; i <= totalPages; i++) {
+          if (isCancelled) break;
+          const shouldRotate =
+            target === 'all' ||
+            (target === 'even' && i % 2 === 0) ||
+            (target === 'odd'  && i % 2 !== 0);
+
+          const tempOut = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
+
+          if (shouldRotate) {
+            const tempImg = path.join(tempDir, `pag${String(i).padStart(3,'0')}.png`);
+            await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
+            await run(`magick "${tempImg}" -rotate ${angle} "${tempOut}"`);
+          } else {
+            await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -dFirstPage=${i} -dLastPage=${i} -sOutputFile="${tempOut}" "${file}"`);
+          }
+          pageParts.push(tempOut);
+        }
+
+        if (!isCancelled && pageParts.length > 0) {
+          const out    = getUniqueFilePath(path.join(outputDir, `${name}-rot${angle}.pdf`));
+          const inputs = pageParts.map(p => `"${p}"`).join(' ');
+          await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -sOutputFile="${out}" ${inputs}`);
+          results.push({ file, out, ok: true });
+        }
+
+        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+        if (isCancelled) break;
+      }
+    }
+  }
+  return results;
+});
+
+// ── IPC: Marca de agua de texto ───────────────────────────────────────────────
+
+ipcMain.handle('watermark-text', async (_, { files, text, fontPath, fontSize, opacity, angle, position, color, outputDir }) => {
+  isCancelled = false;
+  const results = [];
+
+  const gravityMap = {
+    center:       'Center',
+    top_left:     'NorthWest',
+    top_right:    'NorthEast',
+    bottom_left:  'SouthWest',
+    bottom_right: 'SouthEast',
+  };
+  const gravity   = gravityMap[position] || 'Center';
+  const fontFlag  = fontPath ? `-font "${fontPath}"` : '';
+  const alphaVal  = Math.round((opacity / 100) * 255);
+  const hexAlpha  = alphaVal.toString(16).padStart(2, '0');
+  const fillColor = `${color}${hexAlpha}`;
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    const ext   = path.extname(file).toLowerCase();
+    const name  = path.basename(file, ext);
+    const isPdf = ext === '.pdf';
+
+    if (!isPdf) {
+      const out = getUniqueFilePath(path.join(outputDir, `${name}-wm${ext}`));
+      try {
+        await run(`magick "${file}" ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" -gravity ${gravity} -annotate ${angle}x${angle}+0+0 "${text}" "${out}"`);
+        results.push({ file, out, ok: true });
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+      }
+    } else {
+      try {
+        const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
+        const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+        const tempDir    = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
+        fs.mkdirSync(tempDir, { recursive: true });
+
+        const pageParts = [];
+
+        for (let i = 1; i <= totalPages; i++) {
+          if (isCancelled) break;
+          const tempImg = path.join(tempDir, `pag${String(i).padStart(3,'0')}.png`);
+          const tempPdf = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
+          await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
+          await run(`magick "${tempImg}" ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" -gravity ${gravity} -annotate ${angle}x${angle}+0+0 "${text}" "${tempPdf}"`);
+          pageParts.push(tempPdf);
+        }
+
+        if (!isCancelled && pageParts.length > 0) {
+          const gs     = findGhostscript();
+          const out    = getUniqueFilePath(path.join(outputDir, `${name}-wm.pdf`));
+          const inputs = pageParts.map(p => `"${p}"`).join(' ');
+          await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -sOutputFile="${out}" ${inputs}`);
+          results.push({ file, out, ok: true });
+        }
+
+        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+        if (isCancelled) break;
+      }
+    }
+  }
+  return results;
+});
+
+// ── IPC: Desbloqueo de PDF ────────────────────────────────────────────────────
+
+ipcMain.handle('unlock-pdf', async (_, { files, password, outputDir }) => {
+  isCancelled = false;
+  const gs = findGhostscript();
+  const results = [];
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    const name   = path.basename(file, '.pdf');
+    const out    = getUniqueFilePath(path.join(outputDir, `${name}-desbloqueado.pdf`));
+    const pwFlag = password ? `-sPDFPassword="${password}"` : '';
+
+    try {
+      await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER ${pwFlag} -sOutputFile="${out}" "${file}"`);
+      results.push({ file, out, ok: true });
+    } catch (e) {
+      const errMsg  = String(e);
+      const wrongPw = errMsg.toLowerCase().includes('password') || errMsg.includes('encrypted');
+      results.push({ file, ok: false, error: wrongPw ? 'Contraseña incorrecta o PDF no desbloqueado' : errMsg });
+      if (isCancelled) break;
+    }
+  }
+  return results;
 });
