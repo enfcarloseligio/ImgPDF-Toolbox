@@ -375,29 +375,120 @@ ipcMain.handle('get-system-fonts', async () => {
   return fonts.sort((a, b) => a.name.localeCompare(b.name));
 });
 
-// ── IPC: Descargar fuente de Google Fonts temporalmente ───────────────────────
+// ── IPC: Descargar fuente de Google Fonts con soporte de Peso (TTF) ───────────
 
-ipcMain.handle('download-google-font', async (_, { family, url }) => {
+ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
   const fontsDir = path.join(app.getPath('userData'), 'fonts');
   if (!fs.existsSync(fontsDir)) fs.mkdirSync(fontsDir, { recursive: true });
 
-  const fontPath = path.join(fontsDir, `${family.replace(/\s+/g, '_')}.ttf`);
+  const cleanFamily = family.trim();
+  const safeName    = `${cleanFamily.replace(/\s+/g, '_')}_${weight}`;
+  const fontPath    = path.join(fontsDir, `${safeName}.ttf`);
+
   if (fs.existsSync(fontPath)) return { ok: true, path: fontPath };
 
+  // ── Helper: GET con soporte de redirecciones ───────────────────────────────
+  const getRequest = (targetUrl, headers = {}) => new Promise((resolve, reject) => {
+    https.get(targetUrl, { headers }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(getRequest(res.headers.location, headers));
+      }
+      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+      resolve(res);
+    }).on('error', reject);
+  });
+
+  // ── Construir variantes del nombre para el repositorio de GitHub ───────────
+  const weightNames = {
+    100: 'Thin', 200: 'ExtraLight', 300: 'Light', 400: 'Regular',
+    500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black'
+  };
+  const wName = weightNames[weight] || 'Regular';
+
+  // Slug para la carpeta del repo: todo minúsculas sin espacios ni guiones
+  const slug   = cleanFamily.toLowerCase().replace(/[\s\-]/g, '');
+  // Nombre del archivo: sin espacios, capitalización original preservada
+  const pascal = cleanFamily.replace(/\s+/g, '');
+  // Variante con guiones para algunos repos
+  const kebab  = cleanFamily.replace(/\s+/g, '-');
+
+  // ── Lista de URLs candidatas en orden de prioridad ─────────────────────────
+  const candidateUrls = [
+    // 1. Google API CSS con User-Agent legacy (fuerza TTF en lugar de woff2)
+    { type: 'css', url: `https://fonts.googleapis.com/css?family=${encodeURIComponent(cleanFamily)}:${weight}`, headers: { 'User-Agent': 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)' } },
+    // 2. GitHub Google Fonts repo - ofl (Open Font License) - peso específico
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}-${wName}.ttf` },
+    // 3. GitHub - apache license fonts
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/apache/${slug}/${pascal}-${wName}.ttf` },
+    // 4. GitHub - ufl license fonts
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ufl/${slug}/${pascal}-${wName}.ttf` },
+    // 5. Variable fonts (un solo archivo cubre todos los pesos)
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}[wght].ttf` },
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}%5Bwght%5D.ttf` },
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/apache/${slug}/${pascal}%5Bwght%5D.ttf` },
+    // 6. Bunny Fonts CSS (mirror de Google Fonts sin restricciones CORS)
+    { type: 'css', url: `https://fonts.bunny.net/css?family=${kebab.toLowerCase()}:${weight}`, headers: { 'User-Agent': 'Mozilla/4.0' } },
+    // 7. Regular como fallback si el peso específico no existe
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}-Regular.ttf` },
+    { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/apache/${slug}/${pascal}-Regular.ttf` },
+  ];
+
+  let fontStream = null;
+
+  for (const candidate of candidateUrls) {
+    try {
+      if (candidate.type === 'css') {
+        // Obtener CSS y extraer URL directa del TTF
+        const cssRes = await getRequest(candidate.url, candidate.headers || {});
+        let css = '';
+        await new Promise((res, rej) => {
+          cssRes.setEncoding('utf8');
+          cssRes.on('data', chunk => { css += chunk; });
+          cssRes.on('end', res);
+          cssRes.on('error', rej);
+        });
+        // Buscar URL de TTF o WOFF (no woff2, no compatible con IM fácilmente)
+        const match = css.match(/url\((https?:\/\/[^)]+\.(?:ttf|woff))(?:\?[^)]*)?\)/i);
+        if (match) {
+          fontStream = await getRequest(match[1]);
+          break;
+        }
+      } else {
+        // Descarga directa del TTF
+        fontStream = await getRequest(candidate.url, candidate.headers || {});
+        break;
+      }
+    } catch (_) {
+      // Continuar con la siguiente candidata
+    }
+  }
+
+  if (!fontStream) {
+    return {
+      ok: false,
+      error: `No se encontró la variante ${weight} (${wName}) para "${cleanFamily}". Verifica el nombre exacto de la familia.`
+    };
+  }
+
+  // ── Guardar el archivo ─────────────────────────────────────────────────────
   try {
     await new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(fontPath);
-      https.get(url, res => {
-        res.pipe(file);
-        file.on('finish', () => { file.close(); resolve(); });
-      }).on('error', err => {
-        fs.unlink(fontPath, () => {});
-        reject(err);
-      });
+      const fileStream = fs.createWriteStream(fontPath);
+      fontStream.pipe(fileStream);
+      fileStream.on('finish', () => { fileStream.close(); resolve(); });
+      fileStream.on('error', err => { fs.unlink(fontPath, () => {}); reject(err); });
     });
+
+    // Verificar que el archivo descargado sea válido (> 1KB)
+    if (!fs.existsSync(fontPath) || fs.statSync(fontPath).size < 1024) {
+      try { fs.unlinkSync(fontPath); } catch (_) {}
+      return { ok: false, error: `El archivo descargado no es una fuente válida para "${cleanFamily}".` };
+    }
+
     return { ok: true, path: fontPath };
   } catch (e) {
-    return { ok: false, error: e.toString() };
+    try { fs.unlinkSync(fontPath); } catch (_) {}
+    return { ok: false, error: e.message || e.toString() };
   }
 });
 
