@@ -121,35 +121,128 @@ function renderFileList(containerId, files, onRemove) {
   });
 }
 
-// Lista con controles de orden ↑↓ para el módulo Merge
+// Lista interactiva con ordenamiento por arrastre (☰) y aislamiento de zona
 function renderOrderedFileList(containerId, files, onChange) {
   const list = document.getElementById(containerId);
   if (!list) return;
+
+  // Limpiar cualquier estado activo residual en la zona exterior
+  const parentZone = list.closest('.file-zone');
+  if (parentZone) parentZone.classList.remove('drag-active');
 
   if (!files.length) {
     list.innerHTML = '<span class="file-empty">Ningún archivo seleccionado</span>';
     return;
   }
 
-  list.innerHTML = files.map((f, i) => `
-    <div class="file-item">
-      <span class="file-order">${i + 1}.</span>
-      <span class="file-name">📄 ${basename(f)}</span>
-      <div class="file-actions">
-        ${i > 0               ? `<button class="file-remove" data-act="up"   data-i="${i}" title="Subir">↑</button>`  : ''}
-        ${i < files.length-1  ? `<button class="file-remove" data-act="down" data-i="${i}" title="Bajar">↓</button>` : ''}
-        <button class="file-remove" data-act="rm" data-i="${i}" title="Quitar">✕</button>
-      </div>
-    </div>`).join('');
+  list.innerHTML = '';
 
-  list.querySelectorAll('.file-remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.i), act = btn.dataset.act;
-      if      (act === 'rm')   files.splice(idx, 1);
-      else if (act === 'up')   [files[idx-1], files[idx]]   = [files[idx], files[idx-1]];
-      else if (act === 'down') [files[idx],   files[idx+1]] = [files[idx+1], files[idx]];
+  files.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.dataset.index = i;
+
+    item.innerHTML = `
+      <div style="display:flex;align-items:center;overflow:hidden;flex:1;gap:0.35rem">
+        <span class="file-drag-handle" draggable="true" style="cursor:grab;color:var(--muted);user-select:none;padding:0 0.3rem;font-size:1rem" title="Arrastrar para reordenar">☰</span>
+        <span class="file-order" style="font-weight:600;font-size:0.8rem;color:var(--primary);min-width:1.2rem">${i + 1}.</span>
+        <span class="file-name" title="${f}">📄 ${basename(f)}</span>
+      </div>
+      <div class="file-actions" style="display:flex;align-items:center;gap:0.35rem;margin-left:0.5rem">
+        <button class="btn-order btn-order-up" style="
+          display:inline-flex;align-items:center;justify-content:center;
+          width:24px;height:24px;padding:0;border:1px solid var(--border);border-radius:4px;
+          background:#ffffff;color:var(--primary);font-size:0.75rem;font-weight:bold;cursor:pointer"
+          title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button class="btn-order btn-order-down" style="
+          display:inline-flex;align-items:center;justify-content:center;
+          width:24px;height:24px;padding:0;border:1px solid var(--border);border-radius:4px;
+          background:#ffffff;color:var(--primary);font-size:0.75rem;font-weight:bold;cursor:pointer"
+          title="Bajar" ${i === files.length - 1 ? 'disabled' : ''}>▼</button>
+        <button class="file-remove" style="cursor:pointer" title="Quitar">✕</button>
+      </div>`;
+
+    const handle  = item.querySelector('.file-drag-handle');
+    const btnUp   = item.querySelector('.btn-order-up');
+    const btnDown = item.querySelector('.btn-order-down');
+    const btnRm   = item.querySelector('.file-remove');
+
+    // Botones de flechas
+    if (i === 0) {
+      btnUp.style.opacity = '0.35';
+      btnUp.style.cursor = 'not-allowed';
+      btnUp.style.color = 'var(--muted)';
+    } else {
+      btnUp.addEventListener('click', (e) => {
+        e.stopPropagation();
+        [files[i - 1], files[i]] = [files[i], files[i - 1]];
+        onChange(files);
+      });
+    }
+
+    if (i === files.length - 1) {
+      btnDown.style.opacity = '0.35';
+      btnDown.style.cursor = 'not-allowed';
+      btnDown.style.color = 'var(--muted)';
+    } else {
+      btnDown.addEventListener('click', (e) => {
+        e.stopPropagation();
+        [files[i], files[i + 1]] = [files[i + 1], files[i]];
+        onChange(files);
+      });
+    }
+
+    btnRm.addEventListener('click', (e) => {
+      e.stopPropagation();
+      files.splice(i, 1);
       onChange(files);
     });
+
+    // Eventos Drag & Drop aislados desde el icono ☰
+    handle.addEventListener('dragstart', (e) => {
+      e.stopPropagation();
+      item.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', i);
+    });
+
+    handle.addEventListener('dragend', (e) => {
+      e.stopPropagation();
+      item.style.opacity = '1';
+      list.querySelectorAll('.file-item').forEach(el => {
+        el.style.borderTop = '';
+      });
+      if (parentZone) parentZone.classList.remove('drag-active');
+    });
+
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      item.style.borderTop = '2px solid var(--primary)';
+    });
+
+    item.addEventListener('dragleave', (e) => {
+      e.stopPropagation();
+      item.style.borderTop = '';
+    });
+
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      item.style.borderTop = '';
+
+      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      const toIndex = i;
+
+      if (!isNaN(fromIndex) && fromIndex !== toIndex) {
+        const [movedItem] = files.splice(fromIndex, 1);
+        files.splice(toIndex, 0, movedItem);
+        onChange(files);
+      }
+    });
+
+    list.appendChild(item);
   });
 }
 
