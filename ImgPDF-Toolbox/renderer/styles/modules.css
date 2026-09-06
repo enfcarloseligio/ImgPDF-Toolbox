@@ -99,7 +99,7 @@
   font-size: 0.8rem;
   color: var(--text);
   border: 1px solid var(--border);
-  transition: border-color var(--t);
+  transition: border-color var(--t), background var(--t);
 }
 .file-item:hover { border-color: var(--primary); }
 
@@ -320,4 +320,53 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .wm-preview-box .wm-preview-label {
   display: inline-block;
   line-height: 1;
+}
+
+/* ── Estilos para Unir PDFs (Flechas Azules y Drag & Drop) ────────────────── */
+.btn-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all var(--t);
+}
+
+.btn-order:hover:not(:disabled) {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-dark);
+}
+
+.btn-order:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+.file-drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  user-select: none;
+  padding: 0 0.2rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: color var(--t);
+}
+
+.file-drag-handle:hover {
+  color: var(--primary);
+}
+
+.file-item:active .file-drag-handle {
+  cursor: grabbing;
 }
