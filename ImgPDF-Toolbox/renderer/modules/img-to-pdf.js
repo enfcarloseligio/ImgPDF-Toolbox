@@ -1,8 +1,10 @@
 // ── modules/img-to-pdf.js ─────────────────────────────────────────────────────
-function renderImgToPdf() {
-  let files = [], quality = 100;
-  const ws = document.getElementById('workspace');
+async function renderImgToPdf() {
+  // Cargar config guardada
+  const cfg = await loadModuleConfig('img-to-pdf', { quality: 100 });
+  let files = [], quality = cfg.quality;
 
+  const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">🖼️ Imágenes → PDF</div>
     <div class="option-group">
@@ -35,7 +37,8 @@ function renderImgToPdf() {
     { label: '75% — Alta',    value: 75  },
     { label: '50% — Media',   value: 50  },
     { label: '25% — Baja',    value: 25  },
-  ], 100, v => { quality = v; });
+  ], quality, v => { quality = v; },
+  v => saveModuleConfig('img-to-pdf', { quality: v }));
 
   const onRemove = f => {
     files = files.filter(x => x !== f);
@@ -46,16 +49,15 @@ function renderImgToPdf() {
   const addFiles = async picked => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'i2p-path');
-    const news = picked.filter(f => !files.includes(f));
     const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...news];
+    files = [...files, ...picked.filter(f => !files.includes(f))];
     renderFileList('img-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
   };
 
   document.getElementById('pick-imgs').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg'] }]);
+    const picked = await window.api.selectFiles([{ name: 'Imágenes', extensions: ['png','jpg','jpeg'] }]);
     addFiles(picked);
   });
 
@@ -67,8 +69,7 @@ function renderImgToPdf() {
   });
 
   document.getElementById('i2p-pick').addEventListener('click', () => pickOutputDir('i2p-path').then(updateRun));
-
-  bindDragDrop('zone-i2p', ['png', 'jpg', 'jpeg'], addFiles);
+  bindDragDrop('zone-i2p', ['png','jpg','jpeg'], addFiles);
 
   function updateRun() {
     document.getElementById('run-i2p').disabled = !(files.length && state.outputDir && !state.isProcessing);
@@ -83,8 +84,7 @@ function renderImgToPdf() {
 
   document.getElementById('run-i2p').addEventListener('click', async () => {
     setProcessing(true);
-    const btn    = document.getElementById('run-i2p');
-    const cancel = document.getElementById('cancel-i2p');
+    const btn = document.getElementById('run-i2p'), cancel = document.getElementById('cancel-i2p');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
     document.getElementById('i2p-result').innerHTML = progressBar(40);
@@ -92,11 +92,10 @@ function renderImgToPdf() {
     const res = await window.api.convertImgToPdf({ files, quality, outputDir: state.outputDir });
     window.api.playBeep();
 
-    const ok  = res.filter(r => r.ok);
-    const err = res.filter(r => !r.ok);
+    const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('i2p-result').innerHTML =
       (ok.length  ? resultBox('success', `✓ ${ok.length} archivo(s) convertido(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es) o cancelados`,  err.map(r => basename(r.file))) : '');
+      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => basename(r.file))) : '');
 
     if (ok.length)  notify.success(`${ok.length} imagen(es) convertida(s) a PDF.`);
     if (err.length) notify.error(`${err.length} archivo(s) no pudieron convertirse.`);

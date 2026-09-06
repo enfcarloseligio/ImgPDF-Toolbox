@@ -1,25 +1,75 @@
 // ── modules/watermark.js ──────────────────────────────────────────────────────
-function renderWatermark() {
+async function renderWatermark() {
+  const cfg = await loadModuleConfig('watermark', {
+    text: 'CONFIDENCIAL', fontSize: 72, fontWeight: 400,
+    opacity: 50, orientation: 'diagonal_asc', angle: -45, position: 'center',
+    color: '#FF0000', repeatMode: 'single',
+    repeatGapH: 200, repeatGapV: 150,
+    fontSource: 'system'
+  });
+
   let files       = [];
-  let text        = 'CONFIDENCIAL';
+  let text        = cfg.text;
   let fontPath    = null;
-  let fontSize    = 72;
-  let fontWeight  = 400;
-  let opacity     = 50;
-  let angle       = 45;
-  let position    = 'center';
-  let color       = '#FF0000';
-  let fontSource  = 'system';
+  let fontSize    = cfg.fontSize;
+  let fontWeight  = cfg.fontWeight;
+  let opacity     = cfg.opacity;
+  let orientation = cfg.orientation || 'diagonal_asc';
+  let angle       = cfg.angle ?? -45;
+  let position    = cfg.position;
+  let color       = cfg.color;
+  let repeatMode  = cfg.repeatMode;
+  let repeatGapH  = cfg.repeatGapH;
+  let repeatGapV  = cfg.repeatGapV;
+  let fontSource  = cfg.fontSource;
   let systemFonts = [];
   let gfCatalog   = [];
 
-  const ws = document.getElementById('workspace');
+  const orientationAngles = {
+    diagonal_asc:  -45,
+    diagonal_desc:  45,
+    horizontal:      0,
+    vertical:      -90
+  };
 
+  angle = orientationAngles[orientation] ?? angle;
+
+  // Catálogo base con todas las variantes populares
+  const baseCatalog = [
+    'Roboto', 'Roboto Condensed', 'Roboto Mono', 'Roboto Serif', 'Roboto Slab', 'Roboto Flex',
+    'Open Sans', 'Open Sans Condensed',
+    'Lato', 'Montserrat', 'Montserrat Alternates',
+    'Poppins', 'Oswald', 'Inter', 'Inter Tight',
+    'Raleway', 'Nunito', 'Nunito Sans', 'Ubuntu', 'Ubuntu Condensed', 'Ubuntu Mono',
+    'Rubik', 'Rubik Mono One', 'Playfair Display', 'Lora',
+    'Noto Sans', 'Noto Serif', 'PT Sans', 'PT Serif',
+    'Kanit', 'Merriweather', 'Merriweather Sans', 'Bebas Neue',
+    'Cabin', 'Fira Sans', 'Fira Code', 'Fira Mono',
+    'Barlow', 'Barlow Condensed', 'Quicksand', 'Work Sans',
+    'Inconsolata', 'Titillium Web', 'Mukta', 'Heebo', 'DM Sans', 'DM Serif Display',
+    'Source Sans Pro', 'Source Code Pro', 'Source Serif Pro',
+    'Cinzel', 'Caveat', 'Comfortaa', 'Pacifico', 'Lobster', 'Dancing Script'
+  ];
+
+  gfCatalog = [...baseCatalog];
+
+  (async () => {
+    try {
+      if (window.api?.getGoogleFontsCatalog) {
+        const res = await window.api.getGoogleFontsCatalog();
+        if (res?.ok && Array.isArray(res.families) && res.families.length > 0) {
+          gfCatalog = Array.from(new Set([...baseCatalog, ...res.families])).sort((a, b) => a.localeCompare(b));
+        }
+      }
+    } catch (_) {}
+  })();
+
+  const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">💧 Marca de agua</div>
-    <p class="module-desc">Estampa texto diagonal o posicionado sobre imágenes y PDFs.</p>
+    <p class="module-desc">Estampa texto personalizado, orientado y posicionado sobre imágenes y PDFs.</p>
 
-    <!-- Texto y atajos -->
+    <!-- Texto -->
     <div class="option-group">
       <label>Texto de la marca</label>
       <input type="text" id="wm-text" class="num-input"
@@ -35,40 +85,37 @@ function renderWatermark() {
       <div id="font-picker" style="margin-top:0.5rem"></div>
     </div>
 
-    <!-- Tamaño, Peso, Opacidad, Ángulo -->
-    <div style="display:grid;grid-template-columns:1fr 1.3fr 1fr 1fr;gap:1rem">
+    <!-- Tamaño, peso y opacidad -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
       <div class="option-group">
         <label>Tamaño (px)</label>
-        <input type="number" class="num-input" id="wm-size"
-          value="${fontSize}" min="10" max="300" style="width:100%">
+        <input type="number" class="num-input" id="wm-size" value="${fontSize}" min="10" max="300" style="width:100%">
       </div>
-
       <div class="option-group">
-        <label>Peso / Grosor</label>
-        <select id="wm-weight" class="num-input" style="width:100%;text-align:left;padding:0.35rem 0.5rem">
-          <option value="100">100 (Fina)</option>
-          <option value="200">200 (Extra ligera)</option>
-          <option value="300">300 (Ligera)</option>
-          <option value="400" selected>400 (Normal)</option>
-          <option value="500">500 (Mediana)</option>
-          <option value="600">600 (Semi negrita)</option>
-          <option value="700">700 (Negrita)</option>
-          <option value="800">800 (Extra negrita)</option>
-          <option value="900">900 (Negra)</option>
+        <label>Peso</label>
+        <select id="wm-weight" style="width:100%;border:1px solid var(--border);border-radius:6px;
+          padding:0.38rem 0.6rem;font-size:0.83rem;background:var(--bg);color:var(--deep)">
+          <option value="100" ${fontWeight==100?'selected':''}>Thin (100)</option>
+          <option value="200" ${fontWeight==200?'selected':''}>ExtraLight (200)</option>
+          <option value="300" ${fontWeight==300?'selected':''}>Light (300)</option>
+          <option value="400" ${fontWeight==400?'selected':''}>Regular (400)</option>
+          <option value="500" ${fontWeight==500?'selected':''}>Medium (500)</option>
+          <option value="600" ${fontWeight==600?'selected':''}>SemiBold (600)</option>
+          <option value="700" ${fontWeight==700?'selected':''}>Bold (700)</option>
+          <option value="800" ${fontWeight==800?'selected':''}>ExtraBold (800)</option>
+          <option value="900" ${fontWeight==900?'selected':''}>Black (900)</option>
         </select>
       </div>
-
       <div class="option-group">
         <label>Opacidad (%)</label>
-        <input type="number" class="num-input" id="wm-opacity"
-          value="${opacity}" min="5" max="100" style="width:100%">
+        <input type="number" class="num-input" id="wm-opacity" value="${opacity}" min="5" max="100" style="width:100%">
       </div>
+    </div>
 
-      <div class="option-group">
-        <label>Ángulo (°)</label>
-        <input type="number" class="num-input" id="wm-angle"
-          value="${angle}" min="-180" max="180" style="width:100%">
-      </div>
+    <!-- Orientación (Ángulo) -->
+    <div class="option-group">
+      <label>Orientación del texto</label>
+      <div class="option-row" id="orientation-row"></div>
     </div>
 
     <!-- Color -->
@@ -77,23 +124,41 @@ function renderWatermark() {
       <div class="option-row" id="color-row"></div>
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
         <input type="color" id="wm-color" value="${color}"
-          style="width:36px;height:36px;border:1px solid var(--border);
-                 border-radius:6px;cursor:pointer;padding:2px">
+          style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
         <span style="font-size:0.78rem;color:var(--muted)">O elige un color personalizado</span>
       </div>
     </div>
 
-    <!-- Posición -->
+    <!-- Modo de repetición -->
     <div class="option-group">
-      <label>Posición</label>
+      <label>Distribución</label>
+      <div class="option-row" id="repeat-row"></div>
+      <div id="repeat-gap-row" style="display:none;margin-top:0.5rem">
+        <div class="range-row">
+          <span>Separación horizontal:</span>
+          <input type="number" class="num-input" id="wm-gap-h" value="${repeatGapH}" min="50" max="800">
+          <span>px</span>
+          <span style="margin-left:1rem">Vertical:</span>
+          <input type="number" class="num-input" id="wm-gap-v" value="${repeatGapV}" min="30" max="600">
+          <span>px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Posición (solo visible en Palabra única) -->
+    <div class="option-group" id="position-group">
+      <label>Posición en el documento</label>
       <div class="option-row" id="position-row"></div>
     </div>
 
     <!-- Vista previa interactiva -->
-    <div class="wm-preview-container">
-      <label style="font-size:0.75rem;font-weight:600;color:var(--deep);text-transform:uppercase;">Vista previa en vivo</label>
-      <div class="wm-preview-box" id="wm-preview-box">
-        <span class="wm-preview-label" id="wm-preview-text">CONFIDENCIAL</span>
+    <div class="option-group">
+      <label>Vista previa</label>
+      <div class="wm-preview-container">
+        <div class="wm-preview-box" id="wm-preview-box"></div>
+        <p style="font-size:0.72rem;color:var(--muted);text-align:center">
+          Vista aproximada — el resultado final dependerá del tamaño real del documento
+        </p>
       </div>
     </div>
 
@@ -121,60 +186,88 @@ function renderWatermark() {
     <div id="wm-result"></div>
   </div>`;
 
-  // ── Actualizador de Vista Previa ──────────────────────────────────────────
+  // ── Vista previa interactiva ────────────────────────────────────────────────
   async function updatePreview() {
-    const preview = document.getElementById('wm-preview-text');
     const box = document.getElementById('wm-preview-box');
-    if (!preview || !box) return;
+    if (!box) return;
 
-    preview.textContent = text || 'VISTA PREVIA';
-    preview.style.color = color;
-    preview.style.opacity = opacity / 100;
-    preview.style.fontWeight = fontWeight;
+    box.innerHTML = '';
 
-    const previewSize = Math.max(14, Math.round(fontSize * 0.38));
-    preview.style.fontSize = `${previewSize}px`;
+    const boxW = box.clientWidth  || 450;
+    const boxH = box.clientHeight || 180;
+    const previewSize = Math.max(10, Math.min(fontSize * 0.35, 36));
+    const alphaHex = Math.round((opacity / 100) * 255).toString(16).padStart(2, '0');
+    const fillColor = `${color}${alphaHex}`;
 
+    let activeFontFamily = 'sans-serif';
     if (fontPath) {
-      const fontName = `CustomWMFont_${fontWeight}`;
+      const faceName = `WM_Font_${Date.now()}`;
       try {
-        const fontFace = new FontFace(fontName, `url("file://${fontPath.replace(/\\/g, '/')}")`, {
-          weight: String(fontWeight)
-        });
+        const fontFace = new FontFace(faceName, `url("file://${fontPath.replace(/\\/g, '/')}")`);
         await fontFace.load();
         document.fonts.add(fontFace);
-        preview.style.fontFamily = fontName;
-      } catch (_) {
-        preview.style.fontFamily = 'sans-serif';
-      }
-    } else {
-      preview.style.fontFamily = 'sans-serif';
+        activeFontFamily = `"${faceName}", sans-serif`;
+      } catch (_) {}
     }
 
-    const posStyles = {
-      center:       { top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${angle}deg)` },
-      top_left:     { top: '15%', left: '15%', transform: `translate(0, 0) rotate(${angle}deg)` },
-      top_right:    { top: '15%', right: '15%', left: 'auto', transform: `translate(0, 0) rotate(${angle}deg)` },
-      bottom_left:  { bottom: '15%', top: 'auto', left: '15%', transform: `translate(0, 0) rotate(${angle}deg)` },
-      bottom_right: { bottom: '15%', top: 'auto', right: '15%', left: 'auto', transform: `translate(0, 0) rotate(${angle}deg)` },
+    const gravityMap = {
+      center:       { x: '50%', y: '50%', tx: '-50%', ty: '-50%' },
+      top_left:     { x: '10%', y: '15%', tx: '0',    ty: '0'    },
+      top_right:    { x: '90%', y: '15%', tx: '-100%', ty: '0'   },
+      bottom_left:  { x: '10%', y: '85%', tx: '0',    ty: '-100%'},
+      bottom_right: { x: '90%', y: '85%', tx: '-100%', ty: '-100%'},
     };
 
-    const cur = posStyles[position] || posStyles.center;
-    preview.style.top = cur.top || 'auto';
-    preview.style.bottom = cur.bottom || 'auto';
-    preview.style.left = cur.left || 'auto';
-    preview.style.right = cur.right || 'auto';
-    preview.style.transform = cur.transform;
+    if (repeatMode === 'single') {
+      const g = gravityMap[position] || gravityMap.center;
+      const el = document.createElement('span');
+      el.className = 'wm-preview-label';
+      el.textContent = text || 'MARCA';
+      el.style.cssText = `
+        left: ${g.x}; top: ${g.y};
+        transform: translate(${g.tx}, ${g.ty}) rotate(${angle}deg);
+        font-size: ${previewSize}px;
+        font-weight: ${fontWeight};
+        font-family: ${activeFontFamily};
+        color: ${fillColor};
+        white-space: nowrap;
+      `;
+      box.appendChild(el);
+    } else {
+      const scaleH = Math.max(60, repeatGapH * 0.35);
+      const scaleV = Math.max(40, repeatGapV * 0.35);
+      const cols = Math.ceil(boxW / scaleH) + 2;
+      const rows = Math.ceil(boxH / scaleV) + 2;
+
+      for (let r = -1; r < rows; r++) {
+        for (let c = -1; c < cols; c++) {
+          const el = document.createElement('span');
+          el.className = 'wm-preview-label';
+          el.textContent = text || 'MARCA';
+          el.style.cssText = `
+            left: ${c * scaleH}px; top: ${r * scaleV}px;
+            transform: rotate(${angle}deg);
+            font-size: ${previewSize}px;
+            font-weight: ${fontWeight};
+            font-family: ${activeFontFamily};
+            color: ${fillColor};
+            white-space: nowrap;
+          `;
+          box.appendChild(el);
+        }
+      }
+    }
   }
 
   // ── Atajos de texto ─────────────────────────────────────────────────────────
-  ['CONFIDENCIAL', 'COPIA', 'BORRADOR', 'RECIBIDO', 'PRELIMINAR'].forEach(s => {
+  ['CONFIDENCIAL','COPIA','BORRADOR','RECIBIDO','PRELIMINAR'].forEach(s => {
     const btn = document.createElement('button');
-    btn.className   = 'opt-btn';
+    btn.className = 'opt-btn';
     btn.textContent = s;
     btn.addEventListener('click', () => {
       text = s;
       document.getElementById('wm-text').value = s;
+      saveModuleConfig('watermark', { text: s });
       updatePreview();
     });
     document.getElementById('shortcut-row').appendChild(btn);
@@ -182,76 +275,52 @@ function renderWatermark() {
 
   document.getElementById('wm-text').addEventListener('input', e => {
     text = e.target.value;
+    saveModuleConfig('watermark', { text });
     updatePreview();
   });
 
-  // ── Selector de Peso ────────────────────────────────────────────────────────
-  document.getElementById('wm-weight').addEventListener('change', async e => {
-    fontWeight = parseInt(e.target.value, 10);
-    const familyInput = document.getElementById('gf-family');
-    
-    if (fontSource === 'google' && familyInput && familyInput.value.trim()) {
-      await loadGoogleFont(familyInput.value.trim());
-    } else {
-      updatePreview();
-    }
+  // ── Orientación (Ángulo) ────────────────────────────────────────────────────
+  optButtons(document.getElementById('orientation-row'), [
+    { label: '↗ Diagonal Ascendente (-45°)',  value: 'diagonal_asc'  },
+    { label: '↘ Diagonal Descendente (45°)',  value: 'diagonal_desc' },
+    { label: '➔ Horizontal (0°)',             value: 'horizontal'    },
+    { label: '⬆ Vertical (90°)',              value: 'vertical'      },
+  ], orientation, val => {
+    orientation = val;
+    angle = orientationAngles[val] ?? 0;
+    saveModuleConfig('watermark', { orientation: val, angle });
+    updatePreview();
   });
 
-  // ── Fuente: sistema vs Google Fonts ────────────────────────────────────────
+  // ── Fuente ──────────────────────────────────────────────────────────────────
   optButtons(document.getElementById('font-source-row'), [
     { label: '🖥 Fuentes del sistema', value: 'system' },
     { label: '🌐 Google Fonts',        value: 'google' },
-  ], 'system', val => {
+  ], fontSource, val => {
     fontSource = val;
+    saveModuleConfig('watermark', { fontSource: val });
     renderFontPicker();
   });
-
-  async function loadGoogleFont(family) {
-    const statusEl = document.getElementById('gf-status');
-    if (!family) { notify.warning('Escribe el nombre de una familia de Google Fonts.'); return; }
-
-    statusEl.textContent = `⏳ Descargando (${fontWeight})...`;
-    statusEl.style.color = 'var(--warning)';
-
-    const dl = await window.api.downloadGoogleFont({ family, weight: fontWeight });
-
-    if (dl.ok) {
-      fontPath = dl.path;
-      statusEl.textContent = `✓ ${family} (${fontWeight}) lista`;
-      statusEl.style.color = 'var(--success)';
-      notify.success(`Fuente "${family}" cargada.`);
-      const suggestionsEl = document.getElementById('gf-suggestions');
-      if (suggestionsEl) suggestionsEl.style.display = 'none';
-      updatePreview();
-    } else {
-      statusEl.textContent = '✗ Error al cargar';
-      statusEl.style.color = 'var(--error)';
-      notify.error(dl.error);
-    }
-  }
 
   async function renderFontPicker() {
     const picker = document.getElementById('font-picker');
 
     if (fontSource === 'system') {
       picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">⏳ Cargando fuentes del sistema...</p>`;
-      if (!systemFonts.length) {
-        systemFonts = await window.api.getSystemFonts();
-      }
+      if (!systemFonts.length) systemFonts = await window.api.getSystemFonts();
       if (!systemFonts.length) {
         picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">No se encontraron fuentes instaladas.</p>`;
         return;
       }
-
       picker.innerHTML = `
         <div style="display:flex;gap:0.5rem;align-items:center">
           <input type="text" id="font-search" class="num-input"
-            style="width:220px;text-align:left" placeholder="Buscar fuente...">
+            style="width:240px;text-align:left" placeholder="Buscar fuente...">
           <span style="font-size:0.78rem;color:var(--muted)">${systemFonts.length} fuentes detectadas</span>
         </div>
         <select id="font-select" size="5"
           style="width:100%;margin-top:0.4rem;border:1px solid var(--border);
-                 border-radius:6px;padding:0.3rem;font-size:0.82rem;
+                 border-radius:6px;padding:0.35rem 0.5rem;font-size:0.83rem;
                  background:var(--bg);color:var(--deep)">
           ${systemFonts.map(f => `<option value="${f.path}">${f.name}</option>`).join('')}
         </select>`;
@@ -260,11 +329,11 @@ function renderWatermark() {
       updatePreview();
 
       document.getElementById('font-search').addEventListener('input', e => {
-        const q        = e.target.value.toLowerCase();
+        const q = e.target.value.toLowerCase();
         const filtered = systemFonts.filter(f => f.name.toLowerCase().includes(q));
-        const sel      = document.getElementById('font-select');
-        sel.innerHTML  = filtered.map(f => `<option value="${f.path}">${f.name}</option>`).join('');
-        fontPath       = filtered[0]?.path || null;
+        const sel = document.getElementById('font-select');
+        sel.innerHTML = filtered.map(f => `<option value="${f.path}">${f.name}</option>`).join('');
+        fontPath = filtered[0]?.path || null;
         updatePreview();
       });
 
@@ -274,89 +343,127 @@ function renderWatermark() {
       });
 
     } else {
+      // Formato con la caja estilizada oficial y el menú flotante en blanco
       picker.innerHTML = `
-        <div class="result-box info" style="margin-bottom:0.5rem">
-          <div class="result-title">ℹ️ Google Fonts requiere conexión a Internet</div>
-          <div class="result-item">Escribe la familia y selecciona su peso. Se descargará el archivo exacto.</div>
+        <div class="result-box info" style="margin-bottom:0.6rem">
+          <div class="result-title">ℹ️ Catálogo de Google Fonts</div>
+          <div class="result-item">Escribe la familia deseada (ej: Roboto, Montserrat, Open Sans) y selecciónala de la lista.</div>
         </div>
-        <div style="position:relative;display:inline-block;width:100%">
-          <div style="display:flex;gap:0.5rem;align-items:center">
-            <div style="position:relative;flex:1;max-width:280px">
-              <input type="text" id="gf-family" class="num-input"
-                style="width:100%;text-align:left" placeholder="Ej: Roboto, Open Sans, Lato..."
-                autocomplete="off">
-              <div id="gf-suggestions" style="
-                display:none;position:absolute;top:100%;left:0;right:0;z-index:100;
-                background:var(--surface);border:1px solid var(--border);
-                border-radius:6px;box-shadow:var(--shadow-md);max-height:180px;
-                overflow-y:auto;margin-top:2px"></div>
+        <div style="display:flex;gap:0.5rem;align-items:center;position:relative">
+          <div style="position:relative;width:320px">
+            <input type="text" id="gf-family" class="num-input"
+              style="width:100%;text-align:left;height:36px;padding:0.38rem 0.75rem;font-size:0.84rem;box-sizing:border-box"
+              placeholder="Buscar familia tipográfica..." autocomplete="off">
+            <div id="gf-suggestions" style="
+              display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:99999;
+              background:#ffffff;border:1px solid var(--border);border-radius:6px;
+              box-shadow:0 8px 20px rgba(0,0,0,0.1);max-height:220px;overflow-y:auto;box-sizing:border-box">
             </div>
-            <button class="btn-secondary btn-sm" id="gf-load">Cargar fuente</button>
-            <span id="gf-status" style="font-size:0.76rem;color:var(--muted)"></span>
           </div>
+          <button class="btn-secondary btn-sm" id="gf-load" style="height:36px;padding:0 0.9rem">Cargar fuente</button>
+          <span id="gf-status" style="font-size:0.76rem;color:var(--muted)"></span>
         </div>`;
-
-      if (!gfCatalog.length) {
-        try {
-          const res  = await fetch('https://fonts.google.com/metadata/fonts');
-          const json = await res.json();
-          gfCatalog = (json.familyMetadataList || []).map(f => f.family);
-        } catch (_) {
-          gfCatalog = [];
-        }
-      }
 
       const familyInput   = document.getElementById('gf-family');
       const suggestionsEl = document.getElementById('gf-suggestions');
+      const statusEl      = document.getElementById('gf-status');
 
-      familyInput.addEventListener('input', () => {
+      async function triggerDownload(familyName) {
+        const family = (familyName || familyInput.value).trim();
+        if (!family) { notify.warning('Escribe o selecciona una familia de Google Fonts.'); return; }
+
+        statusEl.textContent = '⏳ Descargando...';
+        statusEl.style.color = 'var(--warning)';
+
+        const dl = await window.api.downloadGoogleFont({ family, weight: fontWeight });
+        if (dl.ok) {
+          fontPath = dl.path;
+          statusEl.textContent = `✓ ${family} lista`;
+          statusEl.style.color = 'var(--success)';
+          notify.success(`Fuente "${family}" cargada.`);
+          updatePreview();
+        } else {
+          statusEl.textContent = '✗ Error';
+          statusEl.style.color = 'var(--error)';
+          notify.error(dl.error || `No se pudo cargar "${family}".`);
+        }
+      }
+
+      function showSuggestions() {
         const q = familyInput.value.toLowerCase().trim();
-        if (!q || gfCatalog.length === 0) {
+        if (!q) {
           suggestionsEl.style.display = 'none';
           return;
         }
-        const matches = gfCatalog.filter(f => f.toLowerCase().includes(q)).slice(0, 8);
+
+        const matches = gfCatalog.filter(f => f.toLowerCase().includes(q)).slice(0, 15);
         if (!matches.length) {
           suggestionsEl.style.display = 'none';
           return;
         }
-        suggestionsEl.innerHTML = matches.map(f =>
-          `<div class="gf-suggestion-item" data-family="${f}">${f}</div>`
-        ).join('');
+
+        suggestionsEl.innerHTML = matches.map(f => `
+          <div class="gf-item-row" data-family="${f}" style="
+            padding:0.45rem 0.85rem;font-size:0.83rem;color:var(--deep);cursor:pointer;
+            background:#ffffff;border-bottom:1px solid rgba(0,0,0,0.05);transition:background 0.15s, color 0.15s">
+            ${f}
+          </div>
+        `).join('');
         suggestionsEl.style.display = 'block';
 
-        suggestionsEl.querySelectorAll('.gf-suggestion-item').forEach(item => {
+        suggestionsEl.querySelectorAll('.gf-item-row').forEach(item => {
+          item.addEventListener('mouseenter', () => {
+            item.style.background = 'var(--primary-soft)';
+            item.style.color = 'var(--primary)';
+          });
+          item.addEventListener('mouseleave', () => {
+            item.style.background = '#ffffff';
+            item.style.color = 'var(--deep)';
+          });
           item.addEventListener('mousedown', e => {
             e.preventDefault();
             familyInput.value = item.dataset.family;
             suggestionsEl.style.display = 'none';
+            triggerDownload(item.dataset.family);
           });
         });
-      });
+      }
 
+      familyInput.addEventListener('input', showSuggestions);
+      familyInput.addEventListener('focus', showSuggestions);
       familyInput.addEventListener('blur', () => {
-        setTimeout(() => { suggestionsEl.style.display = 'none'; }, 150);
+        setTimeout(() => { suggestionsEl.style.display = 'none'; }, 200);
       });
 
-      document.getElementById('gf-load').addEventListener('click', () => {
-        loadGoogleFont(familyInput.value.trim());
-      });
+      document.getElementById('gf-load').addEventListener('click', () => triggerDownload());
     }
   }
   renderFontPicker();
 
-  // ── Tamaño, opacidad, ángulo ────────────────────────────────────────────────
-  document.getElementById('wm-size').addEventListener('input', e => {
-    fontSize = parseInt(e.target.value, 10) || 72;
-    updatePreview();
-  });
-  document.getElementById('wm-opacity').addEventListener('input', e => {
-    opacity  = parseInt(e.target.value, 10) || 50;
-    updatePreview();
-  });
-  document.getElementById('wm-angle').addEventListener('input', e => {
-    angle    = parseInt(e.target.value, 10) || 45;
-    updatePreview();
+  // ── Controles numéricos y sincronización ────────────────────────────────────
+  const bindNum = (id, setter, key) => {
+    document.getElementById(id)?.addEventListener('input', e => {
+      const v = parseInt(e.target.value) || 0;
+      setter(v);
+      saveModuleConfig('watermark', { [key]: v });
+      updatePreview();
+    });
+  };
+
+  bindNum('wm-size',    v => { fontSize   = v; }, 'fontSize');
+  bindNum('wm-opacity', v => { opacity    = v; }, 'opacity');
+  bindNum('wm-gap-h',   v => { repeatGapH = v; }, 'repeatGapH');
+  bindNum('wm-gap-v',   v => { repeatGapV = v; }, 'repeatGapV');
+
+  document.getElementById('wm-weight').addEventListener('change', async e => {
+    fontWeight = parseInt(e.target.value);
+    saveModuleConfig('watermark', { fontWeight });
+    const familyInput = document.getElementById('gf-family');
+    if (fontSource === 'google' && familyInput && familyInput.value.trim()) {
+      document.getElementById('gf-load').click();
+    } else {
+      updatePreview();
+    }
   });
 
   // ── Color ───────────────────────────────────────────────────────────────────
@@ -365,26 +472,44 @@ function renderWatermark() {
     { label: '🔵 Azul',  value: '#0A66C2' },
     { label: '⚫ Negro', value: '#000000' },
     { label: '🩶 Gris',  value: '#475569' },
-  ], '#FF0000', val => {
+  ], color, val => {
     color = val;
     document.getElementById('wm-color').value = val;
+    saveModuleConfig('watermark', { color: val });
     updatePreview();
   });
 
   document.getElementById('wm-color').addEventListener('input', e => {
     color = e.target.value;
+    saveModuleConfig('watermark', { color });
     updatePreview();
   });
 
-  // ── Posición ────────────────────────────────────────────────────────────────
+  // ── Modo de repetición (Mosaico vs Palabra Única) ───────────────────────────
+  optButtons(document.getElementById('repeat-row'), [
+    { label: '⊙ Palabra única',   value: 'single' },
+    { label: '⊞ Mosaico repetido', value: 'tile'   },
+  ], repeatMode, val => {
+    repeatMode = val;
+    saveModuleConfig('watermark', { repeatMode: val });
+    document.getElementById('repeat-gap-row').style.display = val === 'tile' ? 'block' : 'none';
+    document.getElementById('position-group').style.display = val === 'tile' ? 'none'  : '';
+    updatePreview();
+  });
+
+  document.getElementById('repeat-gap-row').style.display = repeatMode === 'tile' ? 'block' : 'none';
+  document.getElementById('position-group').style.display = repeatMode === 'tile' ? 'none'  : '';
+
+  // ── Posición (Solo para palabra única) ───────────────────────────────────────
   optButtons(document.getElementById('position-row'), [
     { label: '↖ Sup. Izq.',  value: 'top_left'     },
     { label: '↗ Sup. Der.',  value: 'top_right'    },
     { label: '✛ Centro',     value: 'center'       },
     { label: '↙ Inf. Izq.',  value: 'bottom_left'  },
     { label: '↘ Inf. Der.',  value: 'bottom_right' },
-  ], 'center', val => {
+  ], position, val => {
     position = val;
+    saveModuleConfig('watermark', { position: val });
     updatePreview();
   });
 
@@ -398,9 +523,8 @@ function renderWatermark() {
   const addFiles = async picked => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'wm-path');
-    const news = picked.filter(f => !files.includes(f));
-    const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...news];
+    const dups = picked.filter(f => files.includes(f));
+    files = [...files, ...picked.filter(f => !files.includes(f))];
     renderFileList('wm-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -408,7 +532,7 @@ function renderWatermark() {
 
   document.getElementById('pick-wm').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{
-      name: 'Imágenes y PDFs', extensions: ['pdf', 'png', 'jpg', 'jpeg']
+      name: 'Imágenes y PDFs', extensions: ['pdf','png','jpg','jpeg']
     }]);
     addFiles(picked);
   });
@@ -422,8 +546,7 @@ function renderWatermark() {
 
   document.getElementById('wm-pick').addEventListener('click', () =>
     pickOutputDir('wm-path').then(updateRun));
-
-  bindDragDrop('zone-wm', ['pdf', 'png', 'jpg', 'jpeg'], addFiles);
+  bindDragDrop('zone-wm', ['pdf','png','jpg','jpeg'], addFiles);
 
   function updateRun() {
     document.getElementById('run-wm').disabled = !(files.length && state.outputDir && !state.isProcessing);
@@ -439,20 +562,19 @@ function renderWatermark() {
   document.getElementById('run-wm').addEventListener('click', async () => {
     if (!text.trim()) { notify.warning('Escribe el texto de la marca de agua.'); return; }
     setProcessing(true);
-    const btn    = document.getElementById('run-wm');
-    const cancel = document.getElementById('cancel-wm');
+    const btn = document.getElementById('run-wm'), cancel = document.getElementById('cancel-wm');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
     document.getElementById('wm-result').innerHTML = progressBar(40);
 
     const res = await window.api.watermarkText({
-      files, text, fontPath, fontSize, opacity, angle, position, color,
+      files, text, fontPath, fontSize, fontWeight, opacity, angle,
+      position, color, repeatMode, repeatGapH, repeatGapV,
       outputDir: state.outputDir
     });
     window.api.playBeep();
 
-    const ok  = res.filter(r => r.ok);
-    const err = res.filter(r => !r.ok);
+    const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('wm-result').innerHTML =
       (ok.length  ? resultBox('success', `✓ ${ok.length} archivo(s) procesado(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
       (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
@@ -466,5 +588,5 @@ function renderWatermark() {
     updateRun();
   });
 
-  updatePreview();
+  requestAnimationFrame(updatePreview);
 }
