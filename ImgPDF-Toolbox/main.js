@@ -38,12 +38,29 @@ let isCancelled = false;
 
 function run(cmd) {
   return new Promise((resolve, reject) => {
-    currentProcess = exec(cmd, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
+    currentProcess = exec(cmd, { 
+      maxBuffer: 1024 * 1024 * 50,
+      encoding: 'buffer'
+    }, (error, stdout, stderr) => {
       currentProcess = null;
       if (error) {
-        reject(isCancelled ? 'Operación cancelada por el usuario.' : (stderr || error.message));
+        if (isCancelled) return reject('Operación cancelada por el usuario.');
+        const rawErr = (stderr && stderr.length) ? stderr : (error.message ? Buffer.from(error.message) : Buffer.from(''));
+        let decoded = '';
+        try {
+          decoded = new TextDecoder('utf-8', { fatal: true }).decode(rawErr);
+        } catch (_) {
+          decoded = new TextDecoder('windows-1252').decode(rawErr);
+        }
+        reject(decoded.trim());
       } else {
-        resolve(stdout);
+        let decoded = '';
+        try {
+          decoded = new TextDecoder('utf-8', { fatal: true }).decode(stdout);
+        } catch (_) {
+          decoded = new TextDecoder('windows-1252').decode(stdout);
+        }
+        resolve(decoded.trim());
       }
     });
   });
@@ -375,6 +392,48 @@ ipcMain.handle('get-system-fonts', async () => {
   return fonts.sort((a, b) => a.name.localeCompare(b.name));
 });
 
+// ── IPC: Catálogo de Google Fonts (+1600 Familias y Variantes) ────────────────
+
+ipcMain.handle('get-google-fonts-catalog', async () => {
+  const cachePath = path.join(app.getPath('userData'), 'gf-catalog-cache.json');
+
+  if (fs.existsSync(cachePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+      if (Array.isArray(data) && data.length > 500) return { ok: true, families: data };
+    } catch (_) {}
+  }
+
+  const fetchJson = (url) => new Promise((resolve, reject) => {
+    https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*'
+      }
+    }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return resolve(fetchJson(res.headers.location));
+      }
+      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+
+  try {
+    const fonts = await fetchJson('https://api.fontsource.org/v1/fonts');
+    const families = fonts.map(f => f.family).sort((a, b) => a.localeCompare(b));
+    fs.writeFileSync(cachePath, JSON.stringify(families), 'utf8');
+    return { ok: true, families };
+  } catch (_) {
+    return { ok: false, families: [] };
+  }
+});
+
 // ── IPC: Descargar fuente de Google Fonts con soporte de Peso (TTF) ───────────
 
 ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
@@ -387,7 +446,6 @@ ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
 
   if (fs.existsSync(fontPath)) return { ok: true, path: fontPath };
 
-  // ── Helper: GET con soporte de redirecciones ───────────────────────────────
   const getRequest = (targetUrl, headers = {}) => new Promise((resolve, reject) => {
     https.get(targetUrl, { headers }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -398,37 +456,25 @@ ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
     }).on('error', reject);
   });
 
-  // ── Construir variantes del nombre para el repositorio de GitHub ───────────
   const weightNames = {
     100: 'Thin', 200: 'ExtraLight', 300: 'Light', 400: 'Regular',
     500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black'
   };
   const wName = weightNames[weight] || 'Regular';
 
-  // Slug para la carpeta del repo: todo minúsculas sin espacios ni guiones
   const slug   = cleanFamily.toLowerCase().replace(/[\s\-]/g, '');
-  // Nombre del archivo: sin espacios, capitalización original preservada
   const pascal = cleanFamily.replace(/\s+/g, '');
-  // Variante con guiones para algunos repos
   const kebab  = cleanFamily.replace(/\s+/g, '-');
 
-  // ── Lista de URLs candidatas en orden de prioridad ─────────────────────────
   const candidateUrls = [
-    // 1. Google API CSS con User-Agent legacy (fuerza TTF en lugar de woff2)
     { type: 'css', url: `https://fonts.googleapis.com/css?family=${encodeURIComponent(cleanFamily)}:${weight}`, headers: { 'User-Agent': 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)' } },
-    // 2. GitHub Google Fonts repo - ofl (Open Font License) - peso específico
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}-${wName}.ttf` },
-    // 3. GitHub - apache license fonts
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/apache/${slug}/${pascal}-${wName}.ttf` },
-    // 4. GitHub - ufl license fonts
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ufl/${slug}/${pascal}-${wName}.ttf` },
-    // 5. Variable fonts (un solo archivo cubre todos los pesos)
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}[wght].ttf` },
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}%5Bwght%5D.ttf` },
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/apache/${slug}/${pascal}%5Bwght%5D.ttf` },
-    // 6. Bunny Fonts CSS (mirror de Google Fonts sin restricciones CORS)
     { type: 'css', url: `https://fonts.bunny.net/css?family=${kebab.toLowerCase()}:${weight}`, headers: { 'User-Agent': 'Mozilla/4.0' } },
-    // 7. Regular como fallback si el peso específico no existe
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/ofl/${slug}/${pascal}-Regular.ttf` },
     { type: 'ttf', url: `https://raw.githubusercontent.com/google/fonts/main/apache/${slug}/${pascal}-Regular.ttf` },
   ];
@@ -438,7 +484,6 @@ ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
   for (const candidate of candidateUrls) {
     try {
       if (candidate.type === 'css') {
-        // Obtener CSS y extraer URL directa del TTF
         const cssRes = await getRequest(candidate.url, candidate.headers || {});
         let css = '';
         await new Promise((res, rej) => {
@@ -447,20 +492,16 @@ ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
           cssRes.on('end', res);
           cssRes.on('error', rej);
         });
-        // Buscar URL de TTF o WOFF (no woff2, no compatible con IM fácilmente)
         const match = css.match(/url\((https?:\/\/[^)]+\.(?:ttf|woff))(?:\?[^)]*)?\)/i);
         if (match) {
           fontStream = await getRequest(match[1]);
           break;
         }
       } else {
-        // Descarga directa del TTF
         fontStream = await getRequest(candidate.url, candidate.headers || {});
         break;
       }
-    } catch (_) {
-      // Continuar con la siguiente candidata
-    }
+    } catch (_) {}
   }
 
   if (!fontStream) {
@@ -470,7 +511,6 @@ ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
     };
   }
 
-  // ── Guardar el archivo ─────────────────────────────────────────────────────
   try {
     await new Promise((resolve, reject) => {
       const fileStream = fs.createWriteStream(fontPath);
@@ -479,7 +519,6 @@ ipcMain.handle('download-google-font', async (_, { family, weight = 400 }) => {
       fileStream.on('error', err => { fs.unlink(fontPath, () => {}); reject(err); });
     });
 
-    // Verificar que el archivo descargado sea válido (> 1KB)
     if (!fs.existsSync(fontPath) || fs.statSync(fontPath).size < 1024) {
       try { fs.unlinkSync(fontPath); } catch (_) {}
       return { ok: false, error: `El archivo descargado no es una fuente válida para "${cleanFamily}".` };
@@ -594,9 +633,14 @@ ipcMain.handle('rotate-files', async (_, { files, angle, target, outputDir }) =>
   return results;
 });
 
-// ── IPC: Marca de agua de texto ───────────────────────────────────────────────
+// ── IPC: Marca de agua de texto (Mosaico continuo sin desbordamiento de CLI) ──
 
-ipcMain.handle('watermark-text', async (_, { files, text, fontPath, fontSize, opacity, angle, position, color, outputDir }) => {
+ipcMain.handle('watermark-text', async (_, {
+  files, text, fontPath, fontSize, fontWeight = 400,
+  opacity, angle, position, color,
+  repeatMode = 'single', repeatGapH = 200, repeatGapV = 150,
+  outputDir
+}) => {
   isCancelled = false;
   const results = [];
 
@@ -608,10 +652,35 @@ ipcMain.handle('watermark-text', async (_, { files, text, fontPath, fontSize, op
     bottom_right: 'SouthEast',
   };
   const gravity   = gravityMap[position] || 'Center';
-  const fontFlag  = fontPath ? `-font "${fontPath}"` : '';
+  const fontFlag  = fontPath ? `-font "${fontPath.replace(/\\/g, '/')}"` : '';
   const alphaVal  = Math.round((opacity / 100) * 255);
   const hexAlpha  = alphaVal.toString(16).padStart(2, '0');
   const fillColor = `${color}${hexAlpha}`;
+
+  const tempDir = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
+  // Construir comando de marca según el modo
+  async function applyWatermark(inputImg, outputTarget, width, height) {
+    if (repeatMode === 'single') {
+      await run(`magick "${inputImg}" ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" -gravity ${gravity} -annotate ${angle}x${angle}+0+0 "${text}" "${outputTarget}"`);
+      return;
+    }
+
+    // Modo Mosaico:
+    // 1. Renderizar la palabra completa con margen de respiración
+    const gapH = Math.max(100, parseInt(repeatGapH) || 200);
+    const gapV = Math.max(60, parseInt(repeatGapV) || 150);
+    const stampTile = path.join(tempDir, `stamp_${Date.now()}.png`).replace(/\\/g, '/');
+
+    // Generar celda transparente expandida con la palabra centrada y orientada
+    await run(`magick -background none ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" label:"${text}" -rotate ${angle} -gravity center -background none -extent ${gapH}x${gapV} "${stampTile}"`);
+
+    // 2. Estampar la cuadrícula repetida sin límites sobre la imagen en un solo paso
+    await run(`magick "${inputImg}" -size ${width}x${height} tile:"${stampTile}" -composite "${outputTarget}"`);
+
+    try { fs.unlinkSync(stampTile); } catch (_) {}
+  }
 
   for (const file of files) {
     if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
@@ -621,9 +690,16 @@ ipcMain.handle('watermark-text', async (_, { files, text, fontPath, fontSize, op
     const isPdf = ext === '.pdf';
 
     if (!isPdf) {
+      let width = 1200, height = 800;
+      try {
+        const info = await run(`magick identify -format "%wx%h" "${file}"`);
+        const m = info.match(/(\d+)x(\d+)/);
+        if (m) { width = parseInt(m[1], 10); height = parseInt(m[2], 10); }
+      } catch (_) {}
+
       const out = getUniqueFilePath(path.join(outputDir, `${name}-wm${ext}`));
       try {
-        await run(`magick "${file}" ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" -gravity ${gravity} -annotate ${angle}x${angle}+0+0 "${text}" "${out}"`);
+        await applyWatermark(file, out, width, height);
         results.push({ file, out, ok: true });
       } catch (e) {
         results.push({ file, ok: false, error: String(e) });
@@ -632,17 +708,23 @@ ipcMain.handle('watermark-text', async (_, { files, text, fontPath, fontSize, op
       try {
         const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
         const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
-        const tempDir    = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
-        fs.mkdirSync(tempDir, { recursive: true });
-
-        const pageParts = [];
+        const pageParts  = [];
 
         for (let i = 1; i <= totalPages; i++) {
           if (isCancelled) break;
-          const tempImg = path.join(tempDir, `pag${String(i).padStart(3,'0')}.png`);
-          const tempPdf = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
-          await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
-          await run(`magick "${tempImg}" ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" -gravity ${gravity} -annotate ${angle}x${angle}+0+0 "${text}" "${tempPdf}"`);
+          const tempImg = path.join(tempDir, `pag${String(i).padStart(3, '0')}.png`);
+          const tempPdf = path.join(tempDir, `pag${String(i).padStart(3, '0')}.pdf`);
+
+          await run(`magick -density 200 "${file}[${i - 1}]" "${tempImg}"`);
+
+          let width = 1654, height = 2339;
+          try {
+            const info = await run(`magick identify -format "%wx%h" "${tempImg}"`);
+            const m = info.match(/(\d+)x(\d+)/);
+            if (m) { width = parseInt(m[1], 10); height = parseInt(m[2], 10); }
+          } catch (_) {}
+
+          await applyWatermark(tempImg, tempPdf, width, height);
           pageParts.push(tempPdf);
         }
 
@@ -653,15 +735,15 @@ ipcMain.handle('watermark-text', async (_, { files, text, fontPath, fontSize, op
           await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -sOutputFile="${out}" ${inputs}`);
           results.push({ file, out, ok: true });
         }
-
-        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
-
       } catch (e) {
         results.push({ file, ok: false, error: String(e) });
         if (isCancelled) break;
       }
     }
   }
+
+  try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+
   return results;
 });
 

@@ -1,26 +1,24 @@
 // ── modules/unlock.js ─────────────────────────────────────────────────────────
-function renderUnlock() {
-  let files = [], password = '', mode = 'owner';
-  const ws = document.getElementById('workspace');
+async function renderUnlock() {
+  const cfg = await loadModuleConfig('unlock', { mode: 'owner' });
+  let files = [], password = '', mode = cfg.mode;
 
+  const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">🔓 Desbloquear PDF</div>
-    <p class="module-desc">Elimina restricciones de propietario o desbloquea PDFs con contraseña conocida para guardarlos limpios y editables.</p>
+    <p class="module-desc">Elimina restricciones de propietario o desbloquea PDFs con contraseña conocida.</p>
 
-    <!-- Aviso legal -->
     <div class="result-box warning">
       <div class="result-title">⚠️ Uso responsable</div>
-      <div class="result-item">Utiliza esta función únicamente en documentos de tu propiedad o para los que tengas autorización expresa. El uso indebido puede ser ilegal.</div>
+      <div class="result-item">Utiliza esta función únicamente en documentos de tu propiedad o con autorización expresa.</div>
     </div>
 
-    <!-- Modo -->
     <div class="option-group">
       <label>Tipo de desbloqueo</label>
       <div class="option-row" id="unlock-mode-row"></div>
       <div class="summary-box" id="unlock-hint" style="margin-top:0.5rem"></div>
     </div>
 
-    <!-- Contraseña (visible solo en modo password) -->
     <div id="password-section" style="display:none">
       <div class="option-group">
         <label>Contraseña del documento</label>
@@ -32,7 +30,6 @@ function renderUnlock() {
       </div>
     </div>
 
-    <!-- Archivos -->
     <div class="file-zone" id="zone-unlock">
       <div class="file-zone-header">
         <span class="file-count-badge" id="unlock-badge">0 PDFs cargados</span>
@@ -56,38 +53,32 @@ function renderUnlock() {
     <div id="unlock-result"></div>
   </div>`;
 
-  // ── Modos ───────────────────────────────────────────────────────────────────
   const hints = {
-    owner:    'Elimina restricciones de propietario (impresión, copia de texto, edición) en PDFs que abren sin contraseña pero están bloqueados.',
+    owner:    'Elimina restricciones de impresión, copia y edición en PDFs que abren sin contraseña pero están bloqueados.',
     password: 'Desbloquea un PDF protegido con contraseña conocida y guarda una copia limpia sin ninguna restricción.',
   };
 
   function updateHint() {
     document.getElementById('unlock-hint').textContent = hints[mode];
+    document.getElementById('password-section').style.display = mode === 'password' ? 'block' : 'none';
+    updateRun();
   }
 
   optButtons(document.getElementById('unlock-mode-row'), [
     { label: '🔒 Restricciones de propietario', value: 'owner'    },
     { label: '🔑 Con contraseña conocida',       value: 'password' },
-  ], 'owner', val => {
+  ], mode, val => {
     mode = val;
-    document.getElementById('password-section').style.display = val === 'password' ? 'block' : 'none';
+    saveModuleConfig('unlock', { mode: val });
     updateHint();
-    updateRun();
   });
   updateHint();
 
-  // ── Mostrar/ocultar contraseña ──────────────────────────────────────────────
   document.getElementById('toggle-pw').addEventListener('click', () => {
     const input = document.getElementById('unlock-password');
     const btn   = document.getElementById('toggle-pw');
-    if (input.type === 'password') {
-      input.type  = 'text';
-      btn.textContent = '🙈 Ocultar';
-    } else {
-      input.type  = 'password';
-      btn.textContent = '👁 Mostrar';
-    }
+    input.type      = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁 Mostrar' : '🙈 Ocultar';
   });
 
   document.getElementById('unlock-password').addEventListener('input', e => {
@@ -95,7 +86,6 @@ function renderUnlock() {
     updateRun();
   });
 
-  // ── Archivos ────────────────────────────────────────────────────────────────
   const onRemove = f => {
     files = files.filter(x => x !== f);
     renderFileList('unlock-list', files, onRemove);
@@ -105,9 +95,8 @@ function renderUnlock() {
   const addFiles = async picked => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'unlock-path');
-    const news = picked.filter(f => !files.includes(f));
-    const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...news];
+    const dups = picked.filter(f => files.includes(f));
+    files = [...files, ...picked.filter(f => !files.includes(f))];
     renderFileList('unlock-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -127,7 +116,6 @@ function renderUnlock() {
 
   document.getElementById('unlock-pick').addEventListener('click', () =>
     pickOutputDir('unlock-path').then(updateRun));
-
   bindDragDrop('zone-unlock', ['pdf'], addFiles);
 
   function updateRun() {
@@ -147,10 +135,8 @@ function renderUnlock() {
       notify.warning('Ingresa la contraseña del documento.');
       return;
     }
-
     setProcessing(true);
-    const btn    = document.getElementById('run-unlock');
-    const cancel = document.getElementById('cancel-unlock');
+    const btn = document.getElementById('run-unlock'), cancel = document.getElementById('cancel-unlock');
     btn.disabled = true; btn.textContent = 'Desbloqueando...';
     cancel.style.display = 'inline-block';
     document.getElementById('unlock-result').innerHTML = progressBar(50);
@@ -162,16 +148,10 @@ function renderUnlock() {
     });
     window.api.playBeep();
 
-    const ok  = res.filter(r => r.ok);
-    const err = res.filter(r => !r.ok);
-
+    const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('unlock-result').innerHTML =
-      (ok.length  ? resultBox('success',
-          `✓ ${ok.length} PDF(s) desbloqueado(s)`,
-          ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
-      (err.length ? resultBox('error',
-          `✗ ${err.length} error(es)`,
-          err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
+      (ok.length  ? resultBox('success', `✓ ${ok.length} PDF(s) desbloqueado(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
+      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
 
     if (ok.length)  notify.success(`${ok.length} PDF(s) desbloqueado(s) correctamente.`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron. Verifica la contraseña.`);

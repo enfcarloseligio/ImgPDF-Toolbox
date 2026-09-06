@@ -1,8 +1,9 @@
 // ── modules/pdf-to-img.js ─────────────────────────────────────────────────────
-function renderPdfToImg() {
-  let files = [], density = 300, format = 'png', background = 'original';
-  const ws = document.getElementById('workspace');
+async function renderPdfToImg() {
+  const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: 'original' });
+  let files = [], density = cfg.density, format = cfg.format, background = cfg.background;
 
+  const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">📄 PDF → Imágenes</div>
     <div class="option-group"><label>Formato de salida</label><div class="option-row" id="fmt-row"></div></div>
@@ -32,14 +33,16 @@ function renderPdfToImg() {
   optButtons(document.getElementById('fmt-row'), [
     { label: 'PNG', value: 'png' },
     { label: 'JPG', value: 'jpg' },
-  ], 'png', v => { format = v; updateBg(); });
+  ], format, v => { format = v; updateBg(); },
+  v => saveModuleConfig('pdf-to-img', { format: v }));
 
   optButtons(document.getElementById('dpi-row'), [
     { label: '300 DPI — Máxima', value: 300 },
     { label: '200 DPI — Alta',   value: 200 },
     { label: '150 DPI — Media',  value: 150 },
     { label: '72 DPI — Baja',    value: 72  },
-  ], 300, v => { density = v; });
+  ], density, v => { density = v; },
+  v => saveModuleConfig('pdf-to-img', { density: v }));
 
   function updateBg() {
     const opts = format === 'png'
@@ -49,11 +52,14 @@ function renderPdfToImg() {
           { label: 'Oscuro #202020',          value: '#202020'  },
         ]
       : [
-          { label: 'Blanco #FFFFFF', value: '#FFFFFF'  },
-          { label: 'Oscuro #202020', value: '#202020'  },
+          { label: 'Blanco #FFFFFF', value: '#FFFFFF' },
+          { label: 'Oscuro #202020', value: '#202020' },
         ];
-    background = opts[0].value;
-    optButtons(document.getElementById('bg-row'), opts, opts[0].value, v => { background = v; });
+    // Si el fondo guardado no es válido para este formato, usar el primero
+    const validBg = opts.find(o => o.value === background) ? background : opts[0].value;
+    background = validBg;
+    optButtons(document.getElementById('bg-row'), opts, validBg, v => { background = v; },
+      v => saveModuleConfig('pdf-to-img', { background: v }));
   }
   updateBg();
 
@@ -66,9 +72,8 @@ function renderPdfToImg() {
   const addFiles = async picked => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'p2i-path');
-    const news = picked.filter(f => !files.includes(f));
-    const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...news];
+    const dups = picked.filter(f => files.includes(f));
+    files = [...files, ...picked.filter(f => !files.includes(f))];
     renderFileList('pdf2-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -87,7 +92,6 @@ function renderPdfToImg() {
   });
 
   document.getElementById('p2i-pick').addEventListener('click', () => pickOutputDir('p2i-path').then(updateRun));
-
   bindDragDrop('zone-p2i', ['pdf'], addFiles);
 
   function updateRun() {
@@ -103,8 +107,7 @@ function renderPdfToImg() {
 
   document.getElementById('run-p2i').addEventListener('click', async () => {
     setProcessing(true);
-    const btn    = document.getElementById('run-p2i');
-    const cancel = document.getElementById('cancel-p2i');
+    const btn = document.getElementById('run-p2i'), cancel = document.getElementById('cancel-p2i');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
     document.getElementById('p2i-result').innerHTML = progressBar(40);
@@ -112,11 +115,10 @@ function renderPdfToImg() {
     const res = await window.api.convertPdfToImg({ files, density, format, background, outputDir: state.outputDir });
     window.api.playBeep();
 
-    const ok  = res.filter(r => r.ok);
-    const err = res.filter(r => !r.ok);
+    const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('p2i-result').innerHTML =
       (ok.length  ? resultBox('success', `✓ ${ok.length} PDF(s) procesado(s)`, ok.map(r => `📄 ${basename(r.file)}`), true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es) o cancelados`, err.map(r => basename(r.file))) : '');
+      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => basename(r.file))) : '');
 
     if (ok.length)  notify.success(`${ok.length} PDF(s) extraído(s) correctamente.`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron.`);

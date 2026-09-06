@@ -15,9 +15,36 @@ function dirname(filePath) {
   return norm.substring(0, norm.lastIndexOf('/'));
 }
 
+// ── Persistencia de configuración por módulo ──────────────────────────────────
+// Guarda y carga preferencias en settings.json vía main.js
+// Uso: await saveModuleConfig('img-to-pdf', { quality: 75 })
+//      const cfg = await loadModuleConfig('img-to-pdf', { quality: 100 })
+
+async function saveModuleConfig(moduleId, config) {
+  try {
+    const key      = `moduleConfig_${moduleId}`;
+    const existing = await window.api.storeGet(key) || {};
+    await window.api.storeSet(key, { ...existing, ...config });
+  } catch (_) {}
+}
+
+async function loadModuleConfig(moduleId, defaults = {}) {
+  try {
+    const key    = `moduleConfig_${moduleId}`;
+    const stored = await window.api.storeGet(key);
+    if (!stored) return { ...defaults };
+    // Fusionar: valores guardados tienen prioridad sobre defaults
+    return { ...defaults, ...stored };
+  } catch (_) {
+    return { ...defaults };
+  }
+}
+
 // ── Componentes de UI ─────────────────────────────────────────────────────────
 
-function optButtons(container, options, defaultVal, cb) {
+// optButtons: crea botones de opción y marca el activo
+// Ahora acepta un callback opcional onSave para persistir al cambiar
+function optButtons(container, options, defaultVal, cb, onSave) {
   if (!container) return;
   container.innerHTML = '';
   options.forEach(opt => {
@@ -28,6 +55,7 @@ function optButtons(container, options, defaultVal, cb) {
       container.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       cb(opt.value);
+      if (onSave) onSave(opt.value);
     });
     container.appendChild(btn);
   });
@@ -108,18 +136,18 @@ function renderOrderedFileList(containerId, files, onChange) {
       <span class="file-order">${i + 1}.</span>
       <span class="file-name">📄 ${basename(f)}</span>
       <div class="file-actions">
-        ${i > 0               ? `<button class="file-remove" data-a="up"   data-i="${i}" title="Subir">↑</button>`  : ''}
-        ${i < files.length-1  ? `<button class="file-remove" data-a="down" data-i="${i}" title="Bajar">↓</button>` : ''}
-        <button class="file-remove" data-a="rm" data-i="${i}" title="Quitar">✕</button>
+        ${i > 0               ? `<button class="file-remove" data-act="up"   data-i="${i}" title="Subir">↑</button>`  : ''}
+        ${i < files.length-1  ? `<button class="file-remove" data-act="down" data-i="${i}" title="Bajar">↓</button>` : ''}
+        <button class="file-remove" data-act="rm" data-i="${i}" title="Quitar">✕</button>
       </div>
     </div>`).join('');
 
   list.querySelectorAll('.file-remove').forEach(btn => {
     btn.addEventListener('click', () => {
-      const i = parseInt(btn.dataset.i), a = btn.dataset.a;
-      if      (a === 'rm')   files.splice(i, 1);
-      else if (a === 'up')   [files[i-1], files[i]]   = [files[i], files[i-1]];
-      else if (a === 'down') [files[i],   files[i+1]] = [files[i+1], files[i]];
+      const idx = parseInt(btn.dataset.i), act = btn.dataset.act;
+      if      (act === 'rm')   files.splice(idx, 1);
+      else if (act === 'up')   [files[idx-1], files[idx]]   = [files[idx], files[idx-1]];
+      else if (act === 'down') [files[idx],   files[idx+1]] = [files[idx+1], files[idx]];
       onChange(files);
     });
   });

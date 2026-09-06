@@ -1,22 +1,20 @@
 // ── modules/rotate.js ─────────────────────────────────────────────────────────
-function renderRotate() {
-  let files = [], angle = 90, target = 'all';
-  const ws = document.getElementById('workspace');
+async function renderRotate() {
+  const cfg = await loadModuleConfig('rotate', { angle: 90, target: 'all' });
+  let files = [], angle = cfg.angle, target = cfg.target;
 
+  const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">🔄 Rotación masiva</div>
     <p class="module-desc">Gira imágenes (PNG/JPG) o documentos PDF en lote. Para PDFs puedes rotar todas las páginas o solo pares/impares.</p>
-
     <div class="option-group">
       <label>Ángulo de rotación</label>
       <div class="option-row" id="angle-row"></div>
     </div>
-
     <div class="option-group" id="target-group">
       <label>Páginas a rotar (solo PDFs)</label>
       <div class="option-row" id="target-row"></div>
     </div>
-
     <div class="file-zone" id="zone-rotate">
       <div class="file-zone-header">
         <span class="file-count-badge" id="rotate-badge">0 archivos cargados</span>
@@ -30,9 +28,7 @@ function renderRotate() {
         <span class="file-empty">Ningún archivo seleccionado</span>
       </div>
     </div>
-
     ${outputDirRow('rotate')}
-
     <div class="btn-row">
       <button class="btn-primary" id="run-rotate" disabled style="width:auto">Rotar archivos</button>
       <button class="btn-danger"  id="cancel-rotate" style="display:none;width:auto">Cancelar</button>
@@ -44,26 +40,28 @@ function renderRotate() {
     { label: '↻ 90°  (derecha)',   value: 90  },
     { label: '↻ 180° (invertir)',  value: 180 },
     { label: '↺ 270° (izquierda)', value: 270 },
-  ], 90, val => { angle = val; });
+  ], angle, val => { angle = val; },
+  val => saveModuleConfig('rotate', { angle: val }));
 
   optButtons(document.getElementById('target-row'), [
     { label: 'Todas las páginas', value: 'all'  },
     { label: 'Solo pares',        value: 'even' },
     { label: 'Solo impares',      value: 'odd'  },
-  ], 'all', val => { target = val; });
+  ], target, val => { target = val; },
+  val => saveModuleConfig('rotate', { target: val }));
 
   const onRemove = f => {
     files = files.filter(x => x !== f);
     renderFileList('rotate-list', files, onRemove);
+    updateTargetVisibility();
     updateRun();
   };
 
   const addFiles = async picked => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'rotate-path');
-    const news = picked.filter(f => !files.includes(f));
-    const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...news];
+    const dups = picked.filter(f => files.includes(f));
+    files = [...files, ...picked.filter(f => !files.includes(f))];
     renderFileList('rotate-list', files, onRemove);
     updateTargetVisibility();
     updateRun();
@@ -71,17 +69,14 @@ function renderRotate() {
   };
 
   function updateTargetVisibility() {
-    // Mostrar opciones pares/impares solo si hay PDFs
     const hasPdf = files.some(f => f.toLowerCase().endsWith('.pdf'));
-    document.getElementById('target-group').style.opacity      = hasPdf ? '1' : '0.4';
-    document.getElementById('target-group').style.pointerEvents = hasPdf ? '' : 'none';
+    const grp = document.getElementById('target-group');
+    grp.style.opacity      = hasPdf ? '1' : '0.4';
+    grp.style.pointerEvents = hasPdf ? '' : 'none';
   }
 
   document.getElementById('pick-rotate').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{
-      name: 'Imágenes y PDFs',
-      extensions: ['pdf', 'png', 'jpg', 'jpeg']
-    }]);
+    const picked = await window.api.selectFiles([{ name: 'Imágenes y PDFs', extensions: ['pdf','png','jpg','jpeg'] }]);
     addFiles(picked);
   });
 
@@ -93,10 +88,8 @@ function renderRotate() {
     updateRun();
   });
 
-  document.getElementById('rotate-pick').addEventListener('click', () =>
-    pickOutputDir('rotate-path').then(updateRun));
-
-  bindDragDrop('zone-rotate', ['pdf', 'png', 'jpg', 'jpeg'], addFiles);
+  document.getElementById('rotate-pick').addEventListener('click', () => pickOutputDir('rotate-path').then(updateRun));
+  bindDragDrop('zone-rotate', ['pdf','png','jpg','jpeg'], addFiles);
 
   function updateRun() {
     document.getElementById('run-rotate').disabled = !(files.length && state.outputDir && !state.isProcessing);
@@ -111,8 +104,7 @@ function renderRotate() {
 
   document.getElementById('run-rotate').addEventListener('click', async () => {
     setProcessing(true);
-    const btn    = document.getElementById('run-rotate');
-    const cancel = document.getElementById('cancel-rotate');
+    const btn = document.getElementById('run-rotate'), cancel = document.getElementById('cancel-rotate');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
     document.getElementById('rotate-result').innerHTML = progressBar(40);
@@ -120,9 +112,7 @@ function renderRotate() {
     const res = await window.api.rotateFiles({ files, angle, target, outputDir: state.outputDir });
     window.api.playBeep();
 
-    const ok  = res.filter(r => r.ok);
-    const err = res.filter(r => !r.ok);
-
+    const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('rotate-result').innerHTML =
       (ok.length  ? resultBox('success', `✓ ${ok.length} archivo(s) rotado(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
       (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
