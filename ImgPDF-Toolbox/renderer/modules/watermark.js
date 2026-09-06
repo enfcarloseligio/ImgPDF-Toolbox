@@ -4,13 +4,14 @@ function renderWatermark() {
   let text        = 'CONFIDENCIAL';
   let fontPath    = null;
   let fontSize    = 72;
+  let fontWeight  = 400;
   let opacity     = 50;
   let angle       = 45;
   let position    = 'center';
   let color       = '#FF0000';
   let fontSource  = 'system';
   let systemFonts = [];
-  let gfCatalog   = []; // catálogo de Google Fonts para autocompletado
+  let gfCatalog   = [];
 
   const ws = document.getElementById('workspace');
 
@@ -34,18 +35,35 @@ function renderWatermark() {
       <div id="font-picker" style="margin-top:0.5rem"></div>
     </div>
 
-    <!-- Tamaño, opacidad, ángulo -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+    <!-- Tamaño, Peso, Opacidad, Ángulo -->
+    <div style="display:grid;grid-template-columns:1fr 1.3fr 1fr 1fr;gap:1rem">
       <div class="option-group">
         <label>Tamaño (px)</label>
         <input type="number" class="num-input" id="wm-size"
           value="${fontSize}" min="10" max="300" style="width:100%">
       </div>
+
+      <div class="option-group">
+        <label>Peso / Grosor</label>
+        <select id="wm-weight" class="num-input" style="width:100%;text-align:left;padding:0.35rem 0.5rem">
+          <option value="100">100 (Fina)</option>
+          <option value="200">200 (Extra ligera)</option>
+          <option value="300">300 (Ligera)</option>
+          <option value="400" selected>400 (Normal)</option>
+          <option value="500">500 (Mediana)</option>
+          <option value="600">600 (Semi negrita)</option>
+          <option value="700">700 (Negrita)</option>
+          <option value="800">800 (Extra negrita)</option>
+          <option value="900">900 (Negra)</option>
+        </select>
+      </div>
+
       <div class="option-group">
         <label>Opacidad (%)</label>
         <input type="number" class="num-input" id="wm-opacity"
           value="${opacity}" min="5" max="100" style="width:100%">
       </div>
+
       <div class="option-group">
         <label>Ángulo (°)</label>
         <input type="number" class="num-input" id="wm-angle"
@@ -69,6 +87,14 @@ function renderWatermark() {
     <div class="option-group">
       <label>Posición</label>
       <div class="option-row" id="position-row"></div>
+    </div>
+
+    <!-- Vista previa interactiva -->
+    <div class="wm-preview-container">
+      <label style="font-size:0.75rem;font-weight:600;color:var(--deep);text-transform:uppercase;">Vista previa en vivo</label>
+      <div class="wm-preview-box" id="wm-preview-box">
+        <span class="wm-preview-label" id="wm-preview-text">CONFIDENCIAL</span>
+      </div>
     </div>
 
     <!-- Archivos -->
@@ -95,6 +121,52 @@ function renderWatermark() {
     <div id="wm-result"></div>
   </div>`;
 
+  // ── Actualizador de Vista Previa ──────────────────────────────────────────
+  async function updatePreview() {
+    const preview = document.getElementById('wm-preview-text');
+    const box = document.getElementById('wm-preview-box');
+    if (!preview || !box) return;
+
+    preview.textContent = text || 'VISTA PREVIA';
+    preview.style.color = color;
+    preview.style.opacity = opacity / 100;
+    preview.style.fontWeight = fontWeight;
+
+    const previewSize = Math.max(14, Math.round(fontSize * 0.38));
+    preview.style.fontSize = `${previewSize}px`;
+
+    if (fontPath) {
+      const fontName = `CustomWMFont_${fontWeight}`;
+      try {
+        const fontFace = new FontFace(fontName, `url("file://${fontPath.replace(/\\/g, '/')}")`, {
+          weight: String(fontWeight)
+        });
+        await fontFace.load();
+        document.fonts.add(fontFace);
+        preview.style.fontFamily = fontName;
+      } catch (_) {
+        preview.style.fontFamily = 'sans-serif';
+      }
+    } else {
+      preview.style.fontFamily = 'sans-serif';
+    }
+
+    const posStyles = {
+      center:       { top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${angle}deg)` },
+      top_left:     { top: '15%', left: '15%', transform: `translate(0, 0) rotate(${angle}deg)` },
+      top_right:    { top: '15%', right: '15%', left: 'auto', transform: `translate(0, 0) rotate(${angle}deg)` },
+      bottom_left:  { bottom: '15%', top: 'auto', left: '15%', transform: `translate(0, 0) rotate(${angle}deg)` },
+      bottom_right: { bottom: '15%', top: 'auto', right: '15%', left: 'auto', transform: `translate(0, 0) rotate(${angle}deg)` },
+    };
+
+    const cur = posStyles[position] || posStyles.center;
+    preview.style.top = cur.top || 'auto';
+    preview.style.bottom = cur.bottom || 'auto';
+    preview.style.left = cur.left || 'auto';
+    preview.style.right = cur.right || 'auto';
+    preview.style.transform = cur.transform;
+  }
+
   // ── Atajos de texto ─────────────────────────────────────────────────────────
   ['CONFIDENCIAL', 'COPIA', 'BORRADOR', 'RECIBIDO', 'PRELIMINAR'].forEach(s => {
     const btn = document.createElement('button');
@@ -103,11 +175,27 @@ function renderWatermark() {
     btn.addEventListener('click', () => {
       text = s;
       document.getElementById('wm-text').value = s;
+      updatePreview();
     });
     document.getElementById('shortcut-row').appendChild(btn);
   });
 
-  document.getElementById('wm-text').addEventListener('input', e => { text = e.target.value; });
+  document.getElementById('wm-text').addEventListener('input', e => {
+    text = e.target.value;
+    updatePreview();
+  });
+
+  // ── Selector de Peso ────────────────────────────────────────────────────────
+  document.getElementById('wm-weight').addEventListener('change', async e => {
+    fontWeight = parseInt(e.target.value, 10);
+    const familyInput = document.getElementById('gf-family');
+    
+    if (fontSource === 'google' && familyInput && familyInput.value.trim()) {
+      await loadGoogleFont(familyInput.value.trim());
+    } else {
+      updatePreview();
+    }
+  });
 
   // ── Fuente: sistema vs Google Fonts ────────────────────────────────────────
   optButtons(document.getElementById('font-source-row'), [
@@ -117,6 +205,30 @@ function renderWatermark() {
     fontSource = val;
     renderFontPicker();
   });
+
+  async function loadGoogleFont(family) {
+    const statusEl = document.getElementById('gf-status');
+    if (!family) { notify.warning('Escribe el nombre de una familia de Google Fonts.'); return; }
+
+    statusEl.textContent = `⏳ Descargando (${fontWeight})...`;
+    statusEl.style.color = 'var(--warning)';
+
+    const dl = await window.api.downloadGoogleFont({ family, weight: fontWeight });
+
+    if (dl.ok) {
+      fontPath = dl.path;
+      statusEl.textContent = `✓ ${family} (${fontWeight}) lista`;
+      statusEl.style.color = 'var(--success)';
+      notify.success(`Fuente "${family}" cargada.`);
+      const suggestionsEl = document.getElementById('gf-suggestions');
+      if (suggestionsEl) suggestionsEl.style.display = 'none';
+      updatePreview();
+    } else {
+      statusEl.textContent = '✗ Error al cargar';
+      statusEl.style.color = 'var(--error)';
+      notify.error(dl.error);
+    }
+  }
 
   async function renderFontPicker() {
     const picker = document.getElementById('font-picker');
@@ -145,6 +257,7 @@ function renderWatermark() {
         </select>`;
 
       fontPath = systemFonts[0]?.path || null;
+      updatePreview();
 
       document.getElementById('font-search').addEventListener('input', e => {
         const q        = e.target.value.toLowerCase();
@@ -152,18 +265,19 @@ function renderWatermark() {
         const sel      = document.getElementById('font-select');
         sel.innerHTML  = filtered.map(f => `<option value="${f.path}">${f.name}</option>`).join('');
         fontPath       = filtered[0]?.path || null;
+        updatePreview();
       });
 
       document.getElementById('font-select').addEventListener('change', e => {
         fontPath = e.target.value;
+        updatePreview();
       });
 
     } else {
-      // Google Fonts con autocompletado
       picker.innerHTML = `
         <div class="result-box info" style="margin-bottom:0.5rem">
           <div class="result-title">ℹ️ Google Fonts requiere conexión a Internet</div>
-          <div class="result-item">Escribe el nombre de la familia. Se descargará temporalmente para usarla.</div>
+          <div class="result-item">Escribe la familia y selecciona su peso. Se descargará el archivo exacto.</div>
         </div>
         <div style="position:relative;display:inline-block;width:100%">
           <div style="display:flex;gap:0.5rem;align-items:center">
@@ -182,15 +296,12 @@ function renderWatermark() {
           </div>
         </div>`;
 
-      // Cargar catálogo para autocompletado
       if (!gfCatalog.length) {
         try {
           const res  = await fetch('https://fonts.google.com/metadata/fonts');
           const json = await res.json();
-          // El endpoint retorna familias en json.familyMetadataList
           gfCatalog = (json.familyMetadataList || []).map(f => f.family);
         } catch (_) {
-          // Si falla el catálogo, igual se puede escribir manualmente
           gfCatalog = [];
         }
       }
@@ -217,7 +328,7 @@ function renderWatermark() {
         suggestionsEl.querySelectorAll('.gf-suggestion-item').forEach(item => {
           item.addEventListener('mousedown', e => {
             e.preventDefault();
-            familyInput.value           = item.dataset.family;
+            familyInput.value = item.dataset.family;
             suggestionsEl.style.display = 'none';
           });
         });
@@ -227,61 +338,26 @@ function renderWatermark() {
         setTimeout(() => { suggestionsEl.style.display = 'none'; }, 150);
       });
 
-      document.getElementById('gf-load').addEventListener('click', async () => {
-        const family   = familyInput.value.trim();
-        const statusEl = document.getElementById('gf-status');
-        if (!family) { notify.warning('Escribe el nombre de una familia de Google Fonts.'); return; }
-
-        statusEl.textContent = '⏳ Descargando...';
-        statusEl.style.color = 'var(--warning)';
-
-        try {
-          // Usar la API CSS2 que devuelve formato compatible
-          const encoded = encodeURIComponent(family);
-          // Forzar user-agent que reciba ttf en lugar de woff2
-          const cssUrl  = `https://fonts.googleapis.com/css2?family=${encoded}:wght@400&display=swap`;
-          const res     = await fetch(cssUrl, {
-            headers: { 'User-Agent': 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)' }
-          });
-          const css = await res.text();
-
-          // Buscar URL de fuente (ttf o woff)
-          const match = css.match(/src:\s*url\(([^)]+\.(?:ttf|woff))\)/i);
-          if (!match) {
-            // Fallback: intentar con la API pública de bunny fonts (mirror de GF sin CORS)
-            const bunnyUrl = `https://fonts.bunny.net/css?family=${encoded.toLowerCase().replace(/%20/g, '-')}:400`;
-            const bunnyRes = await fetch(bunnyUrl);
-            const bunnyCss = await bunnyRes.text();
-            const bunnyMatch = bunnyCss.match(/url\('([^']+\.(?:ttf|woff2?))'\)/i);
-            if (!bunnyMatch) throw new Error(`No se encontró la fuente "${family}" en Google Fonts`);
-            const dl = await window.api.downloadGoogleFont({ family, url: bunnyMatch[1] });
-            if (!dl.ok) throw new Error(dl.error);
-            fontPath = dl.path;
-          } else {
-            const dl = await window.api.downloadGoogleFont({ family, url: match[1] });
-            if (!dl.ok) throw new Error(dl.error);
-            fontPath = dl.path;
-          }
-
-          statusEl.textContent = `✓ ${family} lista`;
-          statusEl.style.color = 'var(--success)';
-          notify.success(`Fuente "${family}" cargada correctamente.`);
-          suggestionsEl.style.display = 'none';
-
-        } catch (e) {
-          statusEl.textContent = '✗ Error al cargar';
-          statusEl.style.color = 'var(--error)';
-          notify.error(`No se pudo cargar "${family}": ${e.message}`);
-        }
+      document.getElementById('gf-load').addEventListener('click', () => {
+        loadGoogleFont(familyInput.value.trim());
       });
     }
   }
   renderFontPicker();
 
   // ── Tamaño, opacidad, ángulo ────────────────────────────────────────────────
-  document.getElementById('wm-size').addEventListener('input',    e => { fontSize = parseInt(e.target.value) || 72; });
-  document.getElementById('wm-opacity').addEventListener('input', e => { opacity  = parseInt(e.target.value) || 50; });
-  document.getElementById('wm-angle').addEventListener('input',   e => { angle    = parseInt(e.target.value) || 45; });
+  document.getElementById('wm-size').addEventListener('input', e => {
+    fontSize = parseInt(e.target.value, 10) || 72;
+    updatePreview();
+  });
+  document.getElementById('wm-opacity').addEventListener('input', e => {
+    opacity  = parseInt(e.target.value, 10) || 50;
+    updatePreview();
+  });
+  document.getElementById('wm-angle').addEventListener('input', e => {
+    angle    = parseInt(e.target.value, 10) || 45;
+    updatePreview();
+  });
 
   // ── Color ───────────────────────────────────────────────────────────────────
   optButtons(document.getElementById('color-row'), [
@@ -292,8 +368,13 @@ function renderWatermark() {
   ], '#FF0000', val => {
     color = val;
     document.getElementById('wm-color').value = val;
+    updatePreview();
   });
-  document.getElementById('wm-color').addEventListener('input', e => { color = e.target.value; });
+
+  document.getElementById('wm-color').addEventListener('input', e => {
+    color = e.target.value;
+    updatePreview();
+  });
 
   // ── Posición ────────────────────────────────────────────────────────────────
   optButtons(document.getElementById('position-row'), [
@@ -302,7 +383,10 @@ function renderWatermark() {
     { label: '✛ Centro',     value: 'center'       },
     { label: '↙ Inf. Izq.',  value: 'bottom_left'  },
     { label: '↘ Inf. Der.',  value: 'bottom_right' },
-  ], 'center', val => { position = val; });
+  ], 'center', val => {
+    position = val;
+    updatePreview();
+  });
 
   // ── Archivos ────────────────────────────────────────────────────────────────
   const onRemove = f => {
@@ -381,4 +465,6 @@ function renderWatermark() {
     cancel.style.display = 'none';
     updateRun();
   });
+
+  updatePreview();
 }

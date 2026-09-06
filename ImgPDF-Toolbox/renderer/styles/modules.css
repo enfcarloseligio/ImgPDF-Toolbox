@@ -277,3 +277,41 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 }
 .gf-suggestion-item:last-child { border-bottom: none; }
 .gf-suggestion-item:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* ── Previsualizador de Marca de Agua ────────────────────────────────────── */
+.wm-preview-container {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wm-preview-box {
+  width: 100%;
+  height: 180px;
+  background-color: #f1f5f9;
+  background-image: 
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%), 
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--border);
+}
+
+.wm-preview-label {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: center center;
+  transition: transform 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+}
