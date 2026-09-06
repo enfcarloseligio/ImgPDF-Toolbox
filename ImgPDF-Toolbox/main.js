@@ -633,7 +633,7 @@ ipcMain.handle('rotate-files', async (_, { files, angle, target, outputDir }) =>
   return results;
 });
 
-// ── IPC: Marca de agua de texto (Mosaico continuo sin desbordamiento de CLI) ──
+// ── IPC: Marca de agua de texto ───────────────────────────────────────────────
 
 ipcMain.handle('watermark-text', async (_, {
   files, text, fontPath, fontSize, fontWeight = 400,
@@ -652,34 +652,66 @@ ipcMain.handle('watermark-text', async (_, {
     bottom_right: 'SouthEast',
   };
   const gravity   = gravityMap[position] || 'Center';
-  const fontFlag  = fontPath ? `-font "${fontPath.replace(/\\/g, '/')}"` : '';
   const alphaVal  = Math.round((opacity / 100) * 255);
   const hexAlpha  = alphaVal.toString(16).padStart(2, '0');
   const fillColor = `${color}${hexAlpha}`;
+  const safeText  = text.replace(/"/g, '\\"');
 
   const tempDir = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  // Construir comando de marca según el modo
+  // ── Generar Script Magick para procesar cientos de textos sin límite de CLI ──
   async function applyWatermark(inputImg, outputTarget, width, height) {
+    const scriptFile = path.join(tempDir, `script_${Math.random().toString(36).slice(2)}.mgk`);
+    const lines = [];
+
+    lines.push(`-read`);
+    lines.push(`"${inputImg.replace(/\\/g, '/')}"`);
+
+    if (fontPath) {
+      lines.push(`-font`);
+      lines.push(`"${fontPath.replace(/\\/g, '/').replace(/"/g, '\\"')}"`);
+    }
+    lines.push(`-pointsize`);
+    lines.push(`${fontSize}`);
+    lines.push(`-fill`);
+    lines.push(`"${fillColor}"`);
+
     if (repeatMode === 'single') {
-      await run(`magick "${inputImg}" ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" -gravity ${gravity} -annotate ${angle}x${angle}+0+0 "${text}" "${outputTarget}"`);
-      return;
+      lines.push(`-gravity`);
+      lines.push(`${gravity}`);
+      lines.push(`-annotate`);
+      lines.push(`${angle}x${angle}+0+0`);
+      lines.push(`"${safeText}"`);
+    } else {
+      lines.push(`-gravity`);
+      lines.push(`NorthWest`);
+      const gapH = Math.max(80, parseInt(repeatGapH) || 200);
+      const gapV = Math.max(50, parseInt(repeatGapV) || 150);
+      const cols = Math.ceil(width / gapH) + 2;
+      const rows = Math.ceil(height / gapV) + 2;
+
+      // Se expande el margen de inicio (-2) para que las palabras diagonales cubran las esquinas superiores
+      for (let r = -2; r < rows; r++) {
+        for (let c = -2; c < cols; c++) {
+          const x = Math.round(c * gapH);
+          const y = Math.round(r * gapV);
+          const signX = x >= 0 ? `+${x}` : `${x}`;
+          const signY = y >= 0 ? `+${y}` : `${y}`;
+          lines.push(`-annotate`);
+          lines.push(`${angle}x${angle}${signX}${signY}`);
+          lines.push(`"${safeText}"`);
+        }
+      }
     }
 
-    // Modo Mosaico:
-    // 1. Renderizar la palabra completa con margen de respiración
-    const gapH = Math.max(100, parseInt(repeatGapH) || 200);
-    const gapV = Math.max(60, parseInt(repeatGapV) || 150);
-    const stampTile = path.join(tempDir, `stamp_${Date.now()}.png`).replace(/\\/g, '/');
+    lines.push(`-write`);
+    lines.push(`"${outputTarget.replace(/\\/g, '/')}"`);
 
-    // Generar celda transparente expandida con la palabra centrada y orientada
-    await run(`magick -background none ${fontFlag} -pointsize ${fontSize} -fill "${fillColor}" label:"${text}" -rotate ${angle} -gravity center -background none -extent ${gapH}x${gapV} "${stampTile}"`);
-
-    // 2. Estampar la cuadrícula repetida sin límites sobre la imagen en un solo paso
-    await run(`magick "${inputImg}" -size ${width}x${height} tile:"${stampTile}" -composite "${outputTarget}"`);
-
-    try { fs.unlinkSync(stampTile); } catch (_) {}
+    fs.writeFileSync(scriptFile, lines.join('\n'), 'utf8');
+    // Ejecuta el archivo en modo script. Esto no tiene límites de caracteres ni problemas de comillas en CMD.
+    await run(`magick -script "${scriptFile.replace(/\\/g, '/')}"`);
+    try { fs.unlinkSync(scriptFile); } catch (_) {}
   }
 
   for (const file of files) {
@@ -746,8 +778,6 @@ ipcMain.handle('watermark-text', async (_, {
 
   return results;
 });
-
-// ── IPC: Desbloqueo de PDF ────────────────────────────────────────────────────
 
 ipcMain.handle('unlock-pdf', async (_, { files, password, outputDir }) => {
   isCancelled = false;
