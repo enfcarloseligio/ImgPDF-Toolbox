@@ -175,6 +175,10 @@ const moduleMap = {
   'merge':      renderMerge,
   'split':      renderSplit,
   'update':     renderUpdate,
+  'compress':   renderCompress,
+  'rotate':     renderRotate,
+  'watermark':  renderWatermark,
+  'unlock':     renderUnlock,
   // Agregar nuevos módulos aquí sin tocar nada más
 };
 

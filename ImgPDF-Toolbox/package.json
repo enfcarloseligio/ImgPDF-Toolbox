@@ -1,6 +1,6 @@
 {
   "name": "imgpdf-toolbox",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Suite ligera para manipular imágenes y PDFs con Ghostscript e ImageMagick",
   "main": "main.js",
   "scripts": {
