@@ -803,3 +803,315 @@ ipcMain.handle('unlock-pdf', async (_, { files, password, outputDir }) => {
   }
   return results;
 });
+// Handlers para los módulos de la v1.3.0
+
+// ── Helpers de fecha (para foliado) ──────────────────────────────────────────
+
+function buildFolioText({ mode, prefix, suffix, separator, digits, startNum,
+  pageNum, totalPages, dateFormat, customDate, useToday }) {
+
+  const pad = n => String(n).padStart(digits, '0');
+
+  const getDate = () => {
+    if (useToday) return new Date();
+    if (customDate) return new Date(customDate + 'T12:00:00');
+    return new Date();
+  };
+
+  const formatDate = (d) => {
+    const meses = ['enero','febrero','marzo','abril','mayo','junio',
+                   'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const mc    = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const dd    = String(d.getDate()).padStart(2,'0');
+    const mm    = String(d.getMonth()+1).padStart(2,'0');
+    const yy    = d.getFullYear();
+    switch (dateFormat) {
+      case 'DD/MM/AAAA':    return `${dd}/${mm}/${yy}`;
+      case 'AAAA-MM-DD':    return `${yy}-${mm}-${dd}`;
+      case 'D de Mes AAAA': return `${d.getDate()} de ${meses[d.getMonth()]} de ${yy}`;
+      case 'Mes D AAAA':    return `${meses[d.getMonth()]} ${d.getDate()}, ${yy}`;
+      case 'DD-MMM-AAAA':   return `${dd}-${mc[d.getMonth()]}-${yy}`;
+      default:              return `${dd}/${mm}/${yy}`;
+    }
+  };
+
+  const n = startNum + pageNum - 1;
+  switch (mode) {
+    case 'pagina':        return `${prefix || 'Página'} ${pageNum}`;
+    case 'pagina-total':  return `${prefix || 'Página'} ${pageNum} ${suffix || 'de'} ${totalPages}`;
+    case 'folio':         return `${prefix || 'FOLIO:'} ${pad(n)}`;
+    case 'folio-prefijo': return `${prefix}${separator}${pad(n)}${suffix}`;
+    case 'folio-abierto': return (prefix || 'EXP-{n}-2026').replace('{n}', pad(n));
+    case 'recibido':      return `${prefix || 'RECIBIDO:'} ${formatDate(getDate())}`;
+    default:              return `${pageNum}`;
+  }
+}
+
+// Mapeo de posición a coordenadas GS/IM
+function positionToGravity(position) {
+  const map = {
+    top_left:      'NorthWest',
+    top_center:    'North',
+    top_right:     'NorthEast',
+    mid_left:      'West',
+    center:        'Center',
+    mid_right:     'East',
+    bottom_left:   'SouthWest',
+    bottom_center: 'South',
+    bottom_right:  'SouthEast',
+  };
+  return map[position] || 'SouthEast';
+}
+
+// ── IPC: Foliado y numeración ─────────────────────────────────────────────────
+
+ipcMain.handle('apply-folio', async (_, {
+  files, mode, prefix, suffix, separator, digits, startNum,
+  italic, dateFormat, customDate, useToday,
+  fontSize, fontWeight, color, position, angle,
+  marginX, marginY, fontPath, outputDir
+}) => {
+  isCancelled = false;
+  const results = [];
+  const gravity = positionToGravity(position);
+
+  // Color con opacidad total (folio siempre sólido)
+  const fillColor = color;
+  const fontFlag  = fontPath ? `-font "${fontPath}"` : '';
+  const italicFlag = italic ? '-style Italic' : '';
+
+  // Acumulador de páginas para folio consecutivo entre archivos
+  let globalPageOffset = 0;
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    try {
+      const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
+      const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+      const tempDir    = path.join(app.getPath('temp'), `imgpdf_folio_${Date.now()}`);
+      fs.mkdirSync(tempDir, { recursive: true });
+      const pageParts  = [];
+
+      // Escribir texto en archivo temporal para evitar problemas de encoding
+      const textDir = path.join(tempDir, 'texts');
+      fs.mkdirSync(textDir, { recursive: true });
+
+      for (let i = 1; i <= totalPages; i++) {
+        if (isCancelled) break;
+
+        const folioText = buildFolioText({
+          mode, prefix, suffix, separator, digits,
+          startNum: startNum + globalPageOffset,
+          pageNum: i, totalPages,
+          dateFormat, customDate, useToday
+        });
+
+        // Escribir texto en archivo temporal (evita problemas con UTF-8 y línea larga)
+        const textFile = path.join(textDir, `p${i}.txt`);
+        fs.writeFileSync(textFile, folioText, 'utf8');
+
+        const tempImg = path.join(tempDir, `pag${String(i).padStart(3,'0')}.png`);
+        const tempPdf = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
+
+        await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
+        await run(
+          `magick "${tempImg}" ` +
+          `${fontFlag} ${italicFlag} ` +
+          `-pointsize ${fontSize} -fill "${fillColor}" ` +
+          `-gravity ${gravity} ` +
+          `-annotate ${angle}x${angle}+${marginX}+${marginY} "@${textFile}" ` +
+          `"${tempPdf}"`
+        );
+        pageParts.push(tempPdf);
+      }
+
+      globalPageOffset += totalPages;
+
+      if (!isCancelled && pageParts.length > 0) {
+        const gs     = findGhostscript();
+        const name   = path.basename(file, '.pdf');
+        const out    = getUniqueFilePath(path.join(outputDir, `${name}-foliado.pdf`));
+        const inputs = pageParts.map(p => `"${p}"`).join(' ');
+        await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -sOutputFile="${out}" ${inputs}`);
+        results.push({ file, out, ok: true });
+      }
+
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+
+    } catch (e) {
+      results.push({ file, ok: false, error: String(e) });
+      if (isCancelled) break;
+    }
+  }
+  return results;
+});
+
+// ── IPC: Marca de agua de imagen ──────────────────────────────────────────────
+
+ipcMain.handle('watermark-image', async (_, {
+  files, markFile, sizePercent, opacity, position,
+  angle, repeatMode, repeatGapH, repeatGapV, marginX, marginY,
+  outputDir
+}) => {
+  isCancelled = false;
+  const results = [];
+  const alphaVal = Math.round((opacity / 100) * 255).toString(16).padStart(2, '0');
+  const gravity  = positionToGravity(position);
+
+  async function getImageSize(imgPath) {
+    try {
+      const out = await run(`magick identify -format "%wx%h" "${imgPath}"`);
+      const m   = out.match(/(\d+)x(\d+)/);
+      if (m) return { w: parseInt(m[1]), h: parseInt(m[2]) };
+    } catch (_) {}
+    return { w: 1654, h: 2339 };
+  }
+
+  async function applyMark(inputPath, outputPath, docW, docH) {
+    const markW = Math.round((sizePercent / 100) * docW);
+
+    // Redimensionar imagen de marca al tamaño calculado
+    const tempMark = inputPath + '_mark_resized.png';
+    await run(`magick "${markFile}" -resize ${markW}x -alpha set -channel Alpha -evaluate multiply ${(opacity/100).toFixed(2)} "${tempMark}"`);
+
+    if (repeatMode === 'single') {
+      await run(
+        `magick "${inputPath}" "${tempMark}" ` +
+        `-gravity ${gravity} -geometry +${marginX}+${marginY} ` +
+        `${angle !== 0 ? `-rotate ${angle}` : ''} ` +
+        `-composite "${outputPath}"`
+      );
+    } else {
+      // Mosaico: crear imagen de patrón del tamaño del documento
+      const tilePath    = inputPath + '_tile.png';
+      const patternPath = inputPath + '_pattern.png';
+
+      // Crear tile con el tamaño de separación especificado
+      await run(`magick -size ${repeatGapH}x${repeatGapV} xc:none "${tempMark}" -gravity Center -composite "${tilePath}"`);
+
+      // Repetir el tile en toda la superficie
+      await run(`magick -size ${docW}x${docH} "tile:${tilePath}" "${patternPath}"`);
+
+      // Rotar patrón si es necesario
+      if (angle !== 0) {
+        const rotPath = inputPath + '_pattern_rot.png';
+        await run(`magick "${patternPath}" -background none -rotate ${angle} -gravity center -extent ${docW}x${docH} "${rotPath}"`);
+        await run(`magick "${inputPath}" "${rotPath}" -composite "${outputPath}"`);
+        try { fs.unlinkSync(rotPath); } catch (_) {}
+      } else {
+        await run(`magick "${inputPath}" "${patternPath}" -composite "${outputPath}"`);
+      }
+
+      try { fs.unlinkSync(tilePath); } catch (_) {}
+      try { fs.unlinkSync(patternPath); } catch (_) {}
+    }
+
+    try { fs.unlinkSync(tempMark); } catch (_) {}
+  }
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    const ext   = path.extname(file).toLowerCase();
+    const name  = path.basename(file, ext);
+    const isPdf = ext === '.pdf';
+
+    if (!isPdf) {
+      const out  = getUniqueFilePath(path.join(outputDir, `${name}-wmi${ext}`));
+      const dims = await getImageSize(file);
+      try {
+        await applyMark(file, out, dims.w, dims.h);
+        results.push({ file, out, ok: true });
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+      }
+    } else {
+      try {
+        const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
+        const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+        const tempDir    = path.join(app.getPath('temp'), `imgpdf_wmi_${Date.now()}`);
+        fs.mkdirSync(tempDir, { recursive: true });
+        const pageParts  = [];
+
+        for (let i = 1; i <= totalPages; i++) {
+          if (isCancelled) break;
+          const tempImg  = path.join(tempDir, `pag${String(i).padStart(3,'0')}.png`);
+          const tempWm   = path.join(tempDir, `pag${String(i).padStart(3,'0')}_wm.png`);
+          const tempPdf  = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
+
+          await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
+          const dims = await getImageSize(tempImg);
+          await applyMark(tempImg, tempWm, dims.w, dims.h);
+          await run(`magick "${tempWm}" "${tempPdf}"`);
+          pageParts.push(tempPdf);
+        }
+
+        if (!isCancelled && pageParts.length > 0) {
+          const gs     = findGhostscript();
+          const out    = getUniqueFilePath(path.join(outputDir, `${name}-wmi.pdf`));
+          const inputs = pageParts.map(p => `"${p}"`).join(' ');
+          await run(`${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER -sOutputFile="${out}" ${inputs}`);
+          results.push({ file, out, ok: true });
+        }
+
+        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+        if (isCancelled) break;
+      }
+    }
+  }
+  return results;
+});
+
+// ── IPC: Conversión a estándares PDF ─────────────────────────────────────────
+
+ipcMain.handle('convert-pdf-standard', async (_, { files, standard, outputDir }) => {
+  isCancelled = false;
+  const gs      = findGhostscript();
+  const results = [];
+
+  // Mapeo de estándar → flags de Ghostscript
+  const standardFlags = {
+    'PDFA-1b':  `-dPDFA=1 -dPDFACompatibilityPolicy=1 -sColorConversionStrategy=UseDeviceIndependentColor`,
+    'PDFA-2b':  `-dPDFA=2 -dPDFACompatibilityPolicy=1 -sColorConversionStrategy=UseDeviceIndependentColor`,
+    'PDFA-3b':  `-dPDFA=3 -dPDFACompatibilityPolicy=1 -sColorConversionStrategy=UseDeviceIndependentColor`,
+    'PDFA-4':   `-dPDFA=2 -dPDFACompatibilityPolicy=2 -sColorConversionStrategy=UseDeviceIndependentColor`,
+    'PDFX-1a':  `-dPDFX -dPDFXVersion=/PDF\\/X-1a:2001`,
+    'PDFX-3':   `-dPDFX -dPDFXVersion=/PDF\\/X-3:2002`,
+    'PDFUA-1':  `-dPDFA=1 -dPDFACompatibilityPolicy=1 -dTagged=true`,
+    'PDFE-1':   `-dPDFA=1 -dPDFACompatibilityPolicy=1`,
+  };
+
+  // Sufijo de nombre de archivo
+  const suffixMap = {
+    'PDFA-1b': 'pdfa1b', 'PDFA-2b': 'pdfa2b', 'PDFA-3b': 'pdfa3b', 'PDFA-4': 'pdfa4',
+    'PDFX-1a': 'pdfx1a', 'PDFX-3':  'pdfx3',  'PDFUA-1': 'pdfua1', 'PDFE-1': 'pdfe1',
+  };
+
+  const flags  = standardFlags[standard] || standardFlags['PDFA-2b'];
+  const suffix = suffixMap[standard]     || 'std';
+
+  for (const file of files) {
+    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+
+    const name = path.basename(file, '.pdf');
+    const out  = getUniqueFilePath(path.join(outputDir, `${name}-${suffix}.pdf`));
+
+    try {
+      await run(
+        `${gs} -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -dSAFER ` +
+        `${flags} ` +
+        `-dCompatibilityLevel=1.4 ` +
+        `-sOutputFile="${out}" "${file}"`
+      );
+      results.push({ file, out, ok: true });
+    } catch (e) {
+      results.push({ file, ok: false, error: String(e) });
+      if (isCancelled) break;
+    }
+  }
+  return results;
+});

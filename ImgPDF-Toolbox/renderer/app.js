@@ -1,9 +1,4 @@
-// ── app.js ────────────────────────────────────────────────────────────────────
-// Orquestador principal. Solo responsable de:
-//   - Arrancar el splash y la verificación de herramientas
-//   - Inicializar la app principal
-//   - Enrutar módulos
-//   - Bindear links externos
+// ── app.js v1.3.0 ─────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindExternalLinks();
@@ -16,14 +11,12 @@ async function runSplash() {
   const loaderFill = document.getElementById('loader-fill');
   const loaderMsg  = document.getElementById('loader-msg');
 
-  const steps = [
+  for (const [pct, msg] of [
     [15, 'Iniciando entorno...'],
     [40, 'Buscando ImageMagick...'],
     [65, 'Buscando Ghostscript...'],
     [90, 'Comprobando librerías...'],
-  ];
-
-  for (const [pct, msg] of steps) {
+  ]) {
     loaderFill.style.width = pct + '%';
     loaderMsg.textContent  = msg;
     await delay(300);
@@ -57,14 +50,12 @@ async function runSplash() {
 }
 
 function updateScanStep(id, ok, version) {
-  const el   = document.getElementById(id);
+  const el = document.getElementById(id);
   if (!el) return;
-  const icon = el.querySelector('.scan-icon');
-  const stat = el.querySelector('.scan-status');
   el.classList.add(ok ? 'ok' : 'warn');
-  icon.textContent = ok ? '✅' : '⚠️';
-  icon.classList.remove('spinning');
-  stat.textContent = ok ? `v${version} — Listo` : 'No encontrado';
+  el.querySelector('.scan-icon').textContent = ok ? '✅' : '⚠️';
+  el.querySelector('.scan-icon').classList.remove('spinning');
+  el.querySelector('.scan-status').textContent = ok ? `v${version} — Listo` : 'No encontrado';
 }
 
 function buildInstallPanel(tools) {
@@ -84,39 +75,30 @@ function buildInstallPanel(tools) {
       <button class="btn-accent btn-sm" id="${btnId}">Instalar</button>`;
     actions.appendChild(row);
     row.querySelector(`#${btnId}`).addEventListener('click', () =>
-      installToolAction(tool, btnId, scanId)
-    );
+      installToolAction(tool, btnId, scanId));
   };
 
-  if (!tools.imageMagick) {
-    addRow('imagemagick', 'ImageMagick', 'Instalador silencioso integrado', 'install-im', 'scan-im');
-  }
-
+  if (!tools.imageMagick) addRow('imagemagick','ImageMagick','Instalador silencioso integrado','install-im','scan-im');
   if (!tools.ghostscript) {
-    addRow('ghostscript', 'Ghostscript', 'Puede requerir instalación manual', 'install-gs', 'scan-gs');
-    document.getElementById('btn-gs-manual').addEventListener('click', () => {
-      window.api.openUrl('https://www.ghostscript.com/releases/gsdnld.html');
-    });
+    addRow('ghostscript','Ghostscript','Puede requerir instalación manual','install-gs','scan-gs');
+    document.getElementById('btn-gs-manual').addEventListener('click', () =>
+      window.api.openUrl('https://www.ghostscript.com/releases/gsdnld.html'));
   }
 }
 
 async function installToolAction(tool, btnId, scanId) {
   const btn = document.getElementById(btnId);
-  btn.textContent = 'Instalando...';
-  btn.disabled    = true;
-
+  btn.textContent = 'Instalando...'; btn.disabled = true;
   const res = await window.api.installTool(tool);
   if (res.ok) {
     updateScanStep(scanId, true, 'instalado');
     btn.textContent = '✓ Listo';
     notify.success(`${tool} instalado correctamente.`);
   } else {
-    btn.textContent = 'Error';
-    btn.disabled    = false;
+    btn.textContent = 'Error'; btn.disabled = false;
     notify.error(`Fallo al instalar ${tool}.`);
     if (tool === 'ghostscript') {
-      const manual = document.getElementById('install-manual');
-      manual.style.cssText = 'display:flex; flex-direction:column; gap:0.5rem';
+      document.getElementById('install-manual').style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
     }
   }
 }
@@ -139,7 +121,6 @@ function initApp() {
   updateStatusBadge();
   bindMenu();
   bindFooterLinks();
-  // Cargar módulo por defecto al entrar (mejora de Gemini — mejor UX)
   loadModule('img-to-pdf');
   document.querySelector('.card-btn[data-module="img-to-pdf"]')?.classList.add('active');
 }
@@ -150,13 +131,13 @@ function updateStatusBadge() {
   const label = document.querySelector('#tools-status .status-label');
 
   if (t.imageMagick && t.ghostscript) {
-    dot.className     = 'status-dot ok';
+    dot.className = 'status-dot ok';
     label.textContent = `IM ${t.imVersion} · GS ${t.gsVersion}`;
   } else if (t.imageMagick || t.ghostscript) {
-    dot.className     = 'status-dot warn';
+    dot.className = 'status-dot warn';
     label.textContent = 'Herramienta faltante';
   } else {
-    dot.className     = 'status-dot error';
+    dot.className = 'status-dot error';
     label.textContent = 'Sin herramientas';
   }
 
@@ -167,19 +148,23 @@ function updateStatusBadge() {
   ].join('\n');
 }
 
-// ── Enrutador de módulos ──────────────────────────────────────────────────────
+// ── Enrutador ─────────────────────────────────────────────────────────────────
 
 const moduleMap = {
-  'img-to-pdf': renderImgToPdf,
-  'pdf-to-img': renderPdfToImg,
-  'merge':      renderMerge,
-  'split':      renderSplit,
-  'update':     renderUpdate,
-  'compress':   renderCompress,
-  'rotate':     renderRotate,
-  'watermark':  renderWatermark,
-  'unlock':     renderUnlock,
-  // Agregar nuevos módulos aquí sin tocar nada más
+  // v1.2.0
+  'img-to-pdf':     renderImgToPdf,
+  'pdf-to-img':     renderPdfToImg,
+  'merge':          renderMerge,
+  'split':          renderSplit,
+  'compress':       renderCompress,
+  'rotate':         renderRotate,
+  'watermark':      renderWatermark,
+  'unlock':         renderUnlock,
+  'update':         renderUpdate,
+  // v1.3.0
+  'folio':          renderFolio,
+  'watermark-image':renderWatermarkImage,
+  'pdf-standards':  renderPdfStandards,
 };
 
 function bindMenu() {
@@ -218,18 +203,15 @@ function bindFooterLinks() {
   };
   for (const [id, url] of Object.entries(links)) {
     document.getElementById(id)?.addEventListener('click', e => {
-      e.preventDefault();
-      window.api.openUrl(url);
+      e.preventDefault(); window.api.openUrl(url);
     });
   }
 }
 
 function bindExternalLinks() {
   document.getElementById('splash-author-link')?.addEventListener('click', e => {
-    e.preventDefault();
-    window.api.openUrl('https://enfcarloseligio.com/');
+    e.preventDefault(); window.api.openUrl('https://enfcarloseligio.com/');
   });
-  document.getElementById('splash-site-link')?.addEventListener('click', () => {
-    window.api.openUrl('https://enfcarloseligio.com/');
-  });
+  document.getElementById('splash-site-link')?.addEventListener('click', () =>
+    window.api.openUrl('https://enfcarloseligio.com/'));
 }

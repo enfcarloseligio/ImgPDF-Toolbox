@@ -370,3 +370,156 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .file-item:active .file-drag-handle {
   cursor: grabbing;
 }
+
+/* ── Adiciones v1.3.0 — pegar al final de modules.css ───────────────────── */
+
+/* ── Folio: vista previa ─────────────────────────────────────────────────── */
+.folio-preview-box {
+  width: 100%;
+  height: 160px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Líneas de contenido simulado */
+.folio-preview-box::before {
+  content: '';
+  position: absolute;
+  inset: 16px 20px;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0px, transparent 14px,
+    #e2e8f0 14px, #e2e8f0 16px
+  );
+}
+
+.folio-preview-text {
+  position: absolute;
+  white-space: nowrap;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  transition: all 0.15s ease;
+}
+
+/* ── Watermark image: preview ────────────────────────────────────────────── */
+.wmi-preview-mark {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Estándares PDF: grid de selección ───────────────────────────────────── */
+.standard-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--t);
+}
+
+.standard-row:hover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.standard-row.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+.standard-row-left { display: flex; flex-direction: column; gap: 0.2rem; }
+
+.standard-label {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--deep);
+}
+
+.standard-norm {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.standard-gs {
+  font-size: 0.76rem;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Badges de estándar */
+.standard-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.badge-ok   { background: var(--success-bg); color: #166534; border: 1px solid var(--success-border); }
+.badge-warn { background: var(--warning-bg); color: #92400E; border: 1px solid var(--warning-border); }
+.badge-info { background: var(--info-bg);    color: var(--info-text); border: 1px solid var(--info-border); }
+
+/* Panel de información del estándar */
+.standard-info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Folio: marcador de código inline ────────────────────────────────────── */
+code {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.82em;
+  background: var(--border);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: var(--deep);
+}
+
+/* ── Watermark image: zona de marca ─────────────────────────────────────── */
+#zone-mark {
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  min-height: auto;
+  padding: 0.85rem 1rem;
+  cursor: default;
+}
+
+#zone-mark:hover { border-color: var(--accent); }
+
+/* ── Slider de opacidad ──────────────────────────────────────────────────── */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--border);
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
