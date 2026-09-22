@@ -1,6 +1,6 @@
 {
   "name": "imgpdf-toolbox",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Suite ligera para manipular imágenes y PDFs con Ghostscript e ImageMagick",
   "main": "main.js",
   "scripts": {
@@ -25,9 +25,18 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "renderer/assets/icon.ico",
+      "uninstallerIcon": "renderer/assets/icon.ico",
+      "installerHeaderIcon": "renderer/assets/icon.ico"
     },
-    "files": ["main.js", "preload.js", "renderer/**/*", "package.json"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "renderer/assets/icon.ico",
+      "package.json"
+    ],
     "extraResources": [{ "from": "extraResources", "to": "bin" }]
   }
 }

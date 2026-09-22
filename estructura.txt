@@ -18,8 +18,8 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\IMGPDF-TOOLBOX\IMGPDF-TOOLBOX
 +---dist
 ¦   ¦   builder-debug.yml
 ¦   ¦   builder-effective-config.yaml
-¦   ¦   ImgPDF Toolbox Setup 1.0.0.exe
-¦   ¦   ImgPDF Toolbox Setup 1.0.0.exe.blockmap
+¦   ¦   ImgPDF Toolbox Setup 1.3.0.exe
+¦   ¦   ImgPDF Toolbox Setup 1.3.0.exe.blockmap
 ¦   ¦   
 ¦   +---win-unpacked
 ¦       ¦   chrome_100_percent.pak
@@ -9764,11 +9764,18 @@ C:\USERS\ENFCA\DOCUMENTS\PROYECTOS\IMGPDF-TOOLBOX\IMGPDF-TOOLBOX
     ¦       ui-utils.js
     ¦       
     +---modules
+    ¦       compress.js
+    ¦       folio.js
     ¦       img-to-pdf.js
     ¦       merge.js
+    ¦       pdf-standards.js
     ¦       pdf-to-img.js
+    ¦       rotate.js
     ¦       split.js
+    ¦       unlock.js
     ¦       update.js
+    ¦       watermark-image.js
+    ¦       watermark.js
     ¦       
     +---styles
             global.css
