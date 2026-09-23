@@ -29,4 +29,10 @@ contextBridge.exposeInMainWorld('api', {
   applyFolio:            (opts)       => ipcRenderer.invoke('apply-folio', opts),
   watermarkImage:        (opts)       => ipcRenderer.invoke('watermark-image', opts),
   convertPdfStandard:    (opts)       => ipcRenderer.invoke('convert-pdf-standard', opts),
+  // ── NUEVO: Progreso de operaciones (main → renderer) ──────────────────────
+  onProgress: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('progress', listener);
+    return () => ipcRenderer.removeListener('progress', listener);
+  },
 });
