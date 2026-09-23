@@ -38,7 +38,7 @@ let isCancelled = false;
 
 function run(cmd) {
   return new Promise((resolve, reject) => {
-    currentProcess = exec(cmd, { 
+    currentProcess = exec(cmd, {
       maxBuffer: 1024 * 1024 * 50,
       encoding: 'buffer'
     }, (error, stdout, stderr) => {
@@ -66,7 +66,7 @@ function run(cmd) {
   });
 }
 
-// ── NUEVO: runSpawn — ejecución con streaming, sin límite de buffer ──────────
+// ── runSpawn — ejecución con streaming, sin límite de buffer ─────────────────
 //
 // - Sin shell: args como array → sin inyección de comandos
 // - Streaming de stdout/stderr → sin límite de 50MB
@@ -84,11 +84,11 @@ function runSpawn(bin, args, opts = {}) {
     let stderrBuffer = '';
     let stdoutBytes = 0;
 
-    const MAX_STDOUT = opts.maxStdout ?? (1024 * 1024); // 1MB por defecto
+    const MAX_STDOUT = opts.maxStdout ?? (1024 * 1024);
 
     proc.stdout.on('data', chunk => {
       stdoutBytes += chunk.length;
-      if (MAX_STDOUT === 0) return;              // no acumular nada
+      if (MAX_STDOUT === 0) return;
       if (stdoutBytes > MAX_STDOUT) {
         if (stdout && !stdout.endsWith('[... truncado ...]')) {
           stdout += '\n[... salida truncada ...]';
@@ -340,10 +340,26 @@ ipcMain.handle('convert-img-to-pdf', async (_, { files, quality, outputDir }) =>
   return results;
 });
 
-// ── NUEVO: PDF → Imágenes con progreso real ───────────────────────────────────
+// ── PDF → Imágenes con progreso real ─────────────────────────────────────────
+//
+// Estrategia por formato y fondo:
+//
+//   PNG:
+//     - Original → pngalpha (transparencia real, sin post-proceso)
+//     - Blanco   → pngalpha + magick -alpha remove
+//     - Oscuro   → pngalpha + magick -alpha remove
+//
+//   JPG:
+//     - Blanco   → jpeg directo (Ghostscript compone sobre blanco por defecto)
+//     - Oscuro   → pngalpha + magick -alpha remove + magick → JPG (calidad 95)
+//
+// Se emiten eventos 'progress' al renderer:
+//   'start'      → conteo de páginas terminado
+//   'processing' → cada página procesada
+//   'done'       → proceso finalizado
 
 /**
- * Cuenta páginas de un PDF usando Ghostscript (más fiable que ImageMagick).
+ * Cuenta páginas de un PDF usando Ghostscript.
  */
 function countPdfPages(gsPath, pdfPath) {
   return new Promise((resolve, reject) => {
@@ -396,13 +412,13 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
     currentPage: 0,
   });
 
-  // ── 2. Determinar device correcto según formato ───────────────────────────
-  //
-  //  - PNG: pngalpha  → conserva transparencia real
-  //         (sin -dGraphicsAlphaBits/-dTextAlphaBits porque fuerzan fondo blanco)
-  //  - JPG: jpeg      → siempre opaco, GS compone sobre blanco
-  //
-  const device = format === 'jpg' ? 'jpeg' : 'pngalpha';
+  // ── 2. Determinar estrategia ──────────────────────────────────────────────
+  const isWhite = (background || '').toUpperCase() === '#FFFFFF';
+  const needsPngIntermediate = (format === 'jpg' && !isWhite);
+
+  // PNG siempre usa pngalpha.
+  // JPG usa pngalpha si necesita post-proceso (oscuro), si no jpeg directo.
+  const device = (format === 'png' || needsPngIntermediate) ? 'pngalpha' : 'jpeg';
 
   // ── 3. Procesar archivo por archivo, página por página ────────────────────
   let globalPageCounter = 0;
@@ -438,23 +454,45 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
           `-r${density}`,
           `-dFirstPage=${p}`,
           `-dLastPage=${p}`,
-          // ⚠️ SIN -dGraphicsAlphaBits ni -dTextAlphaBits
-          //    Esos flags fuerzan composición sobre fondo blanco
+          `-sOutputFile=${outFile}`,
+          file
         ];
-
-        gsArgs.push(`-sOutputFile=${outFile}`, file);
 
         await runSpawn(gs, gsArgs, { maxStdout: 0 });
 
-        // ── Post-procesar fondo si no es "original" (solo PNG) ────────────
-        if (format === 'png' && background !== 'original') {
+        // ── Post-procesar según el caso ──────────────────────────────────────
+        if (needsPngIntermediate) {
+          // CASO: JPG + fondo distinto de blanco
+          //   1) Aplicar el fondo al PNG (transparencia → color)
+          //   2) Convertir el PNG procesado a JPG (calidad 95)
+          const tmpPngRaw       = outFile + '.raw.png';
+          const tmpPngProcessed = outFile + '.proc.png';
+
+          try {
+            fs.renameSync(outFile, tmpPngRaw);
+            await run(`magick "${tmpPngRaw}" -background "${background}" -alpha remove -alpha off "${tmpPngProcessed}"`);
+            await run(`magick "${tmpPngProcessed}" -quality 95 "${outFile}"`);
+
+            if (fs.existsSync(tmpPngRaw))       fs.unlinkSync(tmpPngRaw);
+            if (fs.existsSync(tmpPngProcessed)) fs.unlinkSync(tmpPngProcessed);
+          } catch (err) {
+            // Restaurar el estado previo si algo falla
+            try {
+              if (fs.existsSync(tmpPngProcessed)) fs.unlinkSync(tmpPngProcessed);
+              if (fs.existsSync(outFile))         fs.unlinkSync(outFile);
+              if (fs.existsSync(tmpPngRaw))       fs.renameSync(tmpPngRaw, outFile);
+            } catch (_) {}
+          }
+
+        } else if (format === 'png' && background !== 'original') {
+          // CASO: PNG + fondo distinto de original
           const tempPng = outFile + '.tmp.png';
+
           try {
             fs.renameSync(outFile, tempPng);
             await run(`magick "${tempPng}" -background "${background}" -alpha remove -alpha off "${outFile}"`);
             fs.unlinkSync(tempPng);
           } catch (err) {
-            // Si falla, restaurar el original
             try {
               if (fs.existsSync(tempPng)) {
                 if (fs.existsSync(outFile)) fs.unlinkSync(outFile);
@@ -463,6 +501,8 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
             } catch (_) {}
           }
         }
+        // CASO: JPG + blanco → nada (GS ya genera sobre blanco)
+        // CASO: PNG + original → nada (GS ya genera con transparencia)
 
         globalPageCounter++;
 
@@ -1022,7 +1062,6 @@ ipcMain.handle('unlock-pdf', async (_, { files, password, outputDir }) => {
   }
   return results;
 });
-// Handlers para los módulos de la v1.3.0
 
 // ── Helpers de fecha (para foliado) ──────────────────────────────────────────
 
@@ -1066,7 +1105,6 @@ function buildFolioText({ mode, prefix, suffix, separator, digits, startNum,
   }
 }
 
-// Mapeo de posición a coordenadas GS/IM
 function positionToGravity(position) {
   const map = {
     top_left:      'NorthWest',

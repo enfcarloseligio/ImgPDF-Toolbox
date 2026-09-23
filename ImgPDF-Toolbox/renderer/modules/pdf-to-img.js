@@ -1,6 +1,6 @@
 // ── modules/pdf-to-img.js — versión con progreso real ────────────────────────
 async function renderPdfToImg() {
-  const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: 'original' });
+  const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF' });
   let files = [], density = cfg.density, format = cfg.format, background = cfg.background;
   let unsubProgress = null;
 
@@ -49,14 +49,15 @@ async function renderPdfToImg() {
   function updateBg() {
     const opts = format === 'png'
       ? [
+          { label: 'Blanco (#FFFFFF)',          value: '#FFFFFF'  },
           { label: 'Original (transparente)', value: 'original' },
-          { label: 'Blanco #FFFFFF',          value: '#FFFFFF'  },
-          { label: 'Oscuro #202020',          value: '#202020'  },
+          { label: 'Oscuro (#202020)',          value: '#202020'  },
         ]
       : [
-          { label: 'Blanco #FFFFFF', value: '#FFFFFF' },
-          { label: 'Oscuro #202020', value: '#202020' },
+          { label: 'Blanco (#FFFFFF)', value: '#FFFFFF' },
+          { label: 'Oscuro (#202020)', value: '#202020' },
         ];
+    // Si el fondo guardado no aplica al formato actual, se usa el primero (blanco)
     const validBg = opts.find(o => o.value === background) ? background : opts[0].value;
     background = validBg;
     optButtons(document.getElementById('bg-row'), opts, validBg, v => { background = v; },
