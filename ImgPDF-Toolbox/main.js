@@ -67,11 +67,6 @@ function run(cmd) {
 }
 
 // ── runSpawn — ejecución con streaming, sin límite de buffer ─────────────────
-//
-// - Sin shell: args como array → sin inyección de comandos
-// - Streaming de stdout/stderr → sin límite de 50MB
-// - Límite opcional de stdout acumulado (para no llenar RAM)
-// - Cancelable limpiamente (mata árbol de procesos en Windows)
 
 function runSpawn(bin, args, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -353,6 +348,14 @@ ipcMain.handle('convert-img-to-pdf', async (_, { files, quality, outputDir }) =>
 //     - Blanco   → jpeg directo (Ghostscript compone sobre blanco por defecto)
 //     - Oscuro   → pngalpha + magick -alpha remove + magick → JPG (calidad 95)
 //
+// Nombres de salida:
+//   - Primera exportación:   {nombre}-pp-{página}.{ext}
+//   - Re-exportación:        {nombre} (N)-pp-{página}.{ext}   ← N = número de exportación
+//
+// El contador (N) se calcula por archivo de entrada: si ya existe
+// "{nombre}-pp-001.{ext}" en la carpeta de salida, la siguiente exportación
+// usará "{nombre} (1)-pp-001.{ext}", luego "{nombre} (2)-pp-001.{ext}", etc.
+//
 // Se emiten eventos 'progress' al renderer:
 //   'start'      → conteo de páginas terminado
 //   'processing' → cada página procesada
@@ -416,8 +419,6 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
   const isWhite = (background || '').toUpperCase() === '#FFFFFF';
   const needsPngIntermediate = (format === 'jpg' && !isWhite);
 
-  // PNG siempre usa pngalpha.
-  // JPG usa pngalpha si necesita post-proceso (oscuro), si no jpeg directo.
   const device = (format === 'png' || needsPngIntermediate) ? 'pngalpha' : 'jpeg';
 
   // ── 3. Procesar archivo por archivo, página por página ────────────────────
@@ -437,16 +438,22 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
     }
 
     const name = path.basename(file, '.pdf');
-    let baseName = name, counter = 1;
-    while (fs.existsSync(path.join(outputDir, `${baseName}-001.${format}`))) {
-      baseName = `${name} (${counter++})`;
+
+    // Detección de exportaciones previas: si ya existe una exportación con
+    // este nombre base, se añade contador (1), (2), (3)...
+    // El contador se calcula por archivo (no global) usando fs.existsSync.
+    let baseName = name;
+    let counter  = 1;
+    while (fs.existsSync(path.join(outputDir, `${baseName}-pp-001.${format}`))) {
+      baseName = `${name} (${counter})`;
+      counter++;
     }
 
     try {
       for (let p = 1; p <= pages; p++) {
         if (isCancelled) break;
 
-        const outFile = path.join(outputDir, `${baseName}-${String(p).padStart(3, '0')}.${format}`);
+        const outFile = path.join(outputDir, `${baseName}-pp-${String(p).padStart(3, '0')}.${format}`);
 
         const gsArgs = [
           '-dNOPAUSE', '-dBATCH', '-dQUIET', '-dSAFER',
@@ -463,8 +470,6 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
         // ── Post-procesar según el caso ──────────────────────────────────────
         if (needsPngIntermediate) {
           // CASO: JPG + fondo distinto de blanco
-          //   1) Aplicar el fondo al PNG (transparencia → color)
-          //   2) Convertir el PNG procesado a JPG (calidad 95)
           const tmpPngRaw       = outFile + '.raw.png';
           const tmpPngProcessed = outFile + '.proc.png';
 
@@ -476,7 +481,6 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
             if (fs.existsSync(tmpPngRaw))       fs.unlinkSync(tmpPngRaw);
             if (fs.existsSync(tmpPngProcessed)) fs.unlinkSync(tmpPngProcessed);
           } catch (err) {
-            // Restaurar el estado previo si algo falla
             try {
               if (fs.existsSync(tmpPngProcessed)) fs.unlinkSync(tmpPngProcessed);
               if (fs.existsSync(outFile))         fs.unlinkSync(outFile);
