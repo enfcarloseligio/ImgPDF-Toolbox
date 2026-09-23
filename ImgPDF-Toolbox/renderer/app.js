@@ -1,4 +1,4 @@
-// ── app.js v1.3.0 ─────────────────────────────────────────────────────────────
+// ── app.js ────────────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindExternalLinks();
@@ -119,10 +119,10 @@ async function enterApp() {
 
 function initApp() {
   updateStatusBadge();
-  bindMenu();
   bindFooterLinks();
-  loadModule('img-to-pdf');
-  document.querySelector('.card-btn[data-module="img-to-pdf"]')?.classList.add('active');
+
+  // Cargar Home al entrar
+  showView('home');
 }
 
 function updateStatusBadge() {
@@ -148,47 +148,38 @@ function updateStatusBadge() {
   ].join('\n');
 }
 
-// ── Enrutador ─────────────────────────────────────────────────────────────────
+// ── Cargador de módulos ──────────────────────────────────────────────────────
 
 const moduleMap = {
-  // v1.2.0
-  'img-to-pdf':     renderImgToPdf,
-  'pdf-to-img':     renderPdfToImg,
-  'merge':          renderMerge,
-  'split':          renderSplit,
-  'compress':       renderCompress,
-  'rotate':         renderRotate,
-  'watermark':      renderWatermark,
-  'unlock':         renderUnlock,
-  'update':         renderUpdate,
-  // v1.3.0
-  'folio':          renderFolio,
-  'watermark-image':renderWatermarkImage,
-  'pdf-standards':  renderPdfStandards,
+  // Conversión
+  'img-to-pdf':      renderImgToPdf,
+  'pdf-to-img':      renderPdfToImg,
+  // Gestión PDF
+  'merge':           renderMerge,
+  'split':           renderSplit,
+  'compress':        renderCompress,
+  // Anotación
+  'folio':           renderFolio,
+  'watermark':       renderWatermark,
+  'watermark-image': renderWatermarkImage,
+  // Transformación
+  'rotate':          renderRotate,
+  'unlock':          renderUnlock,
+  // Estándares y sistema
+  'pdf-standards':   renderPdfStandards,
+  'update':          renderUpdate,
 };
 
-function bindMenu() {
-  document.querySelectorAll('.card-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (state.isProcessing) {
-        notify.warning('Hay una operación en curso. Espera o cancélala antes de cambiar de módulo.');
-        return;
-      }
-      document.querySelectorAll('.card-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      setActiveModule(btn.dataset.module);
-      loadModule(btn.dataset.module);
-    });
-  });
-}
-
-function loadModule(mod) {
+function loadModule(modId, ctx = {}) {
   const ws = document.getElementById('workspace');
+  if (!ws) return;
   ws.classList.add('active');
-  if (moduleMap[mod]) {
-    moduleMap[mod]();
+
+  const fn = moduleMap[modId];
+  if (typeof fn === 'function') {
+    fn(ctx);
   } else {
-    ws.innerHTML = `<p class="workspace-placeholder">Módulo "${mod}" no encontrado.</p>`;
+    ws.innerHTML = `<p class="workspace-placeholder">Módulo "${modId}" no encontrado.</p>`;
   }
 }
 
