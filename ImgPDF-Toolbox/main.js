@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const https = require('https');
@@ -64,6 +64,88 @@ function run(cmd) {
       }
     });
   });
+}
+
+// ── NUEVO: runSpawn — ejecución con streaming, sin límite de buffer ──────────
+//
+// - Sin shell: args como array → sin inyección de comandos
+// - Streaming de stdout/stderr → sin límite de 50MB
+// - Límite opcional de stdout acumulado (para no llenar RAM)
+// - Cancelable limpiamente (mata árbol de procesos en Windows)
+
+function runSpawn(bin, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const cleanBin = bin.replace(/^"|"$/g, '');
+    const proc = spawn(cleanBin, args, { windowsHide: true });
+    currentProcess = proc;
+
+    let stdout = '';
+    let stderr = '';
+    let stderrBuffer = '';
+    let stdoutBytes = 0;
+
+    const MAX_STDOUT = opts.maxStdout ?? (1024 * 1024); // 1MB por defecto
+
+    proc.stdout.on('data', chunk => {
+      stdoutBytes += chunk.length;
+      if (MAX_STDOUT === 0) return;              // no acumular nada
+      if (stdoutBytes > MAX_STDOUT) {
+        if (stdout && !stdout.endsWith('[... truncado ...]')) {
+          stdout += '\n[... salida truncada ...]';
+        }
+        return;
+      }
+      stdout += chunk.toString('utf8');
+    });
+
+    proc.stderr.on('data', chunk => {
+      const text = chunk.toString('utf8');
+      stderr += text;
+      stderrBuffer += text;
+      if (opts.onStderr) {
+        const lines = stderrBuffer.split(/\r?\n/);
+        stderrBuffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.trim()) opts.onStderr(line.trim());
+        }
+      }
+    });
+
+    proc.on('error', err => {
+      currentProcess = null;
+      if (isCancelled) return reject('Operación cancelada por el usuario.');
+      reject(err.message || String(err));
+    });
+
+    proc.on('close', code => {
+      currentProcess = null;
+
+      if (opts.onStderr && stderrBuffer.trim()) {
+        opts.onStderr(stderrBuffer.trim());
+      }
+
+      if (isCancelled) return reject('Operación cancelada por el usuario.');
+      if (code !== 0) {
+        const msg = stderr.trim() || `Proceso terminó con código ${code}`;
+        return reject(msg);
+      }
+      resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+    });
+  });
+}
+
+// Mata el proceso actual y su árbol (Windows: taskkill /T /F)
+function killCurrentProcess() {
+  if (!currentProcess) return;
+  const pid = currentProcess.pid;
+  try {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true });
+    } else {
+      currentProcess.kill('SIGTERM');
+    }
+  } catch (_) {}
+  currentProcess = null;
 }
 
 function findGhostscript() {
@@ -144,7 +226,7 @@ ipcMain.handle('open-folder', async (_, dirPath) => {
 
 ipcMain.handle('cancel-operation', () => {
   isCancelled = true;
-  if (currentProcess) { try { currentProcess.kill(); } catch (_) {} }
+  killCurrentProcess();
   return true;
 });
 
@@ -258,25 +340,165 @@ ipcMain.handle('convert-img-to-pdf', async (_, { files, quality, outputDir }) =>
   return results;
 });
 
-ipcMain.handle('convert-pdf-to-img', async (_, { files, density, format, background, outputDir }) => {
+// ── NUEVO: PDF → Imágenes con progreso real ───────────────────────────────────
+
+/**
+ * Cuenta páginas de un PDF usando Ghostscript (más fiable que ImageMagick).
+ */
+function countPdfPages(gsPath, pdfPath) {
+  return new Promise((resolve, reject) => {
+    const cleanGs = gsPath.replace(/^"|"$/g, '');
+    const safePath = pdfPath.replace(/\\/g, '/');
+    const args = [
+      '-q', '-dNODISPLAY', '-dNOSAFER',
+      '-c', `(${safePath}) (r) file runpdfbegin pdfpagecount = quit`
+    ];
+    const proc = spawn(cleanGs, args, { windowsHide: true });
+    let out = '';
+    proc.stdout.on('data', c => out += c.toString());
+    proc.stderr.on('data', () => {});
+    proc.on('close', code => {
+      const n = parseInt(out.trim(), 10);
+      if (!isNaN(n) && n > 0) resolve(n);
+      else reject(new Error(`No se pudo contar páginas (code ${code})`));
+    });
+    proc.on('error', reject);
+  });
+}
+
+ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, background, outputDir }) => {
   isCancelled = false;
   const results = [];
+  const gsRaw = findGhostscript();
+  const gs = gsRaw.replace(/^"|"$/g, '');
+
+  // ── 1. Contar páginas de todos los PDFs para progreso global ──────────────
+  const filePageCounts = [];
+  let totalPagesAllFiles = 0;
+
   for (const file of files) {
-    if (isCancelled) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
+    if (isCancelled) break;
+    try {
+      const pageCount = await countPdfPages(gsRaw, file);
+      filePageCounts.push({ file, pages: pageCount });
+      totalPagesAllFiles += pageCount;
+    } catch (e) {
+      filePageCounts.push({ file, pages: 0, error: String(e) });
+    }
+  }
+
+  event.sender.send('progress', {
+    module: 'pdf-to-img',
+    phase: 'start',
+    totalFiles: files.length,
+    totalPages: totalPagesAllFiles,
+    currentFile: 0,
+    currentPage: 0,
+  });
+
+  // ── 2. Determinar device correcto según formato ───────────────────────────
+  //
+  //  - PNG: pngalpha  → conserva transparencia real
+  //         (sin -dGraphicsAlphaBits/-dTextAlphaBits porque fuerzan fondo blanco)
+  //  - JPG: jpeg      → siempre opaco, GS compone sobre blanco
+  //
+  const device = format === 'jpg' ? 'jpeg' : 'pngalpha';
+
+  // ── 3. Procesar archivo por archivo, página por página ────────────────────
+  let globalPageCounter = 0;
+
+  for (let fi = 0; fi < filePageCounts.length; fi++) {
+    const { file, pages, error } = filePageCounts[fi];
+
+    if (error || pages === 0) {
+      results.push({ file, ok: false, error: error || 'No se pudieron leer las páginas' });
+      continue;
+    }
+
+    if (isCancelled) {
+      results.push({ file, ok: false, error: 'Cancelado' });
+      break;
+    }
+
     const name = path.basename(file, '.pdf');
     let baseName = name, counter = 1;
     while (fs.existsSync(path.join(outputDir, `${baseName}-001.${format}`))) {
       baseName = `${name} (${counter++})`;
     }
-    const bgFlags = background !== 'original' ? `-background "${background}" -alpha remove -alpha off` : '';
+
     try {
-      await run(`magick -density ${density} "${file}" ${bgFlags} -scene 1 "${path.join(outputDir, `${baseName}-%03d.${format}`)}"`);
-      results.push({ file, ok: true });
+      for (let p = 1; p <= pages; p++) {
+        if (isCancelled) break;
+
+        const outFile = path.join(outputDir, `${baseName}-${String(p).padStart(3, '0')}.${format}`);
+
+        const gsArgs = [
+          '-dNOPAUSE', '-dBATCH', '-dQUIET', '-dSAFER',
+          `-sDEVICE=${device}`,
+          `-r${density}`,
+          `-dFirstPage=${p}`,
+          `-dLastPage=${p}`,
+          // ⚠️ SIN -dGraphicsAlphaBits ni -dTextAlphaBits
+          //    Esos flags fuerzan composición sobre fondo blanco
+        ];
+
+        gsArgs.push(`-sOutputFile=${outFile}`, file);
+
+        await runSpawn(gs, gsArgs, { maxStdout: 0 });
+
+        // ── Post-procesar fondo si no es "original" (solo PNG) ────────────
+        if (format === 'png' && background !== 'original') {
+          const tempPng = outFile + '.tmp.png';
+          try {
+            fs.renameSync(outFile, tempPng);
+            await run(`magick "${tempPng}" -background "${background}" -alpha remove -alpha off "${outFile}"`);
+            fs.unlinkSync(tempPng);
+          } catch (err) {
+            // Si falla, restaurar el original
+            try {
+              if (fs.existsSync(tempPng)) {
+                if (fs.existsSync(outFile)) fs.unlinkSync(outFile);
+                fs.renameSync(tempPng, outFile);
+              }
+            } catch (_) {}
+          }
+        }
+
+        globalPageCounter++;
+
+        event.sender.send('progress', {
+          module: 'pdf-to-img',
+          phase: 'processing',
+          totalFiles: files.length,
+          totalPages: totalPagesAllFiles,
+          currentFile: fi + 1,
+          currentFileName: path.basename(file),
+          currentPage: p,
+          currentFilePages: pages,
+          globalPage: globalPageCounter,
+          currentOut: path.basename(outFile),
+        });
+      }
+
+      if (isCancelled) {
+        results.push({ file, ok: false, error: 'Cancelado' });
+        break;
+      }
+
+      results.push({ file, ok: true, pages });
     } catch (e) {
       results.push({ file, ok: false, error: String(e) });
       if (isCancelled) break;
     }
   }
+
+  event.sender.send('progress', {
+    module: 'pdf-to-img',
+    phase: 'done',
+    totalPages: totalPagesAllFiles,
+    globalPage: globalPageCounter,
+  });
+
   return results;
 });
 
@@ -660,7 +882,6 @@ ipcMain.handle('watermark-text', async (_, {
   const tempDir = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
-  // ── Generar Script Magick para procesar cientos de textos sin límite de CLI ──
   async function applyWatermark(inputImg, outputTarget, width, height) {
     const scriptFile = path.join(tempDir, `script_${Math.random().toString(36).slice(2)}.mgk`);
     const lines = [];
@@ -691,7 +912,6 @@ ipcMain.handle('watermark-text', async (_, {
       const cols = Math.ceil(width / gapH) + 2;
       const rows = Math.ceil(height / gapV) + 2;
 
-      // Se expande el margen de inicio (-2) para que las palabras diagonales cubran las esquinas superiores
       for (let r = -2; r < rows; r++) {
         for (let c = -2; c < cols; c++) {
           const x = Math.round(c * gapH);
@@ -709,7 +929,6 @@ ipcMain.handle('watermark-text', async (_, {
     lines.push(`"${outputTarget.replace(/\\/g, '/')}"`);
 
     fs.writeFileSync(scriptFile, lines.join('\n'), 'utf8');
-    // Ejecuta el archivo en modo script. Esto no tiene límites de caracteres ni problemas de comillas en CMD.
     await run(`magick -script "${scriptFile.replace(/\\/g, '/')}"`);
     try { fs.unlinkSync(scriptFile); } catch (_) {}
   }
@@ -875,12 +1094,10 @@ ipcMain.handle('apply-folio', async (_, {
   const results = [];
   const gravity = positionToGravity(position);
 
-  // Color con opacidad total (folio siempre sólido)
   const fillColor = color;
   const fontFlag  = fontPath ? `-font "${fontPath}"` : '';
   const italicFlag = italic ? '-style Italic' : '';
 
-  // Acumulador de páginas para folio consecutivo entre archivos
   let globalPageOffset = 0;
 
   for (const file of files) {
@@ -893,7 +1110,6 @@ ipcMain.handle('apply-folio', async (_, {
       fs.mkdirSync(tempDir, { recursive: true });
       const pageParts  = [];
 
-      // Escribir texto en archivo temporal para evitar problemas de encoding
       const textDir = path.join(tempDir, 'texts');
       fs.mkdirSync(textDir, { recursive: true });
 
@@ -907,7 +1123,6 @@ ipcMain.handle('apply-folio', async (_, {
           dateFormat, customDate, useToday
         });
 
-        // Escribir texto en archivo temporal (evita problemas con UTF-8 y línea larga)
         const textFile = path.join(textDir, `p${i}.txt`);
         fs.writeFileSync(textFile, folioText, 'utf8');
 
@@ -971,7 +1186,6 @@ ipcMain.handle('watermark-image', async (_, {
   async function applyMark(inputPath, outputPath, docW, docH) {
     const markW = Math.round((sizePercent / 100) * docW);
 
-    // Redimensionar imagen de marca al tamaño calculado
     const tempMark = inputPath + '_mark_resized.png';
     await run(`magick "${markFile}" -resize ${markW}x -alpha set -channel Alpha -evaluate multiply ${(opacity/100).toFixed(2)} "${tempMark}"`);
 
@@ -983,17 +1197,13 @@ ipcMain.handle('watermark-image', async (_, {
         `-composite "${outputPath}"`
       );
     } else {
-      // Mosaico: crear imagen de patrón del tamaño del documento
       const tilePath    = inputPath + '_tile.png';
       const patternPath = inputPath + '_pattern.png';
 
-      // Crear tile con el tamaño de separación especificado
       await run(`magick -size ${repeatGapH}x${repeatGapV} xc:none "${tempMark}" -gravity Center -composite "${tilePath}"`);
 
-      // Repetir el tile en toda la superficie
       await run(`magick -size ${docW}x${docH} "tile:${tilePath}" "${patternPath}"`);
 
-      // Rotar patrón si es necesario
       if (angle !== 0) {
         const rotPath = inputPath + '_pattern_rot.png';
         await run(`magick "${patternPath}" -background none -rotate ${angle} -gravity center -extent ${docW}x${docH} "${rotPath}"`);
@@ -1073,7 +1283,6 @@ ipcMain.handle('convert-pdf-standard', async (_, { files, standard, outputDir })
   const gs      = findGhostscript();
   const results = [];
 
-  // Mapeo de estándar → flags de Ghostscript
   const standardFlags = {
     'PDFA-1b':  `-dPDFA=1 -dPDFACompatibilityPolicy=1 -sColorConversionStrategy=UseDeviceIndependentColor`,
     'PDFA-2b':  `-dPDFA=2 -dPDFACompatibilityPolicy=1 -sColorConversionStrategy=UseDeviceIndependentColor`,
@@ -1085,7 +1294,6 @@ ipcMain.handle('convert-pdf-standard', async (_, { files, standard, outputDir })
     'PDFE-1':   `-dPDFA=1 -dPDFACompatibilityPolicy=1`,
   };
 
-  // Sufijo de nombre de archivo
   const suffixMap = {
     'PDFA-1b': 'pdfa1b', 'PDFA-2b': 'pdfa2b', 'PDFA-3b': 'pdfa3b', 'PDFA-4': 'pdfa4',
     'PDFX-1a': 'pdfx1a', 'PDFX-3':  'pdfx3',  'PDFUA-1': 'pdfua1', 'PDFE-1': 'pdfe1',
