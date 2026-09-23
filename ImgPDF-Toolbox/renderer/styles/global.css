@@ -1,10 +1,86 @@
 /* ── global.css ──────────────────────────────────────────────────────────────
-   Variables de identidad, reset, layout general, header, footer y splash.
+   Fuentes empaquetadas, variables de identidad, reset, layout general,
+   header, footer, splash, botones globales y notificaciones.
    NO contiene estilos de módulos específicos (esos van en modules.css).
 ────────────────────────────────────────────────────────────────────────────── */
 
-/* ── Variables de identidad ──────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. FUENTES EMPAQUETADAS
+   Las fuentes viajan con la app para que se vean idénticas en cualquier equipo,
+   incluso sin conexión a internet.
+═══════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('../assets/fonts/PlusJakartaSans-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../assets/fonts/OpenSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../assets/fonts/OpenSans-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../assets/fonts/OpenSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../assets/fonts/Roboto-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('../assets/fonts/Roboto-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto Mono';
+  src: url('../assets/fonts/RobotoMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. VARIABLES DE IDENTIDAD
+   Colores, radios, sombras, transiciones y families tipográficas.
+═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
+  /* ── Colores ── */
   --primary:          #0A66C2;
   --primary-dark:     #084C94;
   --primary-darker:   #063A73;
@@ -13,11 +89,14 @@
   --accent-dark:      #0891B2;
   --accent-deeper:    #0E7490;
   --deep:             #0F172A;
+  --midnight:         #172540;
   --text:             #475569;
   --bg:               #F8FAFC;
   --surface:          #FFFFFF;
   --border:           #E2E8F0;
   --muted:            #A5B4C3;
+
+  /* ── Estados ── */
   --success:          #16A34A;
   --success-bg:       #F0FDF4;
   --success-border:   #86EFAC;
@@ -30,6 +109,36 @@
   --info-bg:          #EFF6FF;
   --info-border:      #BFDBFE;
   --info-text:        #1E40AF;
+
+  /* ── Familias tipográficas ── */
+  --font-display:     'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-heading:     'Open Sans', system-ui, -apple-system, sans-serif;
+  --font-body:        'Roboto', system-ui, -apple-system, sans-serif;
+  --font-mono:        'Roboto Mono', 'Consolas', 'Menlo', monospace;
+
+  /* ── Tamaños tipográficos responsive ──
+     Escalan entre 767px (móvil) y 1024px (escritorio).
+     Por debajo de 767px quedan fijos en el mínimo.
+     Por encima de 1024px quedan fijos en el máximo. */
+  --text-h1:          clamp(28px, 3.11vw + 4.14px, 36px);
+  --text-h2:          clamp(24px, 2.34vw + 6.05px, 30px);
+  --text-h3:          clamp(20px, 1.56vw + 8.03px, 24px);
+  --text-h4:          clamp(18px, 1.56vw + 6.03px, 22px);
+  --text-h5:          clamp(16px, 1.56vw + 4.03px, 20px);
+  --text-h6:          clamp(15px, 1.17vw + 6.03px, 18px);
+  --text-base:        clamp(14px, 0.78vw + 8.02px, 16px);
+  --text-sm:          clamp(13px, 0.78vw + 7.02px, 15px);
+  --text-xs:          clamp(11px, 0.78vw + 5.02px, 13px);
+
+  /* ── Espaciado ── */
+  --space-xs:         0.25rem;
+  --space-sm:         0.5rem;
+  --space-md:         0.75rem;
+  --space-lg:         1rem;
+  --space-xl:         1.5rem;
+  --space-2xl:        2rem;
+
+  /* ── Radios y sombras ── */
   --radius:           10px;
   --shadow-sm:        0 2px 8px  rgba(15,23,42,0.06);
   --shadow-md:        0 4px 20px rgba(15,23,42,0.10);
@@ -37,25 +146,54 @@
   --t:                0.18s ease;
 }
 
-/* ── Reset ───────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. RESET Y BASE
+═══════════════════════════════════════════════════════════════════════════ */
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Roboto', 'Open Sans', sans-serif;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-base);
   background: var(--bg);
   color: var(--text);
-  font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
 }
 
-a { color: var(--primary); text-decoration: underline; transition: color var(--t); }
+/* Jerarquía tipográfica base (uso interno y módulos que no sobreescriban) */
+h1 { font-family: var(--font-display); font-weight: 800; font-size: var(--text-h1); color: var(--deep); line-height: 1.15; }
+h2 { font-family: var(--font-display); font-weight: 800; font-size: var(--text-h2); color: var(--deep); line-height: 1.2; }
+h3 { font-family: var(--font-heading); font-weight: 700; font-size: var(--text-h3); color: var(--deep); line-height: 1.25; }
+h4 { font-family: var(--font-heading); font-weight: 600; font-size: var(--text-h4); color: var(--deep); line-height: 1.3; }
+h5 { font-family: var(--font-heading); font-weight: 500; font-size: var(--text-h5); color: var(--deep); line-height: 1.3; }
+h6 { font-family: var(--font-heading); font-weight: 500; font-size: var(--text-h6); color: var(--deep); line-height: 1.3; }
+
+a {
+  color: var(--primary);
+  text-decoration: underline;
+  transition: color var(--t);
+}
 a:hover { color: var(--primary-darker); }
 
-/* ── Layout principal ────────────────────────────────────────────────────── */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--border);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: var(--deep);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. LAYOUT PRINCIPAL
+═══════════════════════════════════════════════════════════════════════════ */
+
 .app-container {
-  max-width: 940px;
+  max-width: 1140px;
+  width: 100%;
   margin: 0 auto;
   padding: 1.75rem 2rem 1rem;
   display: flex;
@@ -64,7 +202,17 @@ a:hover { color: var(--primary-darker); }
   transition: opacity 0.4s ease;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────────── */
+#view-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. HEADER
+═══════════════════════════════════════════════════════════════════════════ */
+
 .app-header {
   display: flex;
   align-items: center;
@@ -74,18 +222,19 @@ a:hover { color: var(--primary-darker); }
 }
 
 .header-brand { display: flex; align-items: center; gap: 0.9rem; }
-.brand-icon   { font-size: 2rem; }
+.brand-icon   { font-size: 2rem; line-height: 1; }
 
 .brand-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
   font-weight: 800;
   color: var(--deep);
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .brand-sub {
-  font-size: 0.8rem;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
   font-weight: 300;
   color: var(--muted);
 }
@@ -94,7 +243,8 @@ a:hover { color: var(--primary-darker); }
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -114,58 +264,24 @@ a:hover { color: var(--primary-darker); }
 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-/* ── Menú de tarjetas ────────────────────────────────────────────────────── */
-.menu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 0.75rem;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. FOOTER
+═══════════════════════════════════════════════════════════════════════════ */
 
-.card-btn {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  cursor: pointer;
-  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
-  text-align: center;
-}
-.card-btn:hover  { transform: translateY(-3px); border-color: var(--primary); box-shadow: var(--shadow-md); }
-.card-btn.active { border-color: var(--primary); background: var(--primary-soft); box-shadow: var(--shadow-md); }
-
-.card-icon  { font-size: 1.75rem; }
-.card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 700; color: var(--deep); }
-.card-desc  { font-size: 0.72rem; font-weight: 300; color: var(--muted); }
-
-/* ── Workspace ────────────────────────────────────────────────────────────── */
-.workspace {
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 2rem;
-  min-height: 260px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  transition: border-color var(--t);
-}
-.workspace.active { border-style: solid; }
-.workspace-placeholder { font-size: 0.88rem; color: var(--muted); margin: auto; }
-
-/* ── Footer ──────────────────────────────────────────────────────────────── */
 .app-footer {
-  font-size: 0.73rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 300;
   color: var(--muted);
   text-align: center;
   padding-bottom: 0.5rem;
+  margin-top: auto;
 }
 
-/* ── SPLASH ──────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. SPLASH
+═══════════════════════════════════════════════════════════════════════════ */
+
 .splash {
   position: fixed; inset: 0;
   background: linear-gradient(135deg, #0F172A 0%, #172540 60%, #0A66C2 100%);
@@ -174,6 +290,7 @@ a:hover { color: var(--primary-darker); }
   justify-content: center;
   z-index: 1000;
   transition: opacity 0.5s ease;
+  padding: 1rem;
 }
 .splash.fade-out { opacity: 0; pointer-events: none; }
 
@@ -183,7 +300,7 @@ a:hover { color: var(--primary-darker); }
   border-radius: 18px;
   padding: 2.5rem 2.75rem;
   width: 420px;
-  max-width: 92vw;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
@@ -193,21 +310,22 @@ a:hover { color: var(--primary-darker); }
 
 .splash-brand { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
 
-.splash-logo { font-size: 3rem; animation: float 3s ease-in-out infinite; }
+.splash-logo { font-size: 3rem; animation: float 3s ease-in-out infinite; line-height: 1; }
 @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
 .splash-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 1.75rem;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
   font-weight: 800;
   color: #F8FAFC;
   letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
-.splash-by   { font-size: 0.84rem; color: rgba(255,255,255,0.55); }
+.splash-by   { font-family: var(--font-body); font-size: var(--text-sm); color: rgba(255,255,255,0.55); }
 .splash-link { color: var(--accent); text-decoration: none; font-weight: 500; transition: color var(--t); }
 .splash-link:hover { color: #F8FAFC; }
-.splash-site { font-size: 0.75rem; color: rgba(255,255,255,0.35); cursor: pointer; transition: color var(--t); }
+.splash-site { font-family: var(--font-body); font-size: var(--text-xs); color: rgba(255,255,255,0.35); cursor: pointer; transition: color var(--t); }
 .splash-site:hover { color: var(--accent); }
 
 .splash-scan { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -225,20 +343,20 @@ a:hover { color: var(--primary-darker); }
 .scan-step.ok   { border-color: rgba(22,163,74,0.4);  background: rgba(22,163,74,0.08); }
 .scan-step.warn { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
 
-.scan-icon { font-size: 1.3rem; width: 24px; text-align: center; flex-shrink: 0; }
+.scan-icon { font-size: 1.3rem; width: 24px; text-align: center; flex-shrink: 0; line-height: 1; }
 .scan-icon.spinning { animation: spin 1.2s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .scan-info { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
-.scan-name   { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.88rem; font-weight: 600; color: #F8FAFC; }
-.scan-status { font-size: 0.76rem; color: rgba(255,255,255,0.45); }
+.scan-name   { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 600; color: #F8FAFC; }
+.scan-status { font-family: var(--font-body);    font-size: var(--text-xs); color: rgba(255,255,255,0.45); }
 .scan-step.ok   .scan-status { color: #4ADE80; }
 .scan-step.warn .scan-status { color: #FCD34D; }
 
 .splash-loader { display: flex; flex-direction: column; gap: 0.5rem; }
 .loader-bar    { height: 4px; background: rgba(255,255,255,0.1); border-radius: 99px; overflow: hidden; }
 .loader-fill   { height: 100%; background: linear-gradient(90deg, var(--accent), var(--primary)); border-radius: 99px; width: 0%; transition: width 0.4s ease; }
-.loader-msg    { font-size: 0.78rem; color: rgba(255,255,255,0.4); text-align: center; }
+.loader-msg    { font-family: var(--font-body); font-size: var(--text-xs); color: rgba(255,255,255,0.4); text-align: center; }
 
 .splash-result { display: flex; flex-direction: column; gap: 1rem; }
 .splash-actions { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -249,8 +367,8 @@ a:hover { color: var(--primary-darker); }
   border-radius: 8px;
   padding: 0.85rem 1rem;
 }
-.install-title { font-size: 0.9rem; font-weight: 600; color: #FCD34D; margin-bottom: 0.2rem; }
-.install-desc  { font-size: 0.78rem; color: rgba(255,255,255,0.5); }
+.install-title { font-family: var(--font-heading); font-size: var(--text-sm); font-weight: 600; color: #FCD34D; margin-bottom: 0.2rem; }
+.install-desc  { font-family: var(--font-body);    font-size: var(--text-xs); color: rgba(255,255,255,0.5); }
 
 .install-actions { display: flex; flex-direction: column; gap: 0.5rem; }
 .install-row {
@@ -263,8 +381,8 @@ a:hover { color: var(--primary-darker); }
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 7px;
 }
-.install-tool-name { font-size: 0.84rem; font-weight: 600; color: #F8FAFC; }
-.install-tool-note { font-size: 0.72rem; color: rgba(255,255,255,0.4); }
+.install-tool-name { font-family: var(--font-heading); font-size: var(--text-sm); font-weight: 600; color: #F8FAFC; }
+.install-tool-note { font-family: var(--font-body);    font-size: var(--text-xs); color: rgba(255,255,255,0.4); }
 
 .install-manual {
   background: rgba(6,182,212,0.08);
@@ -275,14 +393,17 @@ a:hover { color: var(--primary-darker); }
   flex-direction: column;
   gap: 0.5rem;
 }
-.manual-title { font-size: 0.85rem; font-weight: 600; color: var(--accent); }
-.manual-desc  { font-size: 0.76rem; color: rgba(255,255,255,0.45); }
+.manual-title { font-family: var(--font-heading); font-size: var(--text-sm); font-weight: 600; color: var(--accent); }
+.manual-desc  { font-family: var(--font-body);    font-size: var(--text-xs); color: rgba(255,255,255,0.45); }
 
-/* ── Botones globales ────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. BOTONES GLOBALES
+═══════════════════════════════════════════════════════════════════════════ */
+
 .btn-primary {
   background: var(--primary); border: 1px solid var(--primary); color: #F8FAFC;
   border-radius: 8px; padding: 0.65rem 1.4rem;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.9rem; font-weight: 600;
+  font-family: var(--font-display); font-size: var(--text-base); font-weight: 600;
   cursor: pointer; transition: all var(--t); width: 100%;
 }
 .btn-primary:hover    { background: var(--primary-dark); border-color: var(--primary-dark); }
@@ -292,7 +413,7 @@ a:hover { color: var(--primary-darker); }
 .btn-secondary {
   background: transparent; border: 1px solid var(--primary); color: var(--primary);
   border-radius: 8px; padding: 0.55rem 1.2rem;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.88rem; font-weight: 600;
+  font-family: var(--font-display); font-size: var(--text-base); font-weight: 600;
   cursor: pointer; transition: all var(--t);
 }
 .btn-secondary:hover { background: var(--primary-soft); }
@@ -301,7 +422,7 @@ a:hover { color: var(--primary-darker); }
 .btn-accent {
   background: var(--accent); border: 1px solid var(--accent); color: var(--deep);
   border-radius: 8px; padding: 0.5rem 1.1rem;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 600;
+  font-family: var(--font-display); font-size: var(--text-sm); font-weight: 600;
   cursor: pointer; transition: all var(--t);
 }
 .btn-accent:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
@@ -309,7 +430,7 @@ a:hover { color: var(--primary-darker); }
 .btn-danger {
   background: var(--error); border: 1px solid var(--error); color: #F8FAFC;
   border-radius: 8px; padding: 0.55rem 1.1rem;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 600;
+  font-family: var(--font-display); font-size: var(--text-sm); font-weight: 600;
   cursor: pointer; transition: all var(--t);
 }
 .btn-danger:hover { background: #B91C1C; border-color: #B91C1C; }
@@ -317,7 +438,7 @@ a:hover { color: var(--primary-darker); }
 .btn-ghost {
   background: transparent; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5);
   border-radius: 8px; padding: 0.55rem 1.2rem;
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.84rem; font-weight: 500;
+  font-family: var(--font-display); font-size: var(--text-sm); font-weight: 500;
   cursor: pointer; transition: all var(--t); width: 100%;
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.06); color: #F8FAFC; }
@@ -325,14 +446,18 @@ a:hover { color: var(--primary-darker); }
 .btn-open-dir {
   background: transparent; border: 1px solid var(--primary); color: var(--primary);
   border-radius: 6px; padding: 0.3rem 0.75rem;
-  font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all var(--t);
+  font-family: var(--font-heading); font-size: var(--text-xs); font-weight: 600;
+  cursor: pointer; transition: all var(--t);
   margin-top: 0.35rem; display: inline-block;
 }
 .btn-open-dir:hover { background: var(--primary-soft); }
 
-.btn-sm { padding: 0.38rem 0.85rem !important; font-size: 0.8rem !important; }
+.btn-sm { padding: 0.38rem 0.85rem !important; font-size: var(--text-xs) !important; }
 
-/* ── Notificaciones (toasts) ─────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   9. NOTIFICACIONES (TOASTS)
+═══════════════════════════════════════════════════════════════════════════ */
+
 #toast-container {
   position: fixed;
   bottom: 1.5rem;
@@ -342,6 +467,7 @@ a:hover { color: var(--primary-darker); }
   gap: 0.6rem;
   z-index: 9999;
   pointer-events: none;
+  max-width: calc(100vw - 3rem);
 }
 
 .toast {
@@ -350,7 +476,8 @@ a:hover { color: var(--primary-darker); }
   gap: 0.65rem;
   padding: 0.7rem 1rem;
   border-radius: 9px;
-  font-size: 0.84rem;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
   font-weight: 500;
   box-shadow: var(--shadow-md);
   pointer-events: all;
@@ -367,7 +494,7 @@ a:hover { color: var(--primary-darker); }
 .toast-warning { background: var(--warning-bg); border: 1px solid var(--warning-border); color: #92400E; }
 .toast-info    { background: var(--info-bg);    border: 1px solid var(--info-border);    color: var(--info-text); }
 
-.toast-icon  { font-size: 1rem; flex-shrink: 0; }
+.toast-icon  { font-size: 1rem; flex-shrink: 0; line-height: 1; }
 .toast-msg   { flex: 1; }
 .toast-close {
   background: none; border: none; cursor: pointer;
@@ -375,3 +502,53 @@ a:hover { color: var(--primary-darker); }
   transition: opacity var(--t);
 }
 .toast-close:hover { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10. RESPONSIVE
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tablet (768px - 1023px) ── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-container {
+    padding: 1.5rem 1.5rem 1rem;
+  }
+}
+
+/* ── Móvil (hasta 767px) ── */
+@media (max-width: 767px) {
+  .app-container {
+    padding: 1.25rem 1rem 0.75rem;
+    gap: 1.25rem;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .header-brand {
+    gap: 0.65rem;
+  }
+
+  .brand-icon {
+    font-size: 1.75rem;
+  }
+
+  .tools-status {
+    align-self: flex-start;
+  }
+
+  .splash-card {
+    padding: 1.75rem 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .splash-logo {
+    font-size: 2.5rem;
+  }
+
+  .toast {
+    max-width: calc(100vw - 3rem);
+  }
+}

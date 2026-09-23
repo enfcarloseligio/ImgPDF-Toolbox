@@ -7,17 +7,19 @@
 .module { width: 100%; display: flex; flex-direction: column; gap: 1.25rem; }
 
 .module-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 1.05rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-h3);
   font-weight: 700;
   color: var(--deep);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  line-height: 1.25;
 }
 
 .module-desc {
-  font-size: 0.8rem;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
   color: var(--muted);
   margin-top: -0.5rem;
 }
@@ -26,8 +28,8 @@
 .option-group { display: flex; flex-direction: column; gap: 0.4rem; }
 
 .option-group label {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.75rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--deep);
   text-transform: uppercase;
@@ -41,8 +43,8 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.38rem 0.85rem;
-  font-family: 'Roboto', sans-serif;
-  font-size: 0.8rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--text);
   cursor: pointer;
   transition: all var(--t);
@@ -73,7 +75,8 @@
 }
 
 .file-count-badge {
-  font-size: 0.74rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--primary);
   background: var(--primary-soft);
@@ -84,7 +87,8 @@
 .file-list  { display: flex; flex-direction: column; gap: 0.4rem; }
 
 .file-empty {
-  font-size: 0.78rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -96,7 +100,8 @@
   padding: 0.45rem 0.7rem;
   background: var(--bg);
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--text);
   border: 1px solid var(--border);
   transition: border-color var(--t), background var(--t);
@@ -112,7 +117,7 @@
 
 .file-order {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   width: 18px;
   flex-shrink: 0;
 }
@@ -136,16 +141,19 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  font-size: 0.82rem;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  flex-wrap: wrap;
 }
 
 .output-path {
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
 }
 
 /* ── Fila de botones ─────────────────────────────────────────────────────── */
@@ -156,7 +164,8 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.38rem 0.6rem;
-  font-size: 0.83rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--deep);
   background: var(--bg);
   transition: border-color var(--t);
@@ -168,7 +177,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.83rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--text);
   flex-wrap: wrap;
 }
@@ -177,7 +187,8 @@
 .result-box {
   border-radius: var(--radius);
   padding: 0.85rem 1.1rem;
-  font-size: 0.82rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -189,8 +200,8 @@
 .result-box.warning { background: var(--warning-bg); border: 1px solid var(--warning-border); color: #92400E; }
 .result-box.info    { background: var(--info-bg);    border: 1px solid var(--info-border);    color: var(--info-text); }
 
-.result-title { font-weight: 600; font-size: 0.86rem; }
-.result-item  { font-size: 0.76rem; opacity: 0.85; }
+.result-title { font-family: var(--font-heading); font-weight: 600; font-size: var(--text-sm); }
+.result-item  { font-size: var(--text-xs); opacity: 0.85; }
 
 /* ── Barra de progreso ───────────────────────────────────────────────────── */
 .progress-bar  { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
@@ -202,7 +213,8 @@
   border: 1px solid var(--info-border);
   border-radius: 8px;
   padding: 0.75rem 1rem;
-  font-size: 0.82rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--info-text);
   line-height: 1.6;
 }
@@ -221,11 +233,12 @@
 }
 .update-card:hover { border-color: var(--primary); }
 
-.update-tool-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; color: var(--deep); font-size: 0.9rem; }
-.update-tool-ver  { font-size: 0.75rem; color: var(--muted); }
+.update-tool-name { font-family: var(--font-heading); font-weight: 600; color: var(--deep); font-size: var(--text-sm); }
+.update-tool-ver  { font-family: var(--font-body); font-size: var(--text-xs); color: var(--muted); }
 
 .update-badge {
-  font-size: 0.72rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
   padding: 0.2rem 0.6rem;
   border-radius: 99px;
   font-weight: 600;
@@ -236,7 +249,8 @@
 
 /* ── Hint de perfil (compress) ───────────────────────────────────────────── */
 .profile-hint {
-  font-size: 0.78rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--muted);
   margin-top: 0.35rem;
   min-height: 1.2em;
@@ -259,7 +273,8 @@ select.font-select {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
-  font-size: 0.82rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   background: var(--bg);
   color: var(--deep);
   transition: border-color var(--t);
@@ -269,7 +284,8 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 /* ── Google Fonts autocompletado ─────────────────────────────────────────── */
 .gf-suggestion-item {
   padding: 0.45rem 0.75rem;
-  font-size: 0.83rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--deep);
   cursor: pointer;
   transition: background var(--t);
@@ -316,7 +332,6 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   transition: transform 0.15s ease, opacity 0.15s ease, color 0.15s ease;
 }
 
-/* ── Mosaico en previsualizador ──────────────────────────────────────────── */
 .wm-preview-box .wm-preview-label {
   display: inline-block;
   line-height: 1;
@@ -334,7 +349,8 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   border-radius: 4px;
   background: var(--surface);
   color: var(--primary);
-  font-size: 0.78rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
   font-weight: bold;
   cursor: pointer;
   transition: all var(--t);
@@ -371,8 +387,6 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   cursor: grabbing;
 }
 
-/* ── Adiciones v1.3.0 — pegar al final de modules.css ───────────────────── */
-
 /* ── Folio: vista previa ─────────────────────────────────────────────────── */
 .folio-preview-box {
   width: 100%;
@@ -385,7 +399,6 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   box-shadow: var(--shadow-sm);
 }
 
-/* Líneas de contenido simulado */
 .folio-preview-box::before {
   content: '';
   position: absolute;
@@ -400,7 +413,7 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .folio-preview-text {
   position: absolute;
   white-space: nowrap;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-display);
   pointer-events: none;
   user-select: none;
   z-index: 2;
@@ -442,27 +455,29 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .standard-row-left { display: flex; flex-direction: column; gap: 0.2rem; }
 
 .standard-label {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 0.92rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--deep);
 }
 
 .standard-norm {
-  font-size: 0.72rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .standard-gs {
-  font-size: 0.76rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   color: var(--text);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-/* Badges de estándar */
 .standard-badge {
-  font-size: 0.7rem;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
   font-weight: 600;
   padding: 0.15rem 0.55rem;
   border-radius: 99px;
@@ -473,23 +488,12 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .badge-warn { background: var(--warning-bg); color: #92400E; border: 1px solid var(--warning-border); }
 .badge-info { background: var(--info-bg);    color: var(--info-text); border: 1px solid var(--info-border); }
 
-/* Panel de información del estándar */
 .standard-info-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.1rem 1.25rem;
   box-shadow: var(--shadow-sm);
-}
-
-/* ── Folio: marcador de código inline ────────────────────────────────────── */
-code {
-  font-family: 'Roboto Mono', monospace;
-  font-size: 0.82em;
-  background: var(--border);
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-  color: var(--deep);
 }
 
 /* ── Watermark image: zona de marca ─────────────────────────────────────── */
@@ -522,4 +526,51 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
   border: 2px solid white;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tablet (768px - 1023px) ── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .options-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Móvil (hasta 767px) ── */
+@media (max-width: 767px) {
+  .options-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .output-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .output-row .btn-secondary {
+    width: 100%;
+  }
+
+  .file-item {
+    font-size: var(--text-xs);
+  }
+
+  .update-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .standard-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .standard-gs {
+    white-space: normal;
+  }
 }
