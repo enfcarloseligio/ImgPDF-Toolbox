@@ -4,11 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ImgPDF Toolbox</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Open+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/global.css">
   <link rel="stylesheet" href="styles/modules.css">
+  <link rel="stylesheet" href="styles/views.css">
 </head>
 <body>
 
@@ -82,78 +80,8 @@
       </div>
     </header>
 
-    <!-- MENÚ organizado por categorías -->
-    <nav class="menu-grid">
-      <!-- Conversión -->
-      <button class="card-btn" data-module="img-to-pdf">
-        <span class="card-icon">🖼️</span>
-        <span class="card-title">IMG → PDF</span>
-        <span class="card-desc">PNG o JPG a PDF</span>
-      </button>
-      <button class="card-btn" data-module="pdf-to-img">
-        <span class="card-icon">📄</span>
-        <span class="card-title">PDF → IMG</span>
-        <span class="card-desc">Extrae páginas como imagen</span>
-      </button>
-      <!-- Gestión PDF -->
-      <button class="card-btn" data-module="merge">
-        <span class="card-icon">📑</span>
-        <span class="card-title">Unir PDFs</span>
-        <span class="card-desc">Fusiona en orden</span>
-      </button>
-      <button class="card-btn" data-module="split">
-        <span class="card-icon">✂️</span>
-        <span class="card-title">Separar PDF</span>
-        <span class="card-desc">Páginas, bloques o rangos</span>
-      </button>
-      <button class="card-btn" data-module="compress">
-        <span class="card-icon">🗜️</span>
-        <span class="card-title">Comprimir</span>
-        <span class="card-desc">Reduce el peso del PDF</span>
-      </button>
-      <!-- Anotación -->
-      <button class="card-btn" data-module="folio">
-        <span class="card-icon">🔢</span>
-        <span class="card-title">Foliar</span>
-        <span class="card-desc">Numeración y sellos</span>
-      </button>
-      <button class="card-btn" data-module="watermark">
-        <span class="card-icon">💧</span>
-        <span class="card-title">Marca texto</span>
-        <span class="card-desc">Texto diagonal o posicionado</span>
-      </button>
-      <button class="card-btn" data-module="watermark-image">
-        <span class="card-icon">🏷️</span>
-        <span class="card-title">Marca imagen</span>
-        <span class="card-desc">Logo o firma sobre documentos</span>
-      </button>
-      <!-- Transformación -->
-      <button class="card-btn" data-module="rotate">
-        <span class="card-icon">🔄</span>
-        <span class="card-title">Rotar</span>
-        <span class="card-desc">Gira imágenes y PDFs</span>
-      </button>
-      <button class="card-btn" data-module="unlock">
-        <span class="card-icon">🔓</span>
-        <span class="card-title">Desbloquear</span>
-        <span class="card-desc">Elimina restricciones PDF</span>
-      </button>
-      <!-- Estándares y sistema -->
-      <button class="card-btn" data-module="pdf-standards">
-        <span class="card-icon">📋</span>
-        <span class="card-title">Estándares</span>
-        <span class="card-desc">PDF/A, PDF/X, PDF/UA</span>
-      </button>
-      <button class="card-btn" data-module="update">
-        <span class="card-icon">⚙️</span>
-        <span class="card-title">Actualizar</span>
-        <span class="card-desc">Gestiona dependencias</span>
-      </button>
-    </nav>
-
-    <section class="workspace" id="workspace">
-      <p class="workspace-placeholder">Selecciona una opción para comenzar</p>
-    </section>
+    <!-- Contenedor principal de vistas -->
+    <main id="view-container"></main>
 
     <footer class="app-footer">
       Creado por <a href="#" id="footer-author">@enfcarloseligio</a> ·
@@ -165,9 +93,11 @@
 
   <!-- Core: orden obligatorio -->
   <script src="core/state.js"></script>
+  <script src="core/icons.js"></script>
   <script src="core/ui-utils.js"></script>
   <script src="core/notifications.js"></script>
-  <!-- Módulos v1.2.0 -->
+  <script src="core/views.js"></script>
+  <!-- Módulos -->
   <script src="modules/img-to-pdf.js"></script>
   <script src="modules/pdf-to-img.js"></script>
   <script src="modules/merge.js"></script>
@@ -177,7 +107,6 @@
   <script src="modules/watermark.js"></script>
   <script src="modules/unlock.js"></script>
   <script src="modules/update.js"></script>
-  <!-- Módulos v1.3.0 -->
   <script src="modules/folio.js"></script>
   <script src="modules/watermark-image.js"></script>
   <script src="modules/pdf-standards.js"></script>

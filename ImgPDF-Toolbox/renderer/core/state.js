@@ -4,6 +4,8 @@
 
 const state = {
   activeModule:  null,
+  currentView:   'home',
+  currentContext: null,
   outputDir:     null,
   isProcessing:  false,
   tools: {
@@ -15,8 +17,7 @@ const state = {
   }
 };
 
-// ── Carga asíncrona inicial (mejora de Gemini) ────────────────────────────────
-// Se ejecuta al cargar el script, antes de DOMContentLoaded en app.js
+// ── Carga asíncrona inicial ───────────────────────────────────────────────────
 (async () => {
   if (window.api?.storeGet) {
     const saved = await window.api.storeGet('lastOutputDir');
@@ -33,7 +34,6 @@ function setOutputDir(dir) {
 
 function setProcessing(val) {
   state.isProcessing = val;
-  // Bloquea visualmente el menú mientras hay un proceso activo
   document.querySelectorAll('.card-btn').forEach(btn => {
     btn.style.opacity       = val ? '0.5' : '1';
     btn.style.pointerEvents = val ? 'none' : '';
