@@ -9,6 +9,10 @@ const ICON_LIST = [
   'image-tools',
   'update',
   'back',
+  'arrow-up',
+  'arrow-down',
+  'drag-handle',
+  'close',
 ];
 
 async function preloadIcons() {

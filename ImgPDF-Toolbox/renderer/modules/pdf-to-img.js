@@ -3,6 +3,7 @@ async function renderPdfToImg() {
   const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF' });
   let files = [], density = cfg.density, format = cfg.format, background = cfg.background;
   let unsubProgress = null;
+  let currentRunId = 0;
 
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
@@ -57,7 +58,6 @@ async function renderPdfToImg() {
           { label: 'Blanco (#FFFFFF)', value: '#FFFFFF' },
           { label: 'Oscuro (#202020)', value: '#202020' },
         ];
-    // Si el fondo guardado no aplica al formato actual, se usa el primero (blanco)
     const validBg = opts.find(o => o.value === background) ? background : opts[0].value;
     background = validBg;
     optButtons(document.getElementById('bg-row'), opts, validBg, v => { background = v; },
@@ -65,20 +65,23 @@ async function renderPdfToImg() {
   }
   updateBg();
 
-  const onRemove = f => {
-    files = files.filter(x => x !== f);
-    renderFileList('pdf2-list', files, onRemove);
+  // ── Lista ordenada ────────────────────────────────────────────────────────
+  const renderList = () => {
+    renderOrderedFileList('pdf2-list', files, onChange, { showDrag: true, showArrows: true });
+  };
+
+  const onChange = newFiles => {
+    files = newFiles;
+    renderList();
     updateRun();
   };
 
   const addFiles = async picked => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'p2i-path');
-    const dups = picked.filter(f => files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
-    renderFileList('pdf2-list', files, onRemove);
+    files = [...files, ...picked];
+    renderList();
     updateRun();
-    if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
   };
 
   document.getElementById('pick-pdfs2').addEventListener('click', async () => {
@@ -86,11 +89,13 @@ async function renderPdfToImg() {
     addFiles(picked);
   });
 
+  // ── Limpiar: borra archivos, progreso y resultado ─────────────────────────
   document.getElementById('clear-p2i').addEventListener('click', () => {
     files = [];
-    renderFileList('pdf2-list', files, onRemove);
+    renderList();
     document.getElementById('p2i-result').innerHTML = '';
     document.getElementById('p2i-progress').style.display = 'none';
+    document.getElementById('p2i-progress').innerHTML = '';
     updateRun();
   });
 
@@ -104,6 +109,11 @@ async function renderPdfToImg() {
   }
 
   // ── UI de progreso ────────────────────────────────────────────────────────
+  function hideProgress() {
+    const el = document.getElementById('p2i-progress');
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  }
+
   function showProgress(data) {
     const el = document.getElementById('p2i-progress');
     if (!el) return;
@@ -144,37 +154,59 @@ async function renderPdfToImg() {
       if (fill)  fill.style.width = '100%';
       if (label) label.textContent = 'Completado';
       if (count) count.textContent = `${data.globalPage} / ${data.totalPages} páginas`;
-      setTimeout(() => {
-        const el = document.getElementById('p2i-progress');
-        if (el) el.style.display = 'none';
-      }, 2000);
+      setTimeout(hideProgress, 2000);
     }
   }
 
-  document.getElementById('cancel-p2i').addEventListener('click', async () => {
+  // ── Cancelar (con guard para evitar doble clic) ───────────────────────────
+  document.getElementById('cancel-p2i').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = 'Cancelando...';
     await window.api.cancelOperation();
     notify.warning('Cancelando operación...');
   });
 
+  // ── Ejecutar ──────────────────────────────────────────────────────────────
   document.getElementById('run-p2i').addEventListener('click', async () => {
+    const runId = ++currentRunId;
+
     setProcessing(true);
-    const btn = document.getElementById('run-p2i'), cancel = document.getElementById('cancel-p2i');
+    const btn = document.getElementById('run-p2i');
+    const cancel = document.getElementById('cancel-p2i');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
+    cancel.disabled = false;
+    cancel.textContent = 'Cancelar';
     document.getElementById('p2i-result').innerHTML = '';
+    hideProgress();
 
-    // Suscribirse a eventos de progreso
+    // Suscribirse a eventos de progreso (solo si es la corrida vigente)
+    if (unsubProgress) { unsubProgress(); unsubProgress = null; }
     unsubProgress = window.api.onProgress(data => {
+      if (runId !== currentRunId) return;
       if (data.module === 'pdf-to-img') showProgress(data);
     });
 
-    const res = await window.api.convertPdfToImg({ files, density, format, background, outputDir: state.outputDir });
+    let res = [];
+    try {
+      res = await window.api.convertPdfToImg({ files, density, format, background, outputDir: state.outputDir });
+    } catch (e) {
+      res = [{ file: '*', ok: false, error: String(e) }];
+    }
     window.api.playBeep();
 
-    // Desuscribirse
+    // Desuscribirse (solo si seguimos siendo la corrida vigente)
     if (unsubProgress) { unsubProgress(); unsubProgress = null; }
 
-    const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
+    if (runId !== currentRunId) return; // otra corrida tomó el control
+
+    // Ocultar barra de progreso al terminar (éxito, cancelación o error)
+    hideProgress();
+
+    const ok  = res.filter(r => r.ok);
+    const err = res.filter(r => !r.ok);
     document.getElementById('p2i-result').innerHTML =
       (ok.length  ? resultBox('success', `✓ ${ok.length} PDF(s) procesado(s)`, ok.map(r => `📄 ${basename(r.file)} — ${r.pages} páginas`), true) : '') +
       (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
@@ -185,6 +217,18 @@ async function renderPdfToImg() {
     setProcessing(false);
     btn.disabled = false; btn.textContent = 'Extraer imágenes';
     cancel.style.display = 'none';
+    cancel.disabled = false;
+    cancel.textContent = 'Cancelar';
     updateRun();
   });
+
+  // ── Cleanup al salir del módulo (evita listeners zombies) ─────────────────
+  const observer = new MutationObserver(() => {
+    if (!document.getElementById('zone-p2i')) {
+      currentRunId++; // invalida cualquier corrida en vuelo
+      if (unsubProgress) { unsubProgress(); unsubProgress = null; }
+      observer.disconnect();
+    }
+  });
+  observer.observe(ws, { childList: true });
 }
