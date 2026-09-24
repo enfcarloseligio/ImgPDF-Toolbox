@@ -349,12 +349,11 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   border-radius: 4px;
   background: var(--surface);
   color: var(--primary);
-  font-family: var(--font-heading);
-  font-size: var(--text-xs);
-  font-weight: bold;
   cursor: pointer;
   transition: all var(--t);
 }
+
+.btn-order svg { width: 14px; height: 14px; }
 
 .btn-order:hover:not(:disabled) {
   background: var(--primary-soft);
@@ -374,18 +373,29 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   color: var(--muted);
   user-select: none;
   padding: 0 0.2rem;
-  font-size: 0.95rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
   transition: color var(--t);
 }
 
-.file-drag-handle:hover {
-  color: var(--primary);
+.file-drag-handle svg { width: 14px; height: 14px; }
+.file-drag-handle:hover { color: var(--primary); }
+.file-item:active .file-drag-handle { cursor: grabbing; }
+
+.file-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  transition: color var(--t);
+  line-height: 1;
 }
 
-.file-item:active .file-drag-handle {
-  cursor: grabbing;
-}
+.file-remove svg { width: 14px; height: 14px; }
+.file-remove:hover { color: var(--error); }
 
 /* ── Folio: vista previa ─────────────────────────────────────────────────── */
 .folio-preview-box {
