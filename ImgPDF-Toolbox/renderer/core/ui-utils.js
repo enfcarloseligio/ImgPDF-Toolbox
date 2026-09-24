@@ -77,6 +77,7 @@ function outputDirRow(id) {
   </div>`;
 }
 
+// ── Lista simple (sin orden, sin drag) ──────────────────────────────────────
 function renderFileList(containerId, files, onRemove) {
   const list = document.getElementById(containerId);
   if (!list) return;
@@ -87,7 +88,7 @@ function renderFileList(containerId, files, onRemove) {
   list.innerHTML = files.map((f, i) => `
     <div class="file-item">
       <span class="file-name">📄 ${basename(f)}</span>
-      <button class="file-remove" data-idx="${i}" title="Quitar">✕</button>
+      <button class="file-remove" data-idx="${i}" title="Quitar">${icon('close', 14)}</button>
     </div>`).join('');
   list.querySelectorAll('.file-remove').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -96,8 +97,15 @@ function renderFileList(containerId, files, onRemove) {
   });
 }
 
-// ── renderOrderedFileList con fix de dragleave en hijos ──────────────────────
-function renderOrderedFileList(containerId, files, onChange) {
+// ── renderOrderedFileList ────────────────────────────────────────────────────
+// Lista con flechas ↑↓, drag-handle y botón eliminar.
+// Soporta archivos duplicados (mismo path en varias posiciones).
+//
+// options:
+//   showDrag   → muestra el drag-handle (default: true)
+//   showArrows → muestra flechas ↑↓ (default: true)
+function renderOrderedFileList(containerId, files, onChange, options = {}) {
+  const { showDrag = true, showArrows = true } = options;
   const list = document.getElementById(containerId);
   if (!list) return;
 
@@ -113,20 +121,27 @@ function renderOrderedFileList(containerId, files, onChange) {
 
   files.forEach((f, i) => {
     const item = document.createElement('div');
-    item.className   = 'file-item';
+    item.className = 'file-item';
     item.dataset.index = i;
+
+    const dragHtml = showDrag
+      ? `<span class="file-drag-handle" draggable="true" title="Arrastrar para reordenar">${icon('drag-handle', 14)}</span>`
+      : '';
+
+    const arrowsHtml = showArrows
+      ? `<button class="btn-order btn-order-up"  title="Subir"  ${i === 0 ? 'disabled' : ''}>${icon('arrow-up', 14)}</button>
+         <button class="btn-order btn-order-down" title="Bajar"  ${i === files.length - 1 ? 'disabled' : ''}>${icon('arrow-down', 14)}</button>`
+      : '';
 
     item.innerHTML = `
       <div style="display:flex;align-items:center;overflow:hidden;flex:1;gap:0.35rem">
-        <span class="file-drag-handle" draggable="true"
-          title="Arrastrar para reordenar">☰</span>
+        ${dragHtml}
         <span class="file-order" style="font-weight:600;font-size:0.8rem;color:var(--primary);min-width:1.2rem">${i + 1}.</span>
         <span class="file-name" title="${f}">📄 ${basename(f)}</span>
       </div>
       <div class="file-actions" style="display:flex;align-items:center;gap:0.35rem;margin-left:0.5rem">
-        <button class="btn-order btn-order-up"  title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button class="btn-order btn-order-down" title="Bajar" ${i === files.length - 1 ? 'disabled' : ''}>▼</button>
-        <button class="file-remove" title="Quitar">✕</button>
+        ${arrowsHtml}
+        <button class="file-remove" title="Quitar">${icon('close', 14)}</button>
       </div>`;
 
     const handle  = item.querySelector('.file-drag-handle');
@@ -134,14 +149,14 @@ function renderOrderedFileList(containerId, files, onChange) {
     const btnDown = item.querySelector('.btn-order-down');
     const btnRm   = item.querySelector('.file-remove');
 
-    if (i > 0) {
+    if (btnUp) {
       btnUp.addEventListener('click', e => {
         e.stopPropagation();
         [files[i - 1], files[i]] = [files[i], files[i - 1]];
         onChange(files);
       });
     }
-    if (i < files.length - 1) {
+    if (btnDown) {
       btnDown.addEventListener('click', e => {
         e.stopPropagation();
         [files[i], files[i + 1]] = [files[i + 1], files[i]];
@@ -151,23 +166,27 @@ function renderOrderedFileList(containerId, files, onChange) {
 
     btnRm.addEventListener('click', e => {
       e.stopPropagation();
+      // Elimina por índice posicional (soporta duplicados)
       files.splice(i, 1);
       onChange(files);
     });
 
-    handle.addEventListener('dragstart', e => {
-      e.stopPropagation();
-      item.style.opacity = '0.4';
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', i);
-    });
+    if (handle) {
+      handle.addEventListener('dragstart', e => {
+        e.stopPropagation();
+        item.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        // Índice posicional (soporta duplicados)
+        e.dataTransfer.setData('text/plain', String(i));
+      });
 
-    handle.addEventListener('dragend', e => {
-      e.stopPropagation();
-      item.style.opacity = '1';
-      list.querySelectorAll('.file-item').forEach(el => { el.style.borderTop = ''; });
-      if (parentZone) parentZone.classList.remove('drag-active');
-    });
+      handle.addEventListener('dragend', e => {
+        e.stopPropagation();
+        item.style.opacity = '1';
+        list.querySelectorAll('.file-item').forEach(el => { el.style.borderTop = ''; });
+        if (parentZone) parentZone.classList.remove('drag-active');
+      });
+    }
 
     item.addEventListener('dragover', e => {
       e.preventDefault();
@@ -176,7 +195,6 @@ function renderOrderedFileList(containerId, files, onChange) {
       item.style.borderTop = '2px solid var(--primary)';
     });
 
-    // FIX: verificar relatedTarget para ignorar eventos de hijos
     item.addEventListener('dragleave', e => {
       if (item.contains(e.relatedTarget)) return;
       e.stopPropagation();
@@ -200,20 +218,48 @@ function renderOrderedFileList(containerId, files, onChange) {
   });
 }
 
+// ── Drag & drop externo (desde el SO hacia la zona) ─────────────────────────
 function bindDragDrop(zoneId, extensions, onDrop) {
   const zone = document.getElementById(zoneId);
   if (!zone) return;
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-active'); });
-  zone.addEventListener('dragleave', e => {
-    if (zone.contains(e.relatedTarget)) return;
-    zone.classList.remove('drag-active');
+
+  // Contador para evitar parpadeo de drag-active cuando se pasa por hijos
+  let dragDepth = 0;
+
+  zone.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragDepth++;
+    zone.classList.add('drag-active');
   });
+
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Forzar que SIEMPRE se pueda soltar (incluso si el archivo ya fue soltado antes)
+    e.dataTransfer.dropEffect = 'copy';
+    zone.classList.add('drag-active');
+  });
+
+  zone.addEventListener('dragleave', e => {
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) zone.classList.remove('drag-active');
+  });
+
   zone.addEventListener('drop', e => {
     e.preventDefault();
+    e.stopPropagation();
+    dragDepth = 0;
     zone.classList.remove('drag-active');
-    const paths = Array.from(e.dataTransfer.files)
+
+    // Leer SIEMPRE de dataTransfer.files (funciona incluso con duplicados)
+    const list = e.dataTransfer.files;
+    if (!list || !list.length) return;
+
+    const paths = Array.from(list)
       .map(f => window.api.getFilePath(f))
       .filter(p => p && extensions.includes(p.split('.').pop().toLowerCase()));
+
     if (paths.length) onDrop(paths);
     else notify.warning(`Solo se aceptan: ${extensions.join(', ').toUpperCase()}`);
   });
@@ -240,10 +286,7 @@ async function checkDefaultOutputDir(filePath, labelId) {
 
 // ── Helper compartido: selector de fuente (sistema + Google Fonts) ─────────
 // Usado por watermark, foliado y watermark-image
-// Parámetros: fontSource, fontPath, fontWeight, systemFonts, gfCatalog (refs por closure)
 function buildFontPicker(opts) {
-  // opts: { pickerId, fontSource, fontWeight, systemFonts, gfCatalog,
-  //         onFontPath, onFontsLoaded, onPreview }
   const picker = document.getElementById(opts.pickerId);
   if (!picker) return;
 
