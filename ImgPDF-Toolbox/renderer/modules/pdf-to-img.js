@@ -182,7 +182,6 @@ async function renderPdfToImg() {
     document.getElementById('p2i-result').innerHTML = '';
     hideProgress();
 
-    // Suscribirse a eventos de progreso (solo si es la corrida vigente)
     if (unsubProgress) { unsubProgress(); unsubProgress = null; }
     unsubProgress = window.api.onProgress(data => {
       if (runId !== currentRunId) return;
@@ -197,12 +196,10 @@ async function renderPdfToImg() {
     }
     window.api.playBeep();
 
-    // Desuscribirse (solo si seguimos siendo la corrida vigente)
     if (unsubProgress) { unsubProgress(); unsubProgress = null; }
 
-    if (runId !== currentRunId) return; // otra corrida tomó el control
+    if (runId !== currentRunId) return;
 
-    // Ocultar barra de progreso al terminar (éxito, cancelación o error)
     hideProgress();
 
     const ok  = res.filter(r => r.ok);
@@ -225,7 +222,7 @@ async function renderPdfToImg() {
   // ── Cleanup al salir del módulo (evita listeners zombies) ─────────────────
   const observer = new MutationObserver(() => {
     if (!document.getElementById('zone-p2i')) {
-      currentRunId++; // invalida cualquier corrida en vuelo
+      currentRunId++;
       if (unsubProgress) { unsubProgress(); unsubProgress = null; }
       observer.disconnect();
     }
