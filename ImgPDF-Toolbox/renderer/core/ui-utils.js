@@ -100,10 +100,6 @@ function renderFileList(containerId, files, onRemove) {
 // ── renderOrderedFileList ────────────────────────────────────────────────────
 // Lista con flechas ↑↓, drag-handle y botón eliminar.
 // Soporta archivos duplicados (mismo path en varias posiciones).
-//
-// options:
-//   showDrag   → muestra el drag-handle (default: true)
-//   showArrows → muestra flechas ↑↓ (default: true)
 function renderOrderedFileList(containerId, files, onChange, options = {}) {
   const { showDrag = true, showArrows = true } = options;
   const list = document.getElementById(containerId);
@@ -166,7 +162,6 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
 
     btnRm.addEventListener('click', e => {
       e.stopPropagation();
-      // Elimina por índice posicional (soporta duplicados)
       files.splice(i, 1);
       onChange(files);
     });
@@ -176,7 +171,6 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
         e.stopPropagation();
         item.style.opacity = '0.4';
         e.dataTransfer.effectAllowed = 'move';
-        // Índice posicional (soporta duplicados)
         e.dataTransfer.setData('text/plain', String(i));
       });
 
@@ -219,44 +213,27 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
 }
 
 // ── Drag & drop externo (desde el SO hacia la zona) ─────────────────────────
+// Versión minimalista — NO usar stopPropagation() en dragover/drop, ya que
+// rompe el DataTransfer de Chromium y solo entrega 1 archivo al soltar varios.
 function bindDragDrop(zoneId, extensions, onDrop) {
   const zone = document.getElementById(zoneId);
   if (!zone) return;
 
-  // Contador para evitar parpadeo de drag-active cuando se pasa por hijos
-  let dragDepth = 0;
-
-  zone.addEventListener('dragenter', e => {
-    e.preventDefault();
-    dragDepth++;
-    zone.classList.add('drag-active');
-  });
-
   zone.addEventListener('dragover', e => {
     e.preventDefault();
-    e.stopPropagation();
-    // Forzar que SIEMPRE se pueda soltar (incluso si el archivo ya fue soltado antes)
-    e.dataTransfer.dropEffect = 'copy';
     zone.classList.add('drag-active');
   });
 
   zone.addEventListener('dragleave', e => {
-    e.preventDefault();
-    dragDepth = Math.max(0, dragDepth - 1);
-    if (dragDepth === 0) zone.classList.remove('drag-active');
+    if (zone.contains(e.relatedTarget)) return;
+    zone.classList.remove('drag-active');
   });
 
   zone.addEventListener('drop', e => {
     e.preventDefault();
-    e.stopPropagation();
-    dragDepth = 0;
     zone.classList.remove('drag-active');
 
-    // Leer SIEMPRE de dataTransfer.files (funciona incluso con duplicados)
-    const list = e.dataTransfer.files;
-    if (!list || !list.length) return;
-
-    const paths = Array.from(list)
+    const paths = Array.from(e.dataTransfer.files)
       .map(f => window.api.getFilePath(f))
       .filter(p => p && extensions.includes(p.split('.').pop().toLowerCase()));
 
@@ -285,7 +262,6 @@ async function checkDefaultOutputDir(filePath, labelId) {
 }
 
 // ── Helper compartido: selector de fuente (sistema + Google Fonts) ─────────
-// Usado por watermark, foliado y watermark-image
 function buildFontPicker(opts) {
   const picker = document.getElementById(opts.pickerId);
   if (!picker) return;
@@ -302,7 +278,6 @@ function buildFontPicker(opts) {
 
   if (!opts.gfCatalog.length) {
     opts.gfCatalog.push(...baseCatalog);
-    // Enriquecer en background
     (async () => {
       try {
         if (window.api?.getGoogleFontsCatalog) {
