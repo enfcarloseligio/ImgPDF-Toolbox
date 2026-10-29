@@ -1,13 +1,18 @@
 {
   "name": "imgpdf-toolbox",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Suite ligera para manipular imágenes y PDFs con Ghostscript e ImageMagick",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder"
   },
-  "keywords": ["pdf", "image", "converter", "electron"],
+  "keywords": [
+    "pdf",
+    "image",
+    "converter",
+    "electron"
+  ],
   "author": "Juan Carlos De La Cruz Eligio | enfcarloseligio",
   "license": "MIT",
   "devDependencies": {
@@ -17,7 +22,9 @@
   "build": {
     "appId": "com.enfcarloseligio.imgpdf-toolbox",
     "productName": "ImgPDF Toolbox",
-    "directories": { "output": "dist" },
+    "directories": {
+      "output": "dist"
+    },
     "win": {
       "target": "nsis",
       "icon": "renderer/assets/icon.ico",
@@ -33,10 +40,16 @@
     "files": [
       "main.js",
       "preload.js",
+      "src/**/*",
       "renderer/**/*",
       "renderer/assets/icon.ico",
       "package.json"
     ],
-    "extraResources": [{ "from": "extraResources", "to": "bin" }]
+    "extraResources": [
+      {
+        "from": "extraResources",
+        "to": "bin"
+      }
+    ]
   }
 }

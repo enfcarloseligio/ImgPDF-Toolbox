@@ -1,5 +1,11 @@
-// ── modules/watermark.js ──────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/modules/watermark.js
+// Descripción: Módulo «Marca de agua — Texto»: estampa texto personalizado, orientado y
+//              posicionado sobre imágenes y PDFs, con selector de tipografía y vista previa.
+// ═════════════════════════════════════════════════════════════════════════════
+
 async function renderWatermark() {
+  // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('watermark', {
     text: 'CONFIDENCIAL', fontSize: 72, fontWeight: 400,
     opacity: 50, orientation: 'diagonal_asc', angle: -45, position: 'center',
@@ -22,8 +28,8 @@ async function renderWatermark() {
   let repeatGapH  = cfg.repeatGapH;
   let repeatGapV  = cfg.repeatGapV;
   let fontSource  = cfg.fontSource;
-  let systemFonts = [];
-  let gfCatalog   = [];
+  const systemFonts = [];
+  const gfCatalog   = [];
 
   const orientationAngles = {
     diagonal_asc:  -45,
@@ -34,39 +40,10 @@ async function renderWatermark() {
 
   angle = orientationAngles[orientation] ?? angle;
 
-  // Catálogo base con todas las variantes populares
-  const baseCatalog = [
-    'Roboto', 'Roboto Condensed', 'Roboto Mono', 'Roboto Serif', 'Roboto Slab', 'Roboto Flex',
-    'Open Sans', 'Open Sans Condensed',
-    'Lato', 'Montserrat', 'Montserrat Alternates',
-    'Poppins', 'Oswald', 'Inter', 'Inter Tight',
-    'Raleway', 'Nunito', 'Nunito Sans', 'Ubuntu', 'Ubuntu Condensed', 'Ubuntu Mono',
-    'Rubik', 'Rubik Mono One', 'Playfair Display', 'Lora',
-    'Noto Sans', 'Noto Serif', 'PT Sans', 'PT Serif',
-    'Kanit', 'Merriweather', 'Merriweather Sans', 'Bebas Neue',
-    'Cabin', 'Fira Sans', 'Fira Code', 'Fira Mono',
-    'Barlow', 'Barlow Condensed', 'Quicksand', 'Work Sans',
-    'Inconsolata', 'Titillium Web', 'Mukta', 'Heebo', 'DM Sans', 'DM Serif Display',
-    'Source Sans Pro', 'Source Code Pro', 'Source Serif Pro',
-    'Cinzel', 'Caveat', 'Comfortaa', 'Pacifico', 'Lobster', 'Dancing Script'
-  ];
-
-  gfCatalog = [...baseCatalog];
-
-  (async () => {
-    try {
-      if (window.api?.getGoogleFontsCatalog) {
-        const res = await window.api.getGoogleFontsCatalog();
-        if (res?.ok && Array.isArray(res.families) && res.families.length > 0) {
-          gfCatalog = Array.from(new Set([...baseCatalog, ...res.families])).sort((a, b) => a.localeCompare(b));
-        }
-      }
-    } catch (_) {}
-  })();
-
+  // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
-    <div class="module-title">💧 Marca de agua</div>
+    <div class="module-title">${icon('droplet',22)} Marca de agua</div>
     <p class="module-desc">Estampa texto personalizado, orientado y posicionado sobre imágenes y PDFs.</p>
 
     <!-- Texto -->
@@ -168,8 +145,8 @@ async function renderWatermark() {
         <span class="file-count-badge" id="wm-badge">0 archivos cargados</span>
       </div>
       <div class="btn-row">
-        <button class="btn-secondary" id="pick-wm">📂 Seleccionar archivos</button>
-        <button class="btn-secondary" id="clear-wm" style="display:none">🗑️ Limpiar</button>
+        <button class="btn-secondary" id="pick-wm">${icon('folder-open',16)} Seleccionar archivos</button>
+        <button class="btn-secondary" id="clear-wm" style="display:none">${icon('trash',16)} Limpiar</button>
         <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="wm-list">
@@ -183,6 +160,7 @@ async function renderWatermark() {
       <button class="btn-primary" id="run-wm" disabled style="width:auto">Aplicar marca de agua</button>
       <button class="btn-danger"  id="cancel-wm" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="wm-progress"></div>
     <div id="wm-result"></div>
   </div>`;
 
@@ -283,8 +261,8 @@ async function renderWatermark() {
   optButtons(document.getElementById('orientation-row'), [
     { label: '↗ Diagonal Ascendente (-45°)',  value: 'diagonal_asc'  },
     { label: '↘ Diagonal Descendente (45°)',  value: 'diagonal_desc' },
-    { label: '➔ Horizontal (0°)',             value: 'horizontal'    },
-    { label: '⬆ Vertical (90°)',              value: 'vertical'      },
+    { icon: 'arrow-right', label: 'Horizontal (0°)',             value: 'horizontal'    },
+    { icon: 'arrow-up', label: 'Vertical (90°)',              value: 'vertical'      },
   ], orientation, val => {
     orientation = val;
     angle = orientationAngles[val] ?? 0;
@@ -294,149 +272,22 @@ async function renderWatermark() {
 
   // ── Fuente ──────────────────────────────────────────────────────────────────
   optButtons(document.getElementById('font-source-row'), [
-    { label: '🖥 Fuentes del sistema', value: 'system' },
-    { label: '🌐 Google Fonts',        value: 'google' },
+    { icon: 'monitor', label: 'Fuentes del sistema', value: 'system' },
+    { icon: 'globe', label: 'Google Fonts',        value: 'google' },
   ], fontSource, val => {
     fontSource = val;
     saveModuleConfig('watermark', { fontSource: val });
     renderFontPicker();
   });
 
-  async function renderFontPicker() {
-    const picker = document.getElementById('font-picker');
-
-    if (fontSource === 'system') {
-      picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">⏳ Cargando fuentes del sistema...</p>`;
-      if (!systemFonts.length) systemFonts = await window.api.getSystemFonts();
-      if (!systemFonts.length) {
-        picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">No se encontraron fuentes instaladas.</p>`;
-        return;
-      }
-      picker.innerHTML = `
-        <div style="display:flex;gap:0.5rem;align-items:center">
-          <input type="text" id="font-search" class="num-input"
-            style="width:240px;text-align:left" placeholder="Buscar fuente...">
-          <span style="font-size:0.78rem;color:var(--muted)">${systemFonts.length} fuentes detectadas</span>
-        </div>
-        <select id="font-select" size="5"
-          style="width:100%;margin-top:0.4rem;border:1px solid var(--border);
-                 border-radius:6px;padding:0.35rem 0.5rem;font-size:0.83rem;
-                 background:var(--bg);color:var(--deep)">
-          ${systemFonts.map(f => `<option value="${f.path}">${f.name}</option>`).join('')}
-        </select>`;
-
-      fontPath = systemFonts[0]?.path || null;
-      updatePreview();
-
-      document.getElementById('font-search').addEventListener('input', e => {
-        const q = e.target.value.toLowerCase();
-        const filtered = systemFonts.filter(f => f.name.toLowerCase().includes(q));
-        const sel = document.getElementById('font-select');
-        sel.innerHTML = filtered.map(f => `<option value="${f.path}">${f.name}</option>`).join('');
-        fontPath = filtered[0]?.path || null;
-        updatePreview();
-      });
-
-      document.getElementById('font-select').addEventListener('change', e => {
-        fontPath = e.target.value;
-        updatePreview();
-      });
-
-    } else {
-      // Formato con la caja estilizada oficial y el menú flotante en blanco
-      picker.innerHTML = `
-        <div class="result-box info" style="margin-bottom:0.6rem">
-          <div class="result-title">ℹ️ Catálogo de Google Fonts</div>
-          <div class="result-item">Escribe la familia deseada (ej: Roboto, Montserrat, Open Sans) y selecciónala de la lista.</div>
-        </div>
-        <div style="display:flex;gap:0.5rem;align-items:center;position:relative">
-          <div style="position:relative;width:320px">
-            <input type="text" id="gf-family" class="num-input"
-              style="width:100%;text-align:left;height:36px;padding:0.38rem 0.75rem;font-size:0.84rem;box-sizing:border-box"
-              placeholder="Buscar familia tipográfica..." autocomplete="off">
-            <div id="gf-suggestions" style="
-              display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:99999;
-              background:#ffffff;border:1px solid var(--border);border-radius:6px;
-              box-shadow:0 8px 20px rgba(0,0,0,0.1);max-height:220px;overflow-y:auto;box-sizing:border-box">
-            </div>
-          </div>
-          <button class="btn-secondary btn-sm" id="gf-load" style="height:36px;padding:0 0.9rem">Cargar fuente</button>
-          <span id="gf-status" style="font-size:0.76rem;color:var(--muted)"></span>
-        </div>`;
-
-      const familyInput   = document.getElementById('gf-family');
-      const suggestionsEl = document.getElementById('gf-suggestions');
-      const statusEl      = document.getElementById('gf-status');
-
-      async function triggerDownload(familyName) {
-        const family = (familyName || familyInput.value).trim();
-        if (!family) { notify.warning('Escribe o selecciona una familia de Google Fonts.'); return; }
-
-        statusEl.textContent = '⏳ Descargando...';
-        statusEl.style.color = 'var(--warning)';
-
-        const dl = await window.api.downloadGoogleFont({ family, weight: fontWeight });
-        if (dl.ok) {
-          fontPath = dl.path;
-          statusEl.textContent = `✓ ${family} lista`;
-          statusEl.style.color = 'var(--success)';
-          notify.success(`Fuente "${family}" cargada.`);
-          updatePreview();
-        } else {
-          statusEl.textContent = '✗ Error';
-          statusEl.style.color = 'var(--error)';
-          notify.error(dl.error || `No se pudo cargar "${family}".`);
-        }
-      }
-
-      function showSuggestions() {
-        const q = familyInput.value.toLowerCase().trim();
-        if (!q) {
-          suggestionsEl.style.display = 'none';
-          return;
-        }
-
-        const matches = gfCatalog.filter(f => f.toLowerCase().includes(q)).slice(0, 15);
-        if (!matches.length) {
-          suggestionsEl.style.display = 'none';
-          return;
-        }
-
-        suggestionsEl.innerHTML = matches.map(f => `
-          <div class="gf-item-row" data-family="${f}" style="
-            padding:0.45rem 0.85rem;font-size:0.83rem;color:var(--deep);cursor:pointer;
-            background:#ffffff;border-bottom:1px solid rgba(0,0,0,0.05);transition:background 0.15s, color 0.15s">
-            ${f}
-          </div>
-        `).join('');
-        suggestionsEl.style.display = 'block';
-
-        suggestionsEl.querySelectorAll('.gf-item-row').forEach(item => {
-          item.addEventListener('mouseenter', () => {
-            item.style.background = 'var(--primary-soft)';
-            item.style.color = 'var(--primary)';
-          });
-          item.addEventListener('mouseleave', () => {
-            item.style.background = '#ffffff';
-            item.style.color = 'var(--deep)';
-          });
-          item.addEventListener('mousedown', e => {
-            e.preventDefault();
-            familyInput.value = item.dataset.family;
-            suggestionsEl.style.display = 'none';
-            triggerDownload(item.dataset.family);
-          });
-        });
-      }
-
-      familyInput.addEventListener('input', showSuggestions);
-      familyInput.addEventListener('focus', showSuggestions);
-      familyInput.addEventListener('blur', () => {
-        setTimeout(() => { suggestionsEl.style.display = 'none'; }, 200);
-      });
-
-      document.getElementById('gf-load').addEventListener('click', () => triggerDownload());
-    }
+  function renderFontPicker() {
+    buildFontPicker({
+      pickerId: 'font-picker', fontSource, getFontWeight: () => fontWeight,
+      systemFonts, gfCatalog,
+      onFontPath: p => { fontPath = p; },
+      onFontsLoaded: f => { systemFonts.length = 0; systemFonts.push(...f); },
+      onPreview: updatePreview,
+    });
   }
   renderFontPicker();
 
@@ -458,9 +309,9 @@ async function renderWatermark() {
   document.getElementById('wm-weight').addEventListener('change', async e => {
     fontWeight = parseInt(e.target.value);
     saveModuleConfig('watermark', { fontWeight });
-    const familyInput = document.getElementById('gf-family');
+    const familyInput = document.getElementById('font-picker-gf-family');
     if (fontSource === 'google' && familyInput && familyInput.value.trim()) {
-      document.getElementById('gf-load').click();
+      document.getElementById('font-picker-gf-load').click();
     } else {
       updatePreview();
     }
@@ -468,10 +319,10 @@ async function renderWatermark() {
 
   // ── Color ───────────────────────────────────────────────────────────────────
   optButtons(document.getElementById('color-row'), [
-    { label: '🔴 Rojo',  value: '#FF0000' },
-    { label: '🔵 Azul',  value: '#0A66C2' },
-    { label: '⚫ Negro', value: '#000000' },
-    { label: '🩶 Gris',  value: '#475569' },
+    { swatch: true, label: 'Rojo',  value: '#FF0000' },
+    { swatch: true, label: 'Azul',  value: '#0A66C2' },
+    { swatch: true, label: 'Negro', value: '#000000' },
+    { swatch: true, label: 'Gris',  value: '#475569' },
   ], color, val => {
     color = val;
     document.getElementById('wm-color').value = val;
@@ -504,7 +355,7 @@ async function renderWatermark() {
   optButtons(document.getElementById('position-row'), [
     { label: '↖ Sup. Izq.',  value: 'top_left'     },
     { label: '↗ Sup. Der.',  value: 'top_right'    },
-    { label: '✛ Centro',     value: 'center'       },
+    { icon: 'crosshair', label: 'Centro',     value: 'center'       },
     { label: '↙ Inf. Izq.',  value: 'bottom_left'  },
     { label: '↘ Inf. Der.',  value: 'bottom_right' },
   ], position, val => {
@@ -520,16 +371,17 @@ async function renderWatermark() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'wm-path');
     const dups = picked.filter(f => files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('wm-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
   };
 
+  // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-wm').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{
       name: 'Imágenes y PDFs', extensions: ['pdf','png','jpg','jpeg']
@@ -548,12 +400,14 @@ async function renderWatermark() {
     pickOutputDir('wm-path').then(updateRun));
   bindDragDrop('zone-wm', ['pdf','png','jpg','jpeg'], addFiles);
 
+  // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-wm').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-wm').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('wm-badge').textContent   = `${files.length} archivo(s) seleccionado(s)`;
   }
 
+  // ── Cancelación y ejecución ──────────────────────────────────────────────────
   document.getElementById('cancel-wm').addEventListener('click', async () => {
     await window.api.cancelOperation();
     notify.warning('Cancelando marca de agua...');
@@ -565,19 +419,19 @@ async function renderWatermark() {
     const btn = document.getElementById('run-wm'), cancel = document.getElementById('cancel-wm');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('wm-result').innerHTML = progressBar(40);
+    document.getElementById('wm-result').innerHTML = '';
 
-    const res = await window.api.watermarkText({
+    const res = await runWithProgress('watermark', 'wm-progress', () => window.api.watermarkText({
       files, text, fontPath, fontSize, fontWeight, opacity, angle,
       position, color, repeatMode, repeatGapH, repeatGapV,
       outputDir: state.outputDir
-    });
+    }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('wm-result').innerHTML =
-      (ok.length  ? resultBox('success', `✓ ${ok.length} archivo(s) procesado(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
+      (ok.length  ? resultBox('success', `${ok.length} archivo(s) procesado(s)`, ok.map(r => `${icon('file',14)} ${basename(r.out)}`), true) : '') +
+      (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
 
     if (ok.length)  notify.success(`Marca de agua aplicada en ${ok.length} archivo(s).`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron.`);

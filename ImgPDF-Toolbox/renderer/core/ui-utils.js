@@ -1,4 +1,12 @@
-// ── core/ui-utils.js ──────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/core/ui-utils.js
+// Descripción: Utilidades de interfaz compartidas por los módulos: manejo de rutas,
+//              persistencia de configuración, botones de opción, cuadros de resultado,
+//              listas de archivos (simple y ordenable), drag & drop, carpeta de salida y
+//              selector de fuentes (sistema y Google Fonts).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Utilidades generales ────────────────────────────────────────────────────
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -10,6 +18,8 @@ function dirname(filePath) {
   const norm = (filePath || '').replace(/\\/g, '/');
   return norm.substring(0, norm.lastIndexOf('/'));
 }
+
+// ── Persistencia de configuración por módulo ────────────────────────────────
 
 async function saveModuleConfig(moduleId, config) {
   try {
@@ -30,13 +40,20 @@ async function loadModuleConfig(moduleId, defaults = {}) {
   }
 }
 
+// ── Botones de opción ───────────────────────────────────────────────────────
+
+// options: [{ label, value, icon?, swatch? }]
+//   icon:   nombre de un icono de assets/svg/
+//   swatch: muestra un punto con el color indicado en value
 function optButtons(container, options, defaultVal, cb, onSave) {
   if (!container) return;
   container.innerHTML = '';
   options.forEach(opt => {
     const btn = document.createElement('button');
     btn.className   = 'opt-btn' + (opt.value === defaultVal ? ' active' : '');
-    btn.textContent = opt.label;
+    if (opt.icon)   btn.insertAdjacentHTML('beforeend', icon(opt.icon, 16) + ' ');
+    if (opt.swatch) btn.insertAdjacentHTML('beforeend', `<span class="swatch" style="background:${opt.value}"></span>`);
+    btn.appendChild(document.createTextNode(opt.label));
     btn.addEventListener('click', () => {
       container.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -47,11 +64,15 @@ function optButtons(container, options, defaultVal, cb, onSave) {
   });
 }
 
+// ── Cuadros de resultado y progreso ─────────────────────────────────────────
+
+const RESULT_ICONS = { success: 'check-circle', error: 'x-circle', warning: 'alert', info: 'info' };
+
 function resultBox(type, title, items = [], canOpenFolder = false) {
   const id  = canOpenFolder && state.outputDir ? `open-dir-${Date.now()}` : null;
-  const btn = id ? `<button class="btn-open-dir" id="${id}">📁 Abrir carpeta de salida</button>` : '';
+  const btn = id ? `<button class="btn-open-dir" id="${id}">${iconLabel('folder-open', 'Abrir carpeta de salida')}</button>` : '';
   const html = `<div class="result-box ${type}">
-    <div class="result-title">${title}</div>
+    <div class="result-title">${icon(RESULT_ICONS[type], 16)} ${title}</div>
     ${items.map(i => `<div class="result-item">${i}</div>`).join('')}
     ${btn}
   </div>`;
@@ -69,14 +90,85 @@ function progressBar(pct = 40) {
   return `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
 }
 
+// ── Panel de progreso real ───────────────────────────────────────────────────
+// Muestra el avance enviado por el proceso principal (evento 'progress'): archivo en
+// curso, páginas procesadas del total y salida generada. Lo usan todas las herramientas.
+
+function createProgressPanel(containerId) {
+  const box = () => document.getElementById(containerId);
+
+  return {
+    handle(data) {
+      const el = box();
+      if (!el) return;
+      const unit = data.unit || 'páginas';
+
+      if (data.phase === 'start' || !el.querySelector('.progress-fill')) {
+        el.style.display = 'flex';
+        el.innerHTML = `
+          <div class="progress-head">
+            <span class="progress-label">Preparando…</span>
+            <span class="progress-count">0 / ${data.totalPages || 0} ${unit}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+          <div class="progress-detail"></div>`;
+        if (data.phase === 'start') return;
+      }
+
+      const total = data.totalPages || 0;
+      const done  = data.globalPage || 0;
+      const pct   = data.phase === 'done' ? 100 : (total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0);
+
+      el.querySelector('.progress-fill').style.width = `${pct}%`;
+      el.querySelector('.progress-count').textContent = `${done} / ${total} ${unit}`;
+
+      if (data.phase === 'done') {
+        el.querySelector('.progress-label').textContent = 'Completado';
+        return;
+      }
+
+      el.querySelector('.progress-label').textContent = data.stage
+        || `Procesando ${data.currentFileName || ''} (${data.currentFile}/${data.totalFiles})`;
+
+      const parts = [];
+      if (data.currentOut) parts.push(`→ ${data.currentOut}`);
+      if (unit === 'páginas' && data.currentFilePages) parts.push(`página ${data.currentPage} de ${data.currentFilePages}`);
+      el.querySelector('.progress-detail').textContent = parts.join('  ·  ');
+    },
+
+    hide() {
+      const el = box();
+      if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+    },
+  };
+}
+
+// Ejecuta task() mostrando en containerId el progreso real emitido por el módulo indicado.
+// Se suscribe antes de iniciar y siempre se desuscribe al terminar (también si falla).
+async function runWithProgress(moduleId, containerId, task) {
+  const panel = createProgressPanel(containerId);
+  const unsubscribe = window.api.onProgress(data => {
+    if (data.module === moduleId) panel.handle(data);
+  });
+  try {
+    return await task();
+  } finally {
+    unsubscribe();
+    panel.hide();
+  }
+}
+
+// ── Fila de carpeta de salida ───────────────────────────────────────────────
+
 function outputDirRow(id) {
   const saved = state.outputDir || 'No seleccionada';
   return `<div class="output-row">
-    <button class="btn-secondary btn-sm" id="${id}-pick">📁 Carpeta de salida</button>
+    <button class="btn-secondary btn-sm" id="${id}-pick">${iconLabel('folder', 'Carpeta de salida')}</button>
     <span class="output-path" id="${id}-path">${saved}</span>
   </div>`;
 }
 
+// ── Lista simple (sin orden, sin drag) ──────────────────────────────────────
 function renderFileList(containerId, files, onRemove) {
   const list = document.getElementById(containerId);
   if (!list) return;
@@ -86,8 +178,8 @@ function renderFileList(containerId, files, onRemove) {
   }
   list.innerHTML = files.map((f, i) => `
     <div class="file-item">
-      <span class="file-name">📄 ${basename(f)}</span>
-      <button class="file-remove" data-idx="${i}" title="Quitar">✕</button>
+      <span class="file-name">${icon('file', 14)} ${basename(f)}</span>
+      <button class="file-remove" data-idx="${i}" title="Quitar">${icon('close', 14)}</button>
     </div>`).join('');
   list.querySelectorAll('.file-remove').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -96,12 +188,16 @@ function renderFileList(containerId, files, onRemove) {
   });
 }
 
-// ── renderOrderedFileList con fix de dragleave en hijos ──────────────────────
-function renderOrderedFileList(containerId, files, onChange) {
+// ── renderOrderedFileList ────────────────────────────────────────────────────
+// Lista con flechas ↑↓, drag-handle y botón eliminar.
+// Soporta archivos duplicados (mismo path en varias posiciones).
+function renderOrderedFileList(containerId, files, onChange, options = {}) {
+  const { showDrag = true, showArrows = true } = options;
   const list = document.getElementById(containerId);
   if (!list) return;
 
   const parentZone = list.closest('.file-zone');
+  const dropScope  = parentZone || list;
   if (parentZone) parentZone.classList.remove('drag-active');
 
   if (!files.length) {
@@ -113,20 +209,27 @@ function renderOrderedFileList(containerId, files, onChange) {
 
   files.forEach((f, i) => {
     const item = document.createElement('div');
-    item.className   = 'file-item';
+    item.className = 'file-item';
     item.dataset.index = i;
+
+    const dragHtml = showDrag
+      ? `<span class="file-drag-handle" draggable="true" title="Arrastrar para reordenar">${icon('drag-handle', 14)}</span>`
+      : '';
+
+    const arrowsHtml = showArrows
+      ? `<button class="btn-order btn-order-up"  title="Subir"  ${i === 0 ? 'disabled' : ''}>${icon('arrow-up', 14)}</button>
+         <button class="btn-order btn-order-down" title="Bajar"  ${i === files.length - 1 ? 'disabled' : ''}>${icon('arrow-down', 14)}</button>`
+      : '';
 
     item.innerHTML = `
       <div style="display:flex;align-items:center;overflow:hidden;flex:1;gap:0.35rem">
-        <span class="file-drag-handle" draggable="true"
-          title="Arrastrar para reordenar">☰</span>
+        ${dragHtml}
         <span class="file-order" style="font-weight:600;font-size:0.8rem;color:var(--primary);min-width:1.2rem">${i + 1}.</span>
-        <span class="file-name" title="${f}">📄 ${basename(f)}</span>
+        <span class="file-name" title="${f}">${icon('file', 14)} ${basename(f)}</span>
       </div>
       <div class="file-actions" style="display:flex;align-items:center;gap:0.35rem;margin-left:0.5rem">
-        <button class="btn-order btn-order-up"  title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button class="btn-order btn-order-down" title="Bajar" ${i === files.length - 1 ? 'disabled' : ''}>▼</button>
-        <button class="file-remove" title="Quitar">✕</button>
+        ${arrowsHtml}
+        <button class="file-remove" title="Quitar">${icon('close', 14)}</button>
       </div>`;
 
     const handle  = item.querySelector('.file-drag-handle');
@@ -134,14 +237,14 @@ function renderOrderedFileList(containerId, files, onChange) {
     const btnDown = item.querySelector('.btn-order-down');
     const btnRm   = item.querySelector('.file-remove');
 
-    if (i > 0) {
+    if (btnUp) {
       btnUp.addEventListener('click', e => {
         e.stopPropagation();
         [files[i - 1], files[i]] = [files[i], files[i - 1]];
         onChange(files);
       });
     }
-    if (i < files.length - 1) {
+    if (btnDown) {
       btnDown.addEventListener('click', e => {
         e.stopPropagation();
         [files[i], files[i + 1]] = [files[i + 1], files[i]];
@@ -155,69 +258,139 @@ function renderOrderedFileList(containerId, files, onChange) {
       onChange(files);
     });
 
-    handle.addEventListener('dragstart', e => {
-      e.stopPropagation();
-      item.style.opacity = '0.4';
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', i);
-    });
+    if (handle) {
+      handle.addEventListener('dragstart', e => {
+        orderedDragFrom = i;
+        item.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i));
+      });
 
-    handle.addEventListener('dragend', e => {
-      e.stopPropagation();
-      item.style.opacity = '1';
-      list.querySelectorAll('.file-item').forEach(el => { el.style.borderTop = ''; });
-      if (parentZone) parentZone.classList.remove('drag-active');
-    });
-
-    item.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      item.style.borderTop = '2px solid var(--primary)';
-    });
-
-    // FIX: verificar relatedTarget para ignorar eventos de hijos
-    item.addEventListener('dragleave', e => {
-      if (item.contains(e.relatedTarget)) return;
-      e.stopPropagation();
-      item.style.borderTop = '';
-    });
-
-    item.addEventListener('drop', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      item.style.borderTop = '';
-      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-      const toIndex   = i;
-      if (!isNaN(fromIndex) && fromIndex !== toIndex) {
-        const [moved] = files.splice(fromIndex, 1);
-        files.splice(toIndex, 0, moved);
-        onChange(files);
-      }
-    });
+      handle.addEventListener('dragend', () => {
+        orderedDragFrom = null;
+        item.style.opacity = '1';
+        clearDropIndicator(dropScope);
+      });
+    }
 
     list.appendChild(item);
   });
+
+  // Reordenamiento interno: el punto de inserción se calcula con la posición del cursor.
+  // Se asignan como propiedades para no acumular listeners en cada renderizado.
+  list.ondragover = e => {
+    if (orderedDragFrom === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    showDropIndicator(dropScope, getDropIndex(dropScope, e));
+  };
+
+  list.ondragleave = e => {
+    if (!list.contains(e.relatedTarget)) clearDropIndicator(dropScope);
+  };
+
+  list.ondrop = e => {
+    if (orderedDragFrom === null) return;
+    e.preventDefault();
+    let target = getDropIndex(dropScope, e);
+    clearDropIndicator(dropScope);
+    const from = orderedDragFrom;
+    orderedDragFrom = null;
+    if (target === null) return;
+    if (from < target) target -= 1;
+    if (target === from) return;
+    const [moved] = files.splice(from, 1);
+    files.splice(target, 0, moved);
+    onChange(files);
+  };
 }
 
+// ── Posición de inserción al soltar ──────────────────────────────────────────
+// Índice del que se está arrastrando en la lista ordenable (null si no hay arrastre interno).
+let orderedDragFrom = null;
+
+// Calcula en qué posición de la lista se insertará lo que se suelte:
+//  - sobre la lista: antes del primer elemento cuya mitad queda por debajo del cursor;
+//  - fuera de la lista pero dentro del recuadro: al final;
+//  - lista vacía: null (el consumidor añade al final).
+function getDropIndex(zone, e) {
+  const list  = zone.querySelector('.file-list');
+  const items = list ? Array.from(list.querySelectorAll('.file-item')) : [];
+  if (!items.length) return null;
+
+  const box = list.getBoundingClientRect();
+  const inside = e.clientX >= box.left && e.clientX <= box.right &&
+                 e.clientY >= box.top  && e.clientY <= box.bottom;
+  if (!inside) return items.length;
+
+  for (let i = 0; i < items.length; i++) {
+    const r = items[i].getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) return i;
+  }
+  return items.length;
+}
+
+// Marca con una línea la posición donde se insertará el elemento.
+function showDropIndicator(zone, index) {
+  clearDropIndicator(zone);
+  const items = zone.querySelectorAll('.file-list .file-item');
+  if (index === null || !items.length) return;
+  if (index < items.length) items[index].classList.add('drop-before');
+  else items[items.length - 1].classList.add('drop-after');
+}
+
+function clearDropIndicator(zone) {
+  zone.querySelectorAll('.drop-before, .drop-after')
+    .forEach(el => el.classList.remove('drop-before', 'drop-after'));
+}
+
+// Devuelve una copia de list con items insertados en index (undefined/null = al final).
+function insertAt(list, items, index) {
+  const i = index == null ? list.length : Math.max(0, Math.min(index, list.length));
+  return [...list.slice(0, i), ...items, ...list.slice(i)];
+}
+
+// ── Drag & drop externo (desde el SO hacia la zona) ─────────────────────────
+// Implementación minimalista: no debe usarse stopPropagation() en dragover/drop,
+// ya que rompe el DataTransfer de Chromium y solo entrega 1 archivo al soltar varios.
+// onDrop(paths, index): index es la posición de inserción según dónde se suelta
+// (undefined = al final). Solo reacciona a archivos externos, no al reordenamiento interno.
 function bindDragDrop(zoneId, extensions, onDrop) {
   const zone = document.getElementById(zoneId);
   if (!zone) return;
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-active'); });
+
+  const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+
+  zone.addEventListener('dragover', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    zone.classList.add('drag-active');
+    showDropIndicator(zone, getDropIndex(zone, e));
+  });
+
   zone.addEventListener('dragleave', e => {
     if (zone.contains(e.relatedTarget)) return;
     zone.classList.remove('drag-active');
+    clearDropIndicator(zone);
   });
+
   zone.addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
     e.preventDefault();
     zone.classList.remove('drag-active');
+    const index = getDropIndex(zone, e);
+    clearDropIndicator(zone);
+
     const paths = Array.from(e.dataTransfer.files)
       .map(f => window.api.getFilePath(f))
       .filter(p => p && extensions.includes(p.split('.').pop().toLowerCase()));
-    if (paths.length) onDrop(paths);
+
+    if (paths.length) onDrop(paths, index ?? undefined);
     else notify.warning(`Solo se aceptan: ${extensions.join(', ').toUpperCase()}`);
   });
 }
+
+// ── Selección de carpeta de salida ──────────────────────────────────────────
 
 async function pickOutputDir(pathLabelId) {
   const dir = await window.api.selectFolder();
@@ -239,27 +412,30 @@ async function checkDefaultOutputDir(filePath, labelId) {
 }
 
 // ── Helper compartido: selector de fuente (sistema + Google Fonts) ─────────
-// Usado por watermark, foliado y watermark-image
-// Parámetros: fontSource, fontPath, fontWeight, systemFonts, gfCatalog (refs por closure)
+// opts: { pickerId, fontSource, getFontWeight, systemFonts[], gfCatalog[],
+//         onFontPath(path), onFontsLoaded?(fonts), onPreview? }
 function buildFontPicker(opts) {
-  // opts: { pickerId, fontSource, fontWeight, systemFonts, gfCatalog,
-  //         onFontPath, onFontsLoaded, onPreview }
   const picker = document.getElementById(opts.pickerId);
   if (!picker) return;
 
   const baseCatalog = [
-    'Roboto','Roboto Condensed','Roboto Mono','Roboto Slab',
-    'Open Sans','Open Sans Condensed','Lato','Montserrat','Poppins',
-    'Oswald','Inter','Raleway','Nunito','Ubuntu','Rubik',
-    'Playfair Display','Lora','Noto Sans','Noto Serif','PT Sans',
-    'Merriweather','Bebas Neue','Cabin','Fira Sans','Barlow',
-    'Quicksand','Work Sans','Titillium Web','DM Sans','Source Sans Pro',
-    'Cinzel','Caveat','Comfortaa','Pacifico','Lobster','Dancing Script'
+    'Roboto', 'Roboto Condensed', 'Roboto Mono', 'Roboto Serif', 'Roboto Slab', 'Roboto Flex',
+    'Open Sans', 'Open Sans Condensed',
+    'Lato', 'Montserrat', 'Montserrat Alternates',
+    'Poppins', 'Oswald', 'Inter', 'Inter Tight',
+    'Raleway', 'Nunito', 'Nunito Sans', 'Ubuntu', 'Ubuntu Condensed', 'Ubuntu Mono',
+    'Rubik', 'Rubik Mono One', 'Playfair Display', 'Lora',
+    'Noto Sans', 'Noto Serif', 'PT Sans', 'PT Serif',
+    'Kanit', 'Merriweather', 'Merriweather Sans', 'Bebas Neue',
+    'Cabin', 'Fira Sans', 'Fira Code', 'Fira Mono',
+    'Barlow', 'Barlow Condensed', 'Quicksand', 'Work Sans',
+    'Inconsolata', 'Titillium Web', 'Mukta', 'Heebo', 'DM Sans', 'DM Serif Display',
+    'Source Sans Pro', 'Source Code Pro', 'Source Serif Pro',
+    'Cinzel', 'Caveat', 'Comfortaa', 'Pacifico', 'Lobster', 'Dancing Script'
   ];
 
   if (!opts.gfCatalog.length) {
     opts.gfCatalog.push(...baseCatalog);
-    // Enriquecer en background
     (async () => {
       try {
         if (window.api?.getGoogleFontsCatalog) {
@@ -274,10 +450,11 @@ function buildFontPicker(opts) {
   }
 
   if (opts.fontSource === 'system') {
-    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">⏳ Cargando fuentes del sistema...</p>`;
+    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">${iconLabel('loader', 'Cargando fuentes del sistema...', 14)}</p>`;
 
-    window.api.getSystemFonts().then(fonts => {
-      if (opts.onFontsLoaded) opts.onFontsLoaded(fonts);
+    const cached = opts.systemFonts?.length ? opts.systemFonts : null;
+    (cached ? Promise.resolve(cached) : window.api.getSystemFonts()).then(fonts => {
+      if (!cached && opts.onFontsLoaded) opts.onFontsLoaded(fonts);
       if (!fonts.length) {
         picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">No se encontraron fuentes instaladas.</p>`;
         return;
@@ -316,7 +493,7 @@ function buildFontPicker(opts) {
   } else {
     picker.innerHTML = `
       <div class="result-box info" style="margin-bottom:0.6rem">
-        <div class="result-title">ℹ️ Catálogo de Google Fonts</div>
+        <div class="result-title">${iconLabel('info', 'Catálogo de Google Fonts')}</div>
         <div class="result-item">Escribe la familia deseada y selecciónala de la lista.</div>
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;position:relative">
@@ -341,9 +518,9 @@ function buildFontPicker(opts) {
     async function triggerDownload(familyName) {
       const family = (familyName || familyInput.value).trim();
       if (!family) { notify.warning('Escribe o selecciona una familia.'); return; }
-      statusEl.textContent = '⏳ Descargando...';
+      statusEl.innerHTML = iconLabel('loader', 'Descargando...', 14);
       statusEl.style.color = 'var(--warning)';
-      const dl = await window.api.downloadGoogleFont({ family, weight: opts.fontWeight });
+      const dl = await window.api.downloadGoogleFont({ family, weight: opts.getFontWeight ? opts.getFontWeight() : opts.fontWeight });
       if (dl.ok) {
         opts.onFontPath(dl.path);
         statusEl.textContent = `✓ ${family} lista`;
