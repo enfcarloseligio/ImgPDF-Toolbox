@@ -90,6 +90,74 @@ function progressBar(pct = 40) {
   return `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
 }
 
+// ── Panel de progreso real ───────────────────────────────────────────────────
+// Muestra el avance enviado por el proceso principal (evento 'progress'): archivo en
+// curso, páginas procesadas del total y salida generada. Lo usan todas las herramientas.
+
+function createProgressPanel(containerId) {
+  const box = () => document.getElementById(containerId);
+
+  return {
+    handle(data) {
+      const el = box();
+      if (!el) return;
+      const unit = data.unit || 'páginas';
+
+      if (data.phase === 'start' || !el.querySelector('.progress-fill')) {
+        el.style.display = 'flex';
+        el.innerHTML = `
+          <div class="progress-head">
+            <span class="progress-label">Preparando…</span>
+            <span class="progress-count">0 / ${data.totalPages || 0} ${unit}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+          <div class="progress-detail"></div>`;
+        if (data.phase === 'start') return;
+      }
+
+      const total = data.totalPages || 0;
+      const done  = data.globalPage || 0;
+      const pct   = data.phase === 'done' ? 100 : (total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0);
+
+      el.querySelector('.progress-fill').style.width = `${pct}%`;
+      el.querySelector('.progress-count').textContent = `${done} / ${total} ${unit}`;
+
+      if (data.phase === 'done') {
+        el.querySelector('.progress-label').textContent = 'Completado';
+        return;
+      }
+
+      el.querySelector('.progress-label').textContent = data.stage
+        || `Procesando ${data.currentFileName || ''} (${data.currentFile}/${data.totalFiles})`;
+
+      const parts = [];
+      if (data.currentOut) parts.push(`→ ${data.currentOut}`);
+      if (unit === 'páginas' && data.currentFilePages) parts.push(`página ${data.currentPage} de ${data.currentFilePages}`);
+      el.querySelector('.progress-detail').textContent = parts.join('  ·  ');
+    },
+
+    hide() {
+      const el = box();
+      if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+    },
+  };
+}
+
+// Ejecuta task() mostrando en containerId el progreso real emitido por el módulo indicado.
+// Se suscribe antes de iniciar y siempre se desuscribe al terminar (también si falla).
+async function runWithProgress(moduleId, containerId, task) {
+  const panel = createProgressPanel(containerId);
+  const unsubscribe = window.api.onProgress(data => {
+    if (data.module === moduleId) panel.handle(data);
+  });
+  try {
+    return await task();
+  } finally {
+    unsubscribe();
+    panel.hide();
+  }
+}
+
 // ── Fila de carpeta de salida ───────────────────────────────────────────────
 
 function outputDirRow(id) {
@@ -129,6 +197,7 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
   if (!list) return;
 
   const parentZone = list.closest('.file-zone');
+  const dropScope  = parentZone || list;
   if (parentZone) parentZone.classList.remove('drag-active');
 
   if (!files.length) {
@@ -191,76 +260,132 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
 
     if (handle) {
       handle.addEventListener('dragstart', e => {
-        e.stopPropagation();
+        orderedDragFrom = i;
         item.style.opacity = '0.4';
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', String(i));
       });
 
-      handle.addEventListener('dragend', e => {
-        e.stopPropagation();
+      handle.addEventListener('dragend', () => {
+        orderedDragFrom = null;
         item.style.opacity = '1';
-        list.querySelectorAll('.file-item').forEach(el => { el.style.borderTop = ''; });
-        if (parentZone) parentZone.classList.remove('drag-active');
+        clearDropIndicator(dropScope);
       });
     }
 
-    item.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = 'move';
-      item.style.borderTop = '2px solid var(--primary)';
-    });
-
-    item.addEventListener('dragleave', e => {
-      if (item.contains(e.relatedTarget)) return;
-      e.stopPropagation();
-      item.style.borderTop = '';
-    });
-
-    item.addEventListener('drop', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      item.style.borderTop = '';
-      const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-      const toIndex   = i;
-      if (!isNaN(fromIndex) && fromIndex !== toIndex) {
-        const [moved] = files.splice(fromIndex, 1);
-        files.splice(toIndex, 0, moved);
-        onChange(files);
-      }
-    });
-
     list.appendChild(item);
   });
+
+  // Reordenamiento interno: el punto de inserción se calcula con la posición del cursor.
+  // Se asignan como propiedades para no acumular listeners en cada renderizado.
+  list.ondragover = e => {
+    if (orderedDragFrom === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    showDropIndicator(dropScope, getDropIndex(dropScope, e));
+  };
+
+  list.ondragleave = e => {
+    if (!list.contains(e.relatedTarget)) clearDropIndicator(dropScope);
+  };
+
+  list.ondrop = e => {
+    if (orderedDragFrom === null) return;
+    e.preventDefault();
+    let target = getDropIndex(dropScope, e);
+    clearDropIndicator(dropScope);
+    const from = orderedDragFrom;
+    orderedDragFrom = null;
+    if (target === null) return;
+    if (from < target) target -= 1;
+    if (target === from) return;
+    const [moved] = files.splice(from, 1);
+    files.splice(target, 0, moved);
+    onChange(files);
+  };
+}
+
+// ── Posición de inserción al soltar ──────────────────────────────────────────
+// Índice del que se está arrastrando en la lista ordenable (null si no hay arrastre interno).
+let orderedDragFrom = null;
+
+// Calcula en qué posición de la lista se insertará lo que se suelte:
+//  - sobre la lista: antes del primer elemento cuya mitad queda por debajo del cursor;
+//  - fuera de la lista pero dentro del recuadro: al final;
+//  - lista vacía: null (el consumidor añade al final).
+function getDropIndex(zone, e) {
+  const list  = zone.querySelector('.file-list');
+  const items = list ? Array.from(list.querySelectorAll('.file-item')) : [];
+  if (!items.length) return null;
+
+  const box = list.getBoundingClientRect();
+  const inside = e.clientX >= box.left && e.clientX <= box.right &&
+                 e.clientY >= box.top  && e.clientY <= box.bottom;
+  if (!inside) return items.length;
+
+  for (let i = 0; i < items.length; i++) {
+    const r = items[i].getBoundingClientRect();
+    if (e.clientY < r.top + r.height / 2) return i;
+  }
+  return items.length;
+}
+
+// Marca con una línea la posición donde se insertará el elemento.
+function showDropIndicator(zone, index) {
+  clearDropIndicator(zone);
+  const items = zone.querySelectorAll('.file-list .file-item');
+  if (index === null || !items.length) return;
+  if (index < items.length) items[index].classList.add('drop-before');
+  else items[items.length - 1].classList.add('drop-after');
+}
+
+function clearDropIndicator(zone) {
+  zone.querySelectorAll('.drop-before, .drop-after')
+    .forEach(el => el.classList.remove('drop-before', 'drop-after'));
+}
+
+// Devuelve una copia de list con items insertados en index (undefined/null = al final).
+function insertAt(list, items, index) {
+  const i = index == null ? list.length : Math.max(0, Math.min(index, list.length));
+  return [...list.slice(0, i), ...items, ...list.slice(i)];
 }
 
 // ── Drag & drop externo (desde el SO hacia la zona) ─────────────────────────
 // Implementación minimalista: no debe usarse stopPropagation() en dragover/drop,
 // ya que rompe el DataTransfer de Chromium y solo entrega 1 archivo al soltar varios.
+// onDrop(paths, index): index es la posición de inserción según dónde se suelta
+// (undefined = al final). Solo reacciona a archivos externos, no al reordenamiento interno.
 function bindDragDrop(zoneId, extensions, onDrop) {
   const zone = document.getElementById(zoneId);
   if (!zone) return;
 
+  const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+
   zone.addEventListener('dragover', e => {
+    if (!hasFiles(e)) return;
     e.preventDefault();
     zone.classList.add('drag-active');
+    showDropIndicator(zone, getDropIndex(zone, e));
   });
 
   zone.addEventListener('dragleave', e => {
     if (zone.contains(e.relatedTarget)) return;
     zone.classList.remove('drag-active');
+    clearDropIndicator(zone);
   });
 
   zone.addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
     e.preventDefault();
     zone.classList.remove('drag-active');
+    const index = getDropIndex(zone, e);
+    clearDropIndicator(zone);
 
     const paths = Array.from(e.dataTransfer.files)
       .map(f => window.api.getFilePath(f))
       .filter(p => p && extensions.includes(p.split('.').pop().toLowerCase()));
 
-    if (paths.length) onDrop(paths);
+    if (paths.length) onDrop(paths, index ?? undefined);
     else notify.warning(`Solo se aceptan: ${extensions.join(', ').toUpperCase()}`);
   });
 }

@@ -40,6 +40,7 @@ async function renderRotate() {
       <button class="btn-primary" id="run-rotate" disabled style="width:auto">Rotar archivos</button>
       <button class="btn-danger"  id="cancel-rotate" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="rotate-progress"></div>
     <div id="rotate-result"></div>
   </div>`;
 
@@ -66,11 +67,11 @@ async function renderRotate() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'rotate-path');
     const dups = picked.filter(f => files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('rotate-list', files, onRemove);
     updateTargetVisibility();
     updateRun();
@@ -119,9 +120,9 @@ async function renderRotate() {
     const btn = document.getElementById('run-rotate'), cancel = document.getElementById('cancel-rotate');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('rotate-result').innerHTML = progressBar(40);
+    document.getElementById('rotate-result').innerHTML = '';
 
-    const res = await window.api.rotateFiles({ files, angle, target, outputDir: state.outputDir });
+    const res = await runWithProgress('rotate', 'rotate-progress', () => window.api.rotateFiles({ files, angle, target, outputDir: state.outputDir }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);

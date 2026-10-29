@@ -37,6 +37,7 @@ async function renderCompress() {
       <button class="btn-primary" id="run-compress" disabled style="width:auto">Comprimir PDFs</button>
       <button class="btn-danger"  id="cancel-compress" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="compress-progress"></div>
     <div id="compress-result"></div>
   </div>`;
 
@@ -66,11 +67,11 @@ async function renderCompress() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'compress-path');
     const dups = picked.filter(f => files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('compress-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -110,9 +111,9 @@ async function renderCompress() {
     const btn = document.getElementById('run-compress'), cancel = document.getElementById('cancel-compress');
     btn.disabled = true; btn.textContent = 'Comprimiendo...';
     cancel.style.display = 'inline-block';
-    document.getElementById('compress-result').innerHTML = progressBar(40);
+    document.getElementById('compress-result').innerHTML = '';
 
-    const res = await window.api.compressPdf({ files, profile, outputDir: state.outputDir });
+    const res = await runWithProgress('compress', 'compress-progress', () => window.api.compressPdf({ files, profile, outputDir: state.outputDir }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);

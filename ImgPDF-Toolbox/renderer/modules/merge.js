@@ -31,6 +31,7 @@ function renderMerge() {
     <div class="btn-row">
       <button class="btn-primary" id="run-merge" disabled style="width:auto">Unir PDFs</button>
     </div>
+    <div class="progress-panel" id="merge-progress"></div>
     <div id="merge-result"></div>
   </div>`;
 
@@ -45,12 +46,12 @@ function renderMerge() {
     updateRun();
   }
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'mrg-path');
     const dups = picked.filter(f =>  files.includes(f));
     const news = picked.filter(f => !files.includes(f));
-    files = [...files, ...news];
+    files = insertAt(files, news, index);
     refresh();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista y no se agregaron.`);
   };
@@ -82,9 +83,9 @@ function renderMerge() {
     setProcessing(true);
     const btn = document.getElementById('run-merge');
     btn.disabled = true; btn.textContent = 'Uniendo...';
-    document.getElementById('merge-result').innerHTML = progressBar(50);
+    document.getElementById('merge-result').innerHTML = '';
 
-    const res = await window.api.mergePdfs({ files, outputDir: state.outputDir });
+    const res = await runWithProgress('merge', 'merge-progress', () => window.api.mergePdfs({ files, outputDir: state.outputDir }));
     window.api.playBeep();
 
     document.getElementById('merge-result').innerHTML = res.ok

@@ -149,6 +149,7 @@ async function renderPdfStandards() {
       <button class="btn-primary" id="run-pdfstd" disabled style="width:auto">Convertir al estándar</button>
       <button class="btn-danger"  id="cancel-pdfstd" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="pdfstd-progress"></div>
     <div id="pdfstd-result"></div>
   </div>`;
 
@@ -218,11 +219,11 @@ async function renderPdfStandards() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'pdfstd-path');
     const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('pdfstd-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -263,11 +264,11 @@ async function renderPdfStandards() {
     const btn = document.getElementById('run-pdfstd'), cancel = document.getElementById('cancel-pdfstd');
     btn.disabled = true; btn.textContent = 'Convirtiendo...';
     cancel.style.display = 'inline-block';
-    document.getElementById('pdfstd-result').innerHTML = progressBar(40);
+    document.getElementById('pdfstd-result').innerHTML = '';
 
-    const res = await window.api.convertPdfStandard({
+    const res = await runWithProgress('pdf-standards', 'pdfstd-progress', () => window.api.convertPdfStandard({
       files, standard, outputDir: state.outputDir
-    });
+    }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);

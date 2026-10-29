@@ -208,6 +208,11 @@
 .progress-bar  { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
 .progress-fill { height: 100%; background: var(--primary); border-radius: 99px; transition: width 0.3s ease; }
 
+/* ── Panel de progreso real (archivo, páginas y salida en curso) ─────────── */
+.progress-panel  { display: none; flex-direction: column; gap: 0.4rem; }
+.progress-head   { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.78rem; color: var(--text); }
+.progress-detail { font-size: 0.72rem; color: var(--muted); min-height: 1em; }
+
 /* ── Resumen de operación (split) ────────────────────────────────────────── */
 .summary-box {
   background: var(--info-bg);
@@ -507,17 +512,33 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Watermark image: zona de marca ─────────────────────────────────────── */
-#zone-mark {
+/* ── Marca de imagen: zona para arrastrar o seleccionar la imagen ─────────── */
+.mark-drop {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-  min-height: auto;
   padding: 0.85rem 1rem;
-  cursor: default;
+  cursor: pointer;
 }
 
-#zone-mark:hover { border-color: var(--accent); }
+.mark-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.mark-thumb {
+  display: none;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: repeating-conic-gradient(#e2e8f0 0% 25%, transparent 0% 50%) 0 0 / 10px 10px;
+}
+.mark-thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+.mark-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.mark-name { font-size: 0.85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mark-name.has-file { color: var(--deep); font-weight: 600; }
+.mark-hint { font-size: 0.74rem; color: var(--muted); }
 
 /* ── Slider de opacidad ──────────────────────────────────────────────────── */
 input[type="range"] {
@@ -585,3 +606,7 @@ input[type="range"]::-webkit-slider-thumb {
     white-space: normal;
   }
 }
+
+/* ── Indicador de posición al soltar archivos ─────────────────────────────── */
+.file-item.drop-before { box-shadow: inset 0 3px 0 0 var(--primary); }
+.file-item.drop-after  { box-shadow: inset 0 -3px 0 0 var(--primary); }

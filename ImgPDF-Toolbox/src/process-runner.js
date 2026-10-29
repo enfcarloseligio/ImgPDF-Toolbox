@@ -84,7 +84,17 @@ function runSpawn(bin, args, opts = {}) {
 
     const MAX_STDOUT = opts.maxStdout ?? (1024 * 1024);
 
+    // Entrega la salida estándar línea por línea (útil para leer el avance de Ghostscript)
+    let stdoutLineBuffer = '';
+
     proc.stdout.on('data', chunk => {
+      if (opts.onStdout) {
+        const lines = (stdoutLineBuffer + chunk.toString('utf8')).split(/\r?\n/);
+        stdoutLineBuffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.trim()) opts.onStdout(line.trim());
+        }
+      }
       stdoutBytes += chunk.length;
       if (MAX_STDOUT === 0) return;
       if (stdoutBytes > MAX_STDOUT) {
@@ -117,6 +127,8 @@ function runSpawn(bin, args, opts = {}) {
 
     proc.on('close', code => {
       currentProcess = null;
+
+      if (opts.onStdout && stdoutLineBuffer.trim()) opts.onStdout(stdoutLineBuffer.trim());
 
       if (opts.onStderr && stderrBuffer.trim()) {
         opts.onStderr(stderrBuffer.trim());

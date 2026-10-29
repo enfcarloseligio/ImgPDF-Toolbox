@@ -57,6 +57,7 @@ async function renderUnlock() {
       <button class="btn-primary" id="run-unlock" disabled style="width:auto">Desbloquear PDFs</button>
       <button class="btn-danger"  id="cancel-unlock" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="unlock-progress"></div>
     <div id="unlock-result"></div>
   </div>`;
 
@@ -102,11 +103,11 @@ async function renderUnlock() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'unlock-path');
     const dups = picked.filter(f => files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('unlock-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -152,13 +153,13 @@ async function renderUnlock() {
     const btn = document.getElementById('run-unlock'), cancel = document.getElementById('cancel-unlock');
     btn.disabled = true; btn.textContent = 'Desbloqueando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('unlock-result').innerHTML = progressBar(50);
+    document.getElementById('unlock-result').innerHTML = '';
 
-    const res = await window.api.unlockPdf({
+    const res = await runWithProgress('unlock', 'unlock-progress', () => window.api.unlockPdf({
       files,
       password: mode === 'password' ? password : '',
       outputDir: state.outputDir
-    });
+    }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);

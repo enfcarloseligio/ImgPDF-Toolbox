@@ -14,6 +14,7 @@ const {
   findGhostscript,
   getUniqueFilePath,
 } = require('./process-runner');
+const { countUnits, createProgress } = require('./progress');
 
 // ── Helpers compartidos ──────────────────────────────────────────────────────
 
@@ -72,9 +73,19 @@ function buildFolioText({ mode, prefix, suffix, separator, digits, startNum,
   }
 }
 
+// Totales de progreso a partir de los archivos y sus unidades (páginas de PDF; 1 por imagen).
+function progressTotals(files, units) {
+  const isPdf = f => path.extname(f).toLowerCase() === '.pdf';
+  return {
+    totalFiles: files.length,
+    totalPages: units.reduce((n, u) => n + u.pages, 0),
+    unit: files.every(isPdf) ? 'páginas' : files.some(isPdf) ? 'elementos' : 'archivos',
+  };
+}
+
 // ── Marca de agua de texto ───────────────────────────────────────────────────
 
-ipcMain.handle('watermark-text', async (_, {
+ipcMain.handle('watermark-text', async (event, {
   files, text, fontPath, fontSize, fontWeight = 400,
   opacity, angle, position, color,
   repeatMode = 'single', repeatGapH = 200, repeatGapV = 150,
@@ -98,6 +109,10 @@ ipcMain.handle('watermark-text', async (_, {
 
   const tempDir = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
+
+  const units    = await countUnits(findGhostscript(), files);
+  const progress = createProgress(event, 'watermark', progressTotals(files, units));
+  progress.start();
 
   async function applyWatermark(inputImg, outputTarget, width, height) {
     const scriptFile = path.join(tempDir, `script_${Math.random().toString(36).slice(2)}.mgk`);
@@ -150,12 +165,14 @@ ipcMain.handle('watermark-text', async (_, {
     try { fs.unlinkSync(scriptFile); } catch (_) {}
   }
 
-  for (const file of files) {
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
     if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
 
     const ext   = path.extname(file).toLowerCase();
     const name  = path.basename(file, ext);
     const isPdf = ext === '.pdf';
+    const info  = { currentFile: fi + 1, currentFileName: path.basename(file) };
 
     if (!isPdf) {
       let width = 1200, height = 800;
@@ -168,14 +185,14 @@ ipcMain.handle('watermark-text', async (_, {
       const out = getUniqueFilePath(path.join(outputDir, `${name}-wm${ext}`));
       try {
         await applyWatermark(file, out, width, height);
+        progress.tick({ ...info, currentPage: 1, currentFilePages: 1, currentOut: path.basename(out) });
         results.push({ file, out, ok: true });
       } catch (e) {
         results.push({ file, ok: false, error: String(e) });
       }
     } else {
       try {
-        const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
-        const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+        const totalPages = units[fi]?.pages || 0;
         const pageParts  = [];
 
         for (let i = 1; i <= totalPages; i++) {
@@ -194,9 +211,11 @@ ipcMain.handle('watermark-text', async (_, {
 
           await applyWatermark(tempImg, tempPdf, width, height);
           pageParts.push(tempPdf);
+          progress.tick({ ...info, currentPage: i, currentFilePages: totalPages, currentOut: path.basename(tempPdf) });
         }
 
         if (!getIsCancelled() && pageParts.length > 0) {
+          progress.stage('Ensamblando el PDF final…', info);
           const gs     = findGhostscript();
           const out    = getUniqueFilePath(path.join(outputDir, `${name}-wm.pdf`));
           const inputs = pageParts.map(p => `"${p}"`).join(' ');
@@ -212,12 +231,13 @@ ipcMain.handle('watermark-text', async (_, {
 
   try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
 
+  progress.done();
   return results;
 });
 
 // ── Foliado y numeración ─────────────────────────────────────────────────────
 
-ipcMain.handle('apply-folio', async (_, {
+ipcMain.handle('apply-folio', async (event, {
   files, mode, prefix, suffix, separator, digits, startNum,
   italic, dateFormat, customDate, useToday,
   fontSize, fontWeight, color, position, angle,
@@ -233,12 +253,17 @@ ipcMain.handle('apply-folio', async (_, {
 
   let globalPageOffset = 0;
 
-  for (const file of files) {
+  const units    = await countUnits(findGhostscript(), files);
+  const progress = createProgress(event, 'folio', progressTotals(files, units));
+  progress.start();
+
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    const info = { currentFile: fi + 1, currentFileName: path.basename(file) };
     if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
 
     try {
-      const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
-      const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+      const totalPages = units[fi]?.pages || 0;
       const tempDir    = path.join(app.getPath('temp'), `imgpdf_folio_${Date.now()}`);
       fs.mkdirSync(tempDir, { recursive: true });
       const pageParts  = [];
@@ -272,11 +297,13 @@ ipcMain.handle('apply-folio', async (_, {
           `"${tempPdf}"`
         );
         pageParts.push(tempPdf);
+        progress.tick({ ...info, currentPage: i, currentFilePages: totalPages, currentOut: path.basename(tempPdf) });
       }
 
       globalPageOffset += totalPages;
 
       if (!getIsCancelled() && pageParts.length > 0) {
+        progress.stage('Ensamblando el PDF final…', info);
         const gs     = findGhostscript();
         const name   = path.basename(file, '.pdf');
         const out    = getUniqueFilePath(path.join(outputDir, `${name}-foliado.pdf`));
@@ -292,12 +319,13 @@ ipcMain.handle('apply-folio', async (_, {
       if (getIsCancelled()) break;
     }
   }
+  progress.done();
   return results;
 });
 
 // ── Marca de agua de imagen ──────────────────────────────────────────────────
 
-ipcMain.handle('watermark-image', async (_, {
+ipcMain.handle('watermark-image', async (event, {
   files, markFile, sizePercent, opacity, position,
   angle, repeatMode, repeatGapH, repeatGapV, marginX, marginY,
   outputDir
@@ -352,26 +380,32 @@ ipcMain.handle('watermark-image', async (_, {
     try { fs.unlinkSync(tempMark); } catch (_) {}
   }
 
-  for (const file of files) {
+  const units    = await countUnits(findGhostscript(), files);
+  const progress = createProgress(event, 'watermark-image', progressTotals(files, units));
+  progress.start();
+
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
     if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
 
     const ext   = path.extname(file).toLowerCase();
     const name  = path.basename(file, ext);
     const isPdf = ext === '.pdf';
+    const info  = { currentFile: fi + 1, currentFileName: path.basename(file) };
 
     if (!isPdf) {
       const out  = getUniqueFilePath(path.join(outputDir, `${name}-wmi${ext}`));
       const dims = await getImageSize(file);
       try {
         await applyMark(file, out, dims.w, dims.h);
+        progress.tick({ ...info, currentPage: 1, currentFilePages: 1, currentOut: path.basename(out) });
         results.push({ file, out, ok: true });
       } catch (e) {
         results.push({ file, ok: false, error: String(e) });
       }
     } else {
       try {
-        const countStr   = await run(`magick identify -ping -format "%n " "${file}"`);
-        const totalPages = parseInt(countStr.trim().split(/\s+/)[0], 10) || 0;
+        const totalPages = units[fi]?.pages || 0;
         const tempDir    = path.join(app.getPath('temp'), `imgpdf_wmi_${Date.now()}`);
         fs.mkdirSync(tempDir, { recursive: true });
         const pageParts  = [];
@@ -387,9 +421,11 @@ ipcMain.handle('watermark-image', async (_, {
           await applyMark(tempImg, tempWm, dims.w, dims.h);
           await run(`magick "${tempWm}" "${tempPdf}"`);
           pageParts.push(tempPdf);
+          progress.tick({ ...info, currentPage: i, currentFilePages: totalPages, currentOut: path.basename(tempPdf) });
         }
 
         if (!getIsCancelled() && pageParts.length > 0) {
+          progress.stage('Ensamblando el PDF final…', info);
           const gs     = findGhostscript();
           const out    = getUniqueFilePath(path.join(outputDir, `${name}-wmi.pdf`));
           const inputs = pageParts.map(p => `"${p}"`).join(' ');
@@ -405,5 +441,6 @@ ipcMain.handle('watermark-image', async (_, {
       }
     }
   }
+  progress.done();
   return results;
 });

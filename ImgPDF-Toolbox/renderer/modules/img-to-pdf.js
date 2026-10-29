@@ -37,6 +37,7 @@ async function renderImgToPdf() {
       <button class="btn-primary" id="run-i2p" disabled style="width:auto">Convertir a PDF</button>
       <button class="btn-danger"  id="cancel-i2p" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="i2p-progress"></div>
     <div id="i2p-result"></div>
   </div>`;
 
@@ -56,11 +57,11 @@ async function renderImgToPdf() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'i2p-path');
     const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('img-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -100,9 +101,9 @@ async function renderImgToPdf() {
     const btn = document.getElementById('run-i2p'), cancel = document.getElementById('cancel-i2p');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('i2p-result').innerHTML = progressBar(40);
+    document.getElementById('i2p-result').innerHTML = '';
 
-    const res = await window.api.convertImgToPdf({ files, quality, outputDir: state.outputDir });
+    const res = await runWithProgress('img-to-pdf', 'i2p-progress', () => window.api.convertImgToPdf({ files, quality, outputDir: state.outputDir }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);

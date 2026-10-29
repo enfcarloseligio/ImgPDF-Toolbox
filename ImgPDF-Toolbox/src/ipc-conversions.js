@@ -7,17 +7,15 @@
 const { ipcMain } = require('electron');
 const path = require('path');
 const fs   = require('fs');
-const { spawn } = require('child_process');
 const {
   run,
   runSpawn,
-  registerProcess,
-  clearProcess,
   resetCancelled,
   getIsCancelled,
   findGhostscript,
   getUniqueFilePath,
 } = require('./process-runner');
+const { countPdfPages, createProgress } = require('./progress');
 
 // ── Guard anti re-entrada (evita doble clic / doble invocación) ──────────────
 let imgToPdfBusy = false;
@@ -25,7 +23,7 @@ let pdfToImgBusy = false;
 
 // ── Imagen → PDF ─────────────────────────────────────────────────────────────
 
-ipcMain.handle('convert-img-to-pdf', async (_, { files, quality, outputDir }) => {
+ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }) => {
   if (imgToPdfBusy) {
     return [{ file: '*', ok: false, error: 'Ya hay una conversión en curso.' }];
   }
@@ -33,55 +31,30 @@ ipcMain.handle('convert-img-to-pdf', async (_, { files, quality, outputDir }) =>
   resetCancelled();
 
   try {
-    const results = [];
-    for (const file of files) {
+    const results  = [];
+    const progress = createProgress(event, 'img-to-pdf', { totalFiles: files.length, totalPages: files.length, unit: 'archivos' });
+    progress.start();
+
+    for (let fi = 0; fi < files.length; fi++) {
+      const file = files[fi];
       if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
       const out = getUniqueFilePath(path.join(outputDir, path.basename(file, path.extname(file)) + '.pdf'));
       try {
         await run(`magick "${file}" -quality ${quality} "${out}"`);
+        progress.tick({ currentFile: fi + 1, currentFileName: path.basename(file), currentPage: 1, currentFilePages: 1, currentOut: path.basename(out) });
         results.push({ file, out, ok: true });
       } catch (e) {
         results.push({ file, ok: false, error: String(e) });
         if (getIsCancelled()) break;
       }
     }
+
+    progress.done();
     return results;
   } finally {
     imgToPdfBusy = false;
   }
 });
-
-// ── Contador de páginas con Ghostscript ──────────────────────────────────────
-
-function countPdfPages(gsPath, pdfPath) {
-  return new Promise((resolve, reject) => {
-    const cleanGs  = gsPath.replace(/^"|"$/g, '');
-    const safePath = pdfPath.replace(/\\/g, '/');
-    const args = [
-      '-q', '-dNODISPLAY', '-dNOSAFER',
-      '-c', `(${safePath}) (r) file runpdfbegin pdfpagecount = quit`
-    ];
-    const proc = spawn(cleanGs, args, { windowsHide: true });
-
-    // Registrar como proceso actual para que killCurrentProcess lo alcance
-    registerProcess(proc);
-
-    let out = '';
-    proc.stdout.on('data', c => out += c.toString());
-    proc.stderr.on('data', () => {});
-    proc.on('close', code => {
-      clearProcess(proc);
-      if (getIsCancelled()) return reject(new Error('Cancelado'));
-      const n = parseInt(out.trim(), 10);
-      if (!isNaN(n) && n > 0) resolve(n);
-      else reject(new Error(`No se pudo contar páginas (code ${code})`));
-    });
-    proc.on('error', err => {
-      clearProcess(proc);
-      reject(err);
-    });
-  });
-}
 
 // ── PDF → Imágenes con progreso real ─────────────────────────────────────────
 
@@ -112,14 +85,8 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
       }
     }
 
-    event.sender.send('progress', {
-      module: 'pdf-to-img',
-      phase: 'start',
-      totalFiles: files.length,
-      totalPages: totalPagesAllFiles,
-      currentFile: 0,
-      currentPage: 0,
-    });
+    const progress = createProgress(event, 'pdf-to-img', { totalFiles: files.length, totalPages: totalPagesAllFiles });
+    progress.start();
 
     // 2. Estrategia por formato/fondo
     const isWhite = (background || '').toUpperCase() === '#FFFFFF';
@@ -127,8 +94,6 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
     const device = (format === 'png' || needsPngIntermediate) ? 'pngalpha' : 'jpeg';
 
     // 3. Procesar archivo por archivo, página por página
-    let globalPageCounter = 0;
-
     for (let fi = 0; fi < filePageCounts.length; fi++) {
       const { file, pages, error } = filePageCounts[fi];
 
@@ -208,18 +173,11 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
           }
           // JPG+blanco y PNG+original → nada
 
-          globalPageCounter++;
-
-          event.sender.send('progress', {
-            module: 'pdf-to-img',
-            phase: 'processing',
-            totalFiles: files.length,
-            totalPages: totalPagesAllFiles,
+          progress.tick({
             currentFile: fi + 1,
             currentFileName: path.basename(file),
             currentPage: p,
             currentFilePages: pages,
-            globalPage: globalPageCounter,
             currentOut: path.basename(outFile),
           });
         }
@@ -236,12 +194,7 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
       }
     }
 
-    event.sender.send('progress', {
-      module: 'pdf-to-img',
-      phase: 'done',
-      totalPages: totalPagesAllFiles,
-      globalPage: globalPageCounter,
-    });
+    progress.done();
 
     return results;
   } finally {

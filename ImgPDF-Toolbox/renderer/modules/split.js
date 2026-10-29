@@ -39,6 +39,7 @@ function renderSplit() {
         <button class="btn-primary" id="run-split"    disabled style="width:auto">Ejecutar separación</button>
         <button class="btn-danger"  id="cancel-split" style="display:none;width:auto">Cancelar</button>
       </div>
+      <div class="progress-panel" id="split-progress"></div>
       <div id="split-result"></div>
     </div>
   </div>`;
@@ -186,12 +187,12 @@ function renderSplit() {
     const cancel = document.getElementById('cancel-split');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('split-result').innerHTML = progressBar(30);
+    document.getElementById('split-result').innerHTML = '';
 
-    const res = await window.api.splitPdf({
+    const res = await runWithProgress('split', 'split-progress', () => window.api.splitPdf({
       file, mode, blockSize, customRanges,
       outputDir: state.outputDir, totalPages
-    });
+    }));
     window.api.playBeep();
 
     if (!res.ok) {

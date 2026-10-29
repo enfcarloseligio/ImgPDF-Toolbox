@@ -9,7 +9,6 @@ async function renderPdfToImg() {
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF' });
   let files = [], density = cfg.density, format = cfg.format, background = cfg.background;
-  let unsubProgress = null;
   let currentRunId = 0;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
@@ -37,7 +36,7 @@ async function renderPdfToImg() {
       <button class="btn-primary" id="run-p2i" disabled style="width:auto">Extraer imágenes</button>
       <button class="btn-danger"  id="cancel-p2i" style="display:none;width:auto">Cancelar</button>
     </div>
-    <div id="p2i-progress" style="display:none;flex-direction:column;gap:0.4rem"></div>
+    <div class="progress-panel" id="p2i-progress"></div>
     <div id="p2i-result"></div>
   </div>`;
 
@@ -85,10 +84,10 @@ async function renderPdfToImg() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'p2i-path');
-    files = [...files, ...picked];
+    files = insertAt(files, picked, index);
     renderList();
     updateRun();
   };
@@ -104,8 +103,8 @@ async function renderPdfToImg() {
     files = [];
     renderList();
     document.getElementById('p2i-result').innerHTML = '';
-    document.getElementById('p2i-progress').style.display = 'none';
-    document.getElementById('p2i-progress').innerHTML = '';
+
+    createProgressPanel('p2i-progress').hide();
     updateRun();
   });
 
@@ -117,56 +116,6 @@ async function renderPdfToImg() {
     document.getElementById('run-p2i').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-p2i').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('p2i-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
-  }
-
-  // ── UI de progreso ────────────────────────────────────────────────────────
-  function hideProgress() {
-    const el = document.getElementById('p2i-progress');
-    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
-  }
-
-  function showProgress(data) {
-    const el = document.getElementById('p2i-progress');
-    if (!el) return;
-    el.style.display = 'flex';
-
-    if (data.phase === 'start') {
-      el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text)">
-          <span id="p2i-progress-label">Preparando…</span>
-          <span id="p2i-progress-count">0 / ${data.totalPages} páginas</span>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" id="p2i-progress-fill" style="width:0%"></div></div>
-        <div style="font-size:0.72rem;color:var(--muted)" id="p2i-progress-detail"></div>`;
-      return;
-    }
-
-    if (data.phase === 'processing') {
-      const pct = data.totalPages > 0
-        ? Math.round((data.globalPage / data.totalPages) * 100)
-        : 0;
-
-      const label  = document.getElementById('p2i-progress-label');
-      const count  = document.getElementById('p2i-progress-count');
-      const fill   = document.getElementById('p2i-progress-fill');
-      const detail = document.getElementById('p2i-progress-detail');
-
-      if (label) label.textContent = `Procesando ${data.currentFileName} (${data.currentFile}/${data.totalFiles})`;
-      if (count) count.textContent = `${data.globalPage} / ${data.totalPages} páginas`;
-      if (fill)  fill.style.width  = `${pct}%`;
-      if (detail) detail.textContent = `→ ${data.currentOut}  ·  página ${data.currentPage} de ${data.currentFilePages}`;
-      return;
-    }
-
-    if (data.phase === 'done') {
-      const fill  = document.getElementById('p2i-progress-fill');
-      const label = document.getElementById('p2i-progress-label');
-      const count = document.getElementById('p2i-progress-count');
-      if (fill)  fill.style.width = '100%';
-      if (label) label.textContent = 'Completado';
-      if (count) count.textContent = `${data.globalPage} / ${data.totalPages} páginas`;
-      setTimeout(hideProgress, 2000);
-    }
   }
 
   // ── Cancelar (con guard para evitar doble clic) ───────────────────────────
@@ -191,27 +140,17 @@ async function renderPdfToImg() {
     cancel.disabled = false;
     cancel.textContent = 'Cancelar';
     document.getElementById('p2i-result').innerHTML = '';
-    hideProgress();
-
-    if (unsubProgress) { unsubProgress(); unsubProgress = null; }
-    unsubProgress = window.api.onProgress(data => {
-      if (runId !== currentRunId) return;
-      if (data.module === 'pdf-to-img') showProgress(data);
-    });
 
     let res = [];
     try {
-      res = await window.api.convertPdfToImg({ files, density, format, background, outputDir: state.outputDir });
+      res = await runWithProgress('pdf-to-img', 'p2i-progress',
+        () => window.api.convertPdfToImg({ files, density, format, background, outputDir: state.outputDir }));
     } catch (e) {
       res = [{ file: '*', ok: false, error: String(e) }];
     }
     window.api.playBeep();
 
-    if (unsubProgress) { unsubProgress(); unsubProgress = null; }
-
     if (runId !== currentRunId) return;
-
-    hideProgress();
 
     const ok  = res.filter(r => r.ok);
     const err = res.filter(r => !r.ok);
@@ -230,11 +169,10 @@ async function renderPdfToImg() {
     updateRun();
   });
 
-  // ── Cleanup al salir del módulo (evita listeners zombies) ─────────────────
+  // ── Limpieza al salir del módulo ─────────────────
   const observer = new MutationObserver(() => {
     if (!document.getElementById('zone-p2i')) {
       currentRunId++;
-      if (unsubProgress) { unsubProgress(); unsubProgress = null; }
       observer.disconnect();
     }
   });

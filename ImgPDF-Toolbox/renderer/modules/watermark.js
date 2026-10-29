@@ -160,6 +160,7 @@ async function renderWatermark() {
       <button class="btn-primary" id="run-wm" disabled style="width:auto">Aplicar marca de agua</button>
       <button class="btn-danger"  id="cancel-wm" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="wm-progress"></div>
     <div id="wm-result"></div>
   </div>`;
 
@@ -370,11 +371,11 @@ async function renderWatermark() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'wm-path');
     const dups = picked.filter(f => files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('wm-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -418,13 +419,13 @@ async function renderWatermark() {
     const btn = document.getElementById('run-wm'), cancel = document.getElementById('cancel-wm');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('wm-result').innerHTML = progressBar(40);
+    document.getElementById('wm-result').innerHTML = '';
 
-    const res = await window.api.watermarkText({
+    const res = await runWithProgress('watermark', 'wm-progress', () => window.api.watermarkText({
       files, text, fontPath, fontSize, fontWeight, opacity, angle,
       position, color, repeatMode, repeatGapH, repeatGapV,
       outputDir: state.outputDir
-    });
+    }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);

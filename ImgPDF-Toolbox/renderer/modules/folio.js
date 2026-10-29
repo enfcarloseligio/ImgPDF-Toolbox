@@ -153,6 +153,7 @@ async function renderFolio() {
       <button class="btn-primary" id="run-folio" disabled style="width:auto">Aplicar foliado</button>
       <button class="btn-danger"  id="cancel-folio" style="display:none;width:auto">Cancelar</button>
     </div>
+    <div class="progress-panel" id="folio-progress"></div>
     <div id="folio-result"></div>
   </div>`;
 
@@ -480,11 +481,11 @@ async function renderFolio() {
     updateRun();
   };
 
-  const addFiles = async picked => {
+  const addFiles = async (picked, index) => {
     if (!picked.length) return;
     await checkDefaultOutputDir(picked[0], 'folio-path');
     const dups = picked.filter(f =>  files.includes(f));
-    files = [...files, ...picked.filter(f => !files.includes(f))];
+    files = insertAt(files, picked.filter(f => !files.includes(f)), index);
     renderFileList('folio-list', files, onRemove);
     updateRun();
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
@@ -523,15 +524,15 @@ async function renderFolio() {
     const btn = document.getElementById('run-folio'), cancel = document.getElementById('cancel-folio');
     btn.disabled = true; btn.textContent = 'Procesando...';
     cancel.style.display = 'inline-block';
-    document.getElementById('folio-result').innerHTML = progressBar(40);
+    document.getElementById('folio-result').innerHTML = '';
 
-    const res = await window.api.applyFolio({
+    const res = await runWithProgress('folio', 'folio-progress', () => window.api.applyFolio({
       files, mode, prefix, suffix, separator, digits, startNum,
       italic, dateFormat, customDate, useToday,
       fontSize, fontWeight, color, position, angle,
       marginX, marginY, fontPath,
       outputDir: state.outputDir
-    });
+    }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
