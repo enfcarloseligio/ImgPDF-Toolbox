@@ -1,10 +1,17 @@
-// ── core/notifications.js ─────────────────────────────────────────────────────
-// Sistema de notificaciones flotantes (toasts).
-// Reemplaza alerts nativos y mensajes inline para feedback rápido.
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/core/notifications.js
+// Descripción: Sistema de notificaciones flotantes (toasts) que reemplaza los alert nativos.
+//              Atajos: notify.success, notify.error, notify.warning y notify.info.
+// ═════════════════════════════════════════════════════════════════════════════
 
-const NOTIFICATION_DURATION = 3500; // ms
+// ── Configuración ───────────────────────────────────────────────────────────
 
-// Crear el contenedor de toasts si no existe
+// Tiempo de permanencia de cada notificación, en milisegundos.
+const NOTIFICATION_DURATION = 3500;
+
+// ── Contenedor y ciclo de vida de los toasts ────────────────────────────────
+
+// Devuelve el contenedor de toasts, creándolo si aún no existe.
 function getToastContainer() {
   let container = document.getElementById('toast-container');
   if (!container) {
@@ -15,23 +22,23 @@ function getToastContainer() {
   return container;
 }
 
-// type: 'success' | 'error' | 'warning' | 'info'
+// Muestra un toast. type: 'success' | 'error' | 'warning' | 'info'
 function showNotification(type, message, duration = NOTIFICATION_DURATION) {
   const container = getToastContainer();
 
   const icons = {
-    success: '✅',
-    error:   '❌',
-    warning: '⚠️',
-    info:    'ℹ️',
+    success: 'check-circle',
+    error:   'x-circle',
+    warning: 'alert',
+    info:    'info',
   };
 
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.innerHTML = `
-    <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+    <span class="toast-icon">${icon(icons[type] || 'info', 18)}</span>
     <span class="toast-msg">${message}</span>
-    <button class="toast-close" title="Cerrar">✕</button>`;
+    <button class="toast-close" title="Cerrar">${icon('close', 14)}</button>`;
 
   container.appendChild(toast);
 
@@ -55,7 +62,8 @@ function dismissToast(toast) {
   toast.addEventListener('transitionend', () => toast.remove(), { once: true });
 }
 
-// Atajos semánticos
+// ── Atajos semánticos ───────────────────────────────────────────────────────
+
 const notify = {
   success: (msg, dur) => showNotification('success', msg, dur),
   error:   (msg, dur) => showNotification('error',   msg, dur),

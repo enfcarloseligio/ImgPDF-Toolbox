@@ -1,4 +1,11 @@
-// ── app.js ────────────────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/app.js
+// Descripción: Orquestador del renderer: pantalla de carga con detección de herramientas,
+//              instalación de dependencias, arranque de la aplicación y enrutador de módulos
+//              (moduleMap). Se carga al final de index.html.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Arranque del renderer ───────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindExternalLinks();
@@ -53,7 +60,7 @@ function updateScanStep(id, ok, version) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.add(ok ? 'ok' : 'warn');
-  el.querySelector('.scan-icon').textContent = ok ? '✅' : '⚠️';
+  el.querySelector('.scan-icon').innerHTML = icon(ok ? 'check-circle' : 'alert', 22);
   el.querySelector('.scan-icon').classList.remove('spinning');
   el.querySelector('.scan-status').textContent = ok ? `v${version} — Listo` : 'No encontrado';
 }
@@ -78,7 +85,7 @@ function buildInstallPanel(tools) {
       installToolAction(tool, btnId, scanId));
   };
 
-  if (!tools.imageMagick) addRow('imagemagick','ImageMagick','Instalador silencioso integrado','install-im','scan-im');
+  if (!tools.imageMagick) addRow('imagemagick','ImageMagick','Se abrirá el asistente de instalación','install-im','scan-im');
   if (!tools.ghostscript) {
     addRow('ghostscript','Ghostscript','Puede requerir instalación manual','install-gs','scan-gs');
     document.getElementById('btn-gs-manual').addEventListener('click', () =>
@@ -92,7 +99,7 @@ async function installToolAction(tool, btnId, scanId) {
   const res = await window.api.installTool(tool);
   if (res.ok) {
     updateScanStep(scanId, true, 'instalado');
-    btn.textContent = '✓ Listo';
+    btn.innerHTML = iconLabel('check', 'Listo', 14);
     notify.success(`${tool} instalado correctamente.`);
   } else {
     btn.textContent = 'Error'; btn.disabled = false;
@@ -191,6 +198,7 @@ function bindFooterLinks() {
     'footer-site':   'https://enfcarloseligio.com/',
     'footer-im':     'https://imagemagick.org',
     'footer-gs':     'https://www.ghostscript.com',
+    'footer-icons':  'https://www.flaticon.com/uicons',
   };
   for (const [id, url] of Object.entries(links)) {
     document.getElementById(id)?.addEventListener('click', e => {

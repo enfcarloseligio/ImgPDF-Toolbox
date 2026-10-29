@@ -1,3 +1,9 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     src/ipc-annotations.js
+// Descripción: Handlers IPC de anotaciones sobre documentos: marca de agua de texto,
+//              foliado/numeración y marca de agua de imagen.
+// ═════════════════════════════════════════════════════════════════════════════
+
 const { ipcMain, app } = require('electron');
 const path = require('path');
 const fs   = require('fs');

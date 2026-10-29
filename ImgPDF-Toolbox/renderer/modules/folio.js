@@ -1,5 +1,11 @@
-// ── modules/folio.js ──────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/modules/folio.js
+// Descripción: Módulo «Foliar»: numeración de páginas y sellos configurables (formato,
+//              tipografía, posición, color y fecha) con vista previa en vivo.
+// ═════════════════════════════════════════════════════════════════════════════
+
 async function renderFolio() {
+  // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('folio', {
     mode:        'pagina-total',
     prefix:      '',
@@ -45,9 +51,10 @@ async function renderFolio() {
   let marginX    = cfg.marginX;
   let marginY    = cfg.marginY;
 
+  // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
-    <div class="module-title">🔢 Foliado y Numeración</div>
+    <div class="module-title">${icon('hash',22)} Foliado y Numeración</div>
     <p class="module-desc">Estampa números de página, folios consecutivos o sellos de recibido sobre PDFs.</p>
 
     <!-- Modo de folio -->
@@ -131,8 +138,8 @@ async function renderFolio() {
         <span class="file-count-badge" id="folio-badge">0 PDFs cargados</span>
       </div>
       <div class="btn-row">
-        <button class="btn-secondary" id="pick-folio">📂 Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-folio" style="display:none">🗑️ Limpiar</button>
+        <button class="btn-secondary" id="pick-folio">${icon('folder-open',16)} Seleccionar PDFs</button>
+        <button class="btn-secondary" id="clear-folio" style="display:none">${icon('trash',16)} Limpiar</button>
         <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="folio-list">
@@ -346,13 +353,13 @@ async function renderFolio() {
 
   // ── Fuente ──────────────────────────────────────────────────────────────────
   optButtons(document.getElementById('folio-font-source-row'), [
-    { label: '🖥 Sistema', value: 'system' },
-    { label: '🌐 Google Fonts', value: 'google' },
+    { icon: 'monitor', label: 'Sistema', value: 'system' },
+    { icon: 'globe', label: 'Google Fonts', value: 'google' },
   ], fontSource, val => {
     fontSource = val;
     saveModuleConfig('folio', { fontSource: val });
     buildFontPicker({
-      pickerId: 'folio-font-picker', fontSource, fontWeight,
+      pickerId: 'folio-font-picker', fontSource, getFontWeight: () => fontWeight,
       systemFonts, gfCatalog,
       onFontPath: p => { fontPath = p; updatePreview(); },
       onFontsLoaded: f => { systemFonts.length = 0; systemFonts.push(...f); },
@@ -361,7 +368,7 @@ async function renderFolio() {
   });
 
   buildFontPicker({
-    pickerId: 'folio-font-picker', fontSource, fontWeight,
+    pickerId: 'folio-font-picker', fontSource, getFontWeight: () => fontWeight,
     systemFonts, gfCatalog,
     onFontPath: p => { fontPath = p; updatePreview(); },
     onFontsLoaded: f => { systemFonts.length = 0; systemFonts.push(...f); },
@@ -394,7 +401,7 @@ async function renderFolio() {
     { label: '↑ Sup. Centro',value: 'top_center'   },
     { label: '↗ Sup. Der.',  value: 'top_right'    },
     { label: '← Izq. Centro',value: 'mid_left'     },
-    { label: '✛ Centro',     value: 'center'       },
+    { icon: 'crosshair', label: 'Centro',     value: 'center'       },
     { label: '→ Der. Centro', value: 'mid_right'   },
     { label: '↙ Inf. Izq.',  value: 'bottom_left'  },
     { label: '↓ Inf. Centro',value: 'bottom_center'},
@@ -483,6 +490,7 @@ async function renderFolio() {
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
   };
 
+  // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-folio').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{ name:'PDF', extensions:['pdf'] }]);
     addFiles(picked);
@@ -497,12 +505,14 @@ async function renderFolio() {
     pickOutputDir('folio-path').then(updateRun));
   bindDragDrop('zone-folio', ['pdf'], addFiles);
 
+  // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-folio').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-folio').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('folio-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
   }
 
+  // ── Cancelación y ejecución ──────────────────────────────────────────────────
   document.getElementById('cancel-folio').addEventListener('click', async () => {
     await window.api.cancelOperation();
     notify.warning('Cancelando foliado...');
@@ -526,8 +536,8 @@ async function renderFolio() {
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('folio-result').innerHTML =
-      (ok.length  ? resultBox('success', `✓ ${ok.length} PDF(s) foliado(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
+      (ok.length  ? resultBox('success', `${ok.length} PDF(s) foliado(s)`, ok.map(r => `${icon('file',14)} ${basename(r.out)}`), true) : '') +
+      (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
 
     if (ok.length)  notify.success(`${ok.length} PDF(s) foliados correctamente.`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron.`);

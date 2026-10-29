@@ -33,6 +33,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "src/**/*",
       "renderer/**/*",
       "renderer/assets/icon.ico",
       "package.json"

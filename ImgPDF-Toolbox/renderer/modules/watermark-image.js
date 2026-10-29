@@ -1,5 +1,11 @@
-// ── modules/watermark-image.js ────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/modules/watermark-image.js
+// Descripción: Módulo «Marca de agua — Imagen»: estampa un logo o firma sobre imágenes y
+//              PDFs con tamaño, opacidad, posición, ángulo y repetición configurables.
+// ═════════════════════════════════════════════════════════════════════════════
+
 async function renderWatermarkImage() {
+  // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('watermark-image', {
     sizePercent:  25,
     opacity:      70,
@@ -24,16 +30,17 @@ async function renderWatermarkImage() {
   let marginX     = cfg.marginX;
   let marginY     = cfg.marginY;
 
+  // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
-    <div class="module-title">🖼️ Marca de agua — Imagen</div>
+    <div class="module-title">${icon('tag',22)} Marca de agua — Imagen</div>
     <p class="module-desc">Superpone una imagen (PNG con transparencia recomendado) sobre PDFs e imágenes.</p>
 
     <!-- Imagen de marca -->
     <div class="option-group">
       <label>Imagen de marca de agua</label>
       <div class="file-zone" id="zone-mark" style="flex-direction:row;align-items:center;gap:1rem;min-height:auto;padding:0.85rem">
-        <button class="btn-secondary" id="pick-mark">🖼️ Seleccionar imagen</button>
+        <button class="btn-secondary" id="pick-mark">${icon('image-file',16)} Seleccionar imagen</button>
         <span id="mark-name" style="font-size:0.82rem;color:var(--muted)">PNG con transparencia recomendado</span>
         <div id="mark-preview-thumb" style="display:none;width:60px;height:60px;border:1px solid var(--border);
           border-radius:6px;overflow:hidden;flex-shrink:0;background:
@@ -118,8 +125,8 @@ async function renderWatermarkImage() {
         <span class="file-count-badge" id="wmi-badge">0 archivos cargados</span>
       </div>
       <div class="btn-row">
-        <button class="btn-secondary" id="pick-wmi">📂 Seleccionar archivos</button>
-        <button class="btn-secondary" id="clear-wmi" style="display:none">🗑️ Limpiar</button>
+        <button class="btn-secondary" id="pick-wmi">${icon('folder-open',16)} Seleccionar archivos</button>
+        <button class="btn-secondary" id="clear-wmi" style="display:none">${icon('trash',16)} Limpiar</button>
         <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="wmi-list">
@@ -228,7 +235,7 @@ async function renderWatermarkImage() {
   optButtons(document.getElementById('position-row'), [
     { label: '↖ Sup. Izq.',  value: 'top_left'     },
     { label: '↗ Sup. Der.',  value: 'top_right'    },
-    { label: '✛ Centro',     value: 'center'       },
+    { icon: 'crosshair', label: 'Centro',     value: 'center'       },
     { label: '↙ Inf. Izq.',  value: 'bottom_left'  },
     { label: '↘ Inf. Der.',  value: 'bottom_right' },
   ], position, val => {
@@ -322,7 +329,7 @@ async function renderWatermarkImage() {
   }
   requestAnimationFrame(updatePreview);
 
-  // ── Archivos destino ──────────────────────────────────────────────────────
+  // ── Lista de archivos destino ──────────────────────────────────────────────────────
   const onRemove = f => {
     files = files.filter(x => x !== f);
     renderFileList('wmi-list', files, onRemove);
@@ -357,12 +364,14 @@ async function renderWatermarkImage() {
     pickOutputDir('wmi-path').then(updateRun));
   bindDragDrop('zone-wmi', ['pdf','png','jpg','jpeg'], addFiles);
 
+  // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-wmi').disabled = !(files.length && markFile && state.outputDir && !state.isProcessing);
     document.getElementById('clear-wmi').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('wmi-badge').textContent   = `${files.length} archivo(s) seleccionado(s)`;
   }
 
+  // ── Cancelación y ejecución ──────────────────────────────────────────────────
   document.getElementById('cancel-wmi').addEventListener('click', async () => {
     await window.api.cancelOperation();
     notify.warning('Cancelando marca de imagen...');
@@ -385,8 +394,8 @@ async function renderWatermarkImage() {
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     document.getElementById('wmi-result').innerHTML =
-      (ok.length  ? resultBox('success', `✓ ${ok.length} archivo(s) procesado(s)`, ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
+      (ok.length  ? resultBox('success', `${ok.length} archivo(s) procesado(s)`, ok.map(r => `${icon('file',14)} ${basename(r.out)}`), true) : '') +
+      (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
 
     if (ok.length)  notify.success(`Marca de imagen aplicada en ${ok.length} archivo(s).`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron.`);

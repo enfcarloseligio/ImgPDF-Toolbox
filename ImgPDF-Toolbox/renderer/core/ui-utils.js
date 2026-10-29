@@ -1,4 +1,12 @@
-// ── core/ui-utils.js ──────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/core/ui-utils.js
+// Descripción: Utilidades de interfaz compartidas por los módulos: manejo de rutas,
+//              persistencia de configuración, botones de opción, cuadros de resultado,
+//              listas de archivos (simple y ordenable), drag & drop, carpeta de salida y
+//              selector de fuentes (sistema y Google Fonts).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Utilidades generales ────────────────────────────────────────────────────
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -10,6 +18,8 @@ function dirname(filePath) {
   const norm = (filePath || '').replace(/\\/g, '/');
   return norm.substring(0, norm.lastIndexOf('/'));
 }
+
+// ── Persistencia de configuración por módulo ────────────────────────────────
 
 async function saveModuleConfig(moduleId, config) {
   try {
@@ -30,13 +40,20 @@ async function loadModuleConfig(moduleId, defaults = {}) {
   }
 }
 
+// ── Botones de opción ───────────────────────────────────────────────────────
+
+// options: [{ label, value, icon?, swatch? }]
+//   icon:   nombre de un icono de assets/svg/
+//   swatch: muestra un punto con el color indicado en value
 function optButtons(container, options, defaultVal, cb, onSave) {
   if (!container) return;
   container.innerHTML = '';
   options.forEach(opt => {
     const btn = document.createElement('button');
     btn.className   = 'opt-btn' + (opt.value === defaultVal ? ' active' : '');
-    btn.textContent = opt.label;
+    if (opt.icon)   btn.insertAdjacentHTML('beforeend', icon(opt.icon, 16) + ' ');
+    if (opt.swatch) btn.insertAdjacentHTML('beforeend', `<span class="swatch" style="background:${opt.value}"></span>`);
+    btn.appendChild(document.createTextNode(opt.label));
     btn.addEventListener('click', () => {
       container.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -47,11 +64,15 @@ function optButtons(container, options, defaultVal, cb, onSave) {
   });
 }
 
+// ── Cuadros de resultado y progreso ─────────────────────────────────────────
+
+const RESULT_ICONS = { success: 'check-circle', error: 'x-circle', warning: 'alert', info: 'info' };
+
 function resultBox(type, title, items = [], canOpenFolder = false) {
   const id  = canOpenFolder && state.outputDir ? `open-dir-${Date.now()}` : null;
-  const btn = id ? `<button class="btn-open-dir" id="${id}">📁 Abrir carpeta de salida</button>` : '';
+  const btn = id ? `<button class="btn-open-dir" id="${id}">${iconLabel('folder-open', 'Abrir carpeta de salida')}</button>` : '';
   const html = `<div class="result-box ${type}">
-    <div class="result-title">${title}</div>
+    <div class="result-title">${icon(RESULT_ICONS[type], 16)} ${title}</div>
     ${items.map(i => `<div class="result-item">${i}</div>`).join('')}
     ${btn}
   </div>`;
@@ -69,10 +90,12 @@ function progressBar(pct = 40) {
   return `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
 }
 
+// ── Fila de carpeta de salida ───────────────────────────────────────────────
+
 function outputDirRow(id) {
   const saved = state.outputDir || 'No seleccionada';
   return `<div class="output-row">
-    <button class="btn-secondary btn-sm" id="${id}-pick">📁 Carpeta de salida</button>
+    <button class="btn-secondary btn-sm" id="${id}-pick">${iconLabel('folder', 'Carpeta de salida')}</button>
     <span class="output-path" id="${id}-path">${saved}</span>
   </div>`;
 }
@@ -87,7 +110,7 @@ function renderFileList(containerId, files, onRemove) {
   }
   list.innerHTML = files.map((f, i) => `
     <div class="file-item">
-      <span class="file-name">📄 ${basename(f)}</span>
+      <span class="file-name">${icon('file', 14)} ${basename(f)}</span>
       <button class="file-remove" data-idx="${i}" title="Quitar">${icon('close', 14)}</button>
     </div>`).join('');
   list.querySelectorAll('.file-remove').forEach(btn => {
@@ -133,7 +156,7 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
       <div style="display:flex;align-items:center;overflow:hidden;flex:1;gap:0.35rem">
         ${dragHtml}
         <span class="file-order" style="font-weight:600;font-size:0.8rem;color:var(--primary);min-width:1.2rem">${i + 1}.</span>
-        <span class="file-name" title="${f}">📄 ${basename(f)}</span>
+        <span class="file-name" title="${f}">${icon('file', 14)} ${basename(f)}</span>
       </div>
       <div class="file-actions" style="display:flex;align-items:center;gap:0.35rem;margin-left:0.5rem">
         ${arrowsHtml}
@@ -213,8 +236,8 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
 }
 
 // ── Drag & drop externo (desde el SO hacia la zona) ─────────────────────────
-// Versión minimalista — NO usar stopPropagation() en dragover/drop, ya que
-// rompe el DataTransfer de Chromium y solo entrega 1 archivo al soltar varios.
+// Implementación minimalista: no debe usarse stopPropagation() en dragover/drop,
+// ya que rompe el DataTransfer de Chromium y solo entrega 1 archivo al soltar varios.
 function bindDragDrop(zoneId, extensions, onDrop) {
   const zone = document.getElementById(zoneId);
   if (!zone) return;
@@ -242,6 +265,8 @@ function bindDragDrop(zoneId, extensions, onDrop) {
   });
 }
 
+// ── Selección de carpeta de salida ──────────────────────────────────────────
+
 async function pickOutputDir(pathLabelId) {
   const dir = await window.api.selectFolder();
   if (dir) {
@@ -262,18 +287,26 @@ async function checkDefaultOutputDir(filePath, labelId) {
 }
 
 // ── Helper compartido: selector de fuente (sistema + Google Fonts) ─────────
+// opts: { pickerId, fontSource, getFontWeight, systemFonts[], gfCatalog[],
+//         onFontPath(path), onFontsLoaded?(fonts), onPreview? }
 function buildFontPicker(opts) {
   const picker = document.getElementById(opts.pickerId);
   if (!picker) return;
 
   const baseCatalog = [
-    'Roboto','Roboto Condensed','Roboto Mono','Roboto Slab',
-    'Open Sans','Open Sans Condensed','Lato','Montserrat','Poppins',
-    'Oswald','Inter','Raleway','Nunito','Ubuntu','Rubik',
-    'Playfair Display','Lora','Noto Sans','Noto Serif','PT Sans',
-    'Merriweather','Bebas Neue','Cabin','Fira Sans','Barlow',
-    'Quicksand','Work Sans','Titillium Web','DM Sans','Source Sans Pro',
-    'Cinzel','Caveat','Comfortaa','Pacifico','Lobster','Dancing Script'
+    'Roboto', 'Roboto Condensed', 'Roboto Mono', 'Roboto Serif', 'Roboto Slab', 'Roboto Flex',
+    'Open Sans', 'Open Sans Condensed',
+    'Lato', 'Montserrat', 'Montserrat Alternates',
+    'Poppins', 'Oswald', 'Inter', 'Inter Tight',
+    'Raleway', 'Nunito', 'Nunito Sans', 'Ubuntu', 'Ubuntu Condensed', 'Ubuntu Mono',
+    'Rubik', 'Rubik Mono One', 'Playfair Display', 'Lora',
+    'Noto Sans', 'Noto Serif', 'PT Sans', 'PT Serif',
+    'Kanit', 'Merriweather', 'Merriweather Sans', 'Bebas Neue',
+    'Cabin', 'Fira Sans', 'Fira Code', 'Fira Mono',
+    'Barlow', 'Barlow Condensed', 'Quicksand', 'Work Sans',
+    'Inconsolata', 'Titillium Web', 'Mukta', 'Heebo', 'DM Sans', 'DM Serif Display',
+    'Source Sans Pro', 'Source Code Pro', 'Source Serif Pro',
+    'Cinzel', 'Caveat', 'Comfortaa', 'Pacifico', 'Lobster', 'Dancing Script'
   ];
 
   if (!opts.gfCatalog.length) {
@@ -292,10 +325,11 @@ function buildFontPicker(opts) {
   }
 
   if (opts.fontSource === 'system') {
-    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">⏳ Cargando fuentes del sistema...</p>`;
+    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">${iconLabel('loader', 'Cargando fuentes del sistema...', 14)}</p>`;
 
-    window.api.getSystemFonts().then(fonts => {
-      if (opts.onFontsLoaded) opts.onFontsLoaded(fonts);
+    const cached = opts.systemFonts?.length ? opts.systemFonts : null;
+    (cached ? Promise.resolve(cached) : window.api.getSystemFonts()).then(fonts => {
+      if (!cached && opts.onFontsLoaded) opts.onFontsLoaded(fonts);
       if (!fonts.length) {
         picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">No se encontraron fuentes instaladas.</p>`;
         return;
@@ -334,7 +368,7 @@ function buildFontPicker(opts) {
   } else {
     picker.innerHTML = `
       <div class="result-box info" style="margin-bottom:0.6rem">
-        <div class="result-title">ℹ️ Catálogo de Google Fonts</div>
+        <div class="result-title">${iconLabel('info', 'Catálogo de Google Fonts')}</div>
         <div class="result-item">Escribe la familia deseada y selecciónala de la lista.</div>
       </div>
       <div style="display:flex;gap:0.5rem;align-items:center;position:relative">
@@ -359,9 +393,9 @@ function buildFontPicker(opts) {
     async function triggerDownload(familyName) {
       const family = (familyName || familyInput.value).trim();
       if (!family) { notify.warning('Escribe o selecciona una familia.'); return; }
-      statusEl.textContent = '⏳ Descargando...';
+      statusEl.innerHTML = iconLabel('loader', 'Descargando...', 14);
       statusEl.style.color = 'var(--warning)';
-      const dl = await window.api.downloadGoogleFont({ family, weight: opts.fontWeight });
+      const dl = await window.api.downloadGoogleFont({ family, weight: opts.getFontWeight ? opts.getFontWeight() : opts.fontWeight });
       if (dl.ok) {
         opts.onFontPath(dl.path);
         statusEl.textContent = `✓ ${family} lista`;

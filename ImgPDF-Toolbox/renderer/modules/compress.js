@@ -1,11 +1,18 @@
-// ── modules/compress.js ───────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/modules/compress.js
+// Descripción: Módulo «Comprimir PDFs»: reduce el peso de los documentos con los perfiles
+//              de Ghostscript (pantalla, digital, impresión y alta definición).
+// ═════════════════════════════════════════════════════════════════════════════
+
 async function renderCompress() {
+  // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('compress', { profile: 'ebook' });
   let files = [], profile = cfg.profile;
 
+  // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
-    <div class="module-title">🗜️ Comprimir PDFs</div>
+    <div class="module-title">${icon('compress',22)} Comprimir PDFs</div>
     <p class="module-desc">Reduce el peso de tus PDFs usando perfiles de Ghostscript. El archivo original no se modifica.</p>
     <div class="option-group">
       <label>Perfil de compresión</label>
@@ -17,8 +24,8 @@ async function renderCompress() {
         <span class="file-count-badge" id="compress-badge">0 PDFs cargados</span>
       </div>
       <div class="btn-row">
-        <button class="btn-secondary" id="pick-compress">📂 Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-compress" style="display:none">🗑️ Limpiar</button>
+        <button class="btn-secondary" id="pick-compress">${icon('folder-open',16)} Seleccionar PDFs</button>
+        <button class="btn-secondary" id="clear-compress" style="display:none">${icon('trash',16)} Limpiar</button>
         <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="compress-list">
@@ -33,11 +40,12 @@ async function renderCompress() {
     <div id="compress-result"></div>
   </div>`;
 
+  // ── Opciones de configuración ────────────────────────────────────────────────
   const profiles = [
-    { label: '🖥 Pantalla',        value: 'screen',   hint: '72 DPI — Mínimo peso. Ideal para envío por correo o mensajería.' },
-    { label: '📖 Digital',         value: 'ebook',    hint: '150 DPI — Balance óptimo entre peso y calidad. Recomendado.' },
-    { label: '🖨 Impresión',       value: 'printer',  hint: '300 DPI — Alta calidad. Para documentos que se imprimirán.' },
-    { label: '🏆 Alta definición', value: 'prepress', hint: '300+ DPI — Máxima fidelidad. Para archivos institucionales.' },
+    { icon: 'monitor', label: 'Pantalla',        value: 'screen',   hint: '72 DPI — Mínimo peso. Ideal para envío por correo o mensajería.' },
+    { icon: 'book', label: 'Digital',         value: 'ebook',    hint: '150 DPI — Balance óptimo entre peso y calidad. Recomendado.' },
+    { icon: 'printer', label: 'Impresión',       value: 'printer',  hint: '300 DPI — Alta calidad. Para documentos que se imprimirán.' },
+    { icon: 'award', label: 'Alta definición', value: 'prepress', hint: '300+ DPI — Máxima fidelidad. Para archivos institucionales.' },
   ];
 
   const hintEl = document.getElementById('profile-hint');
@@ -51,6 +59,7 @@ async function renderCompress() {
   }, val => saveModuleConfig('compress', { profile: val }));
   updateHint(profile);
 
+  // ── Lista de archivos ────────────────────────────────────────────────────────
   const onRemove = f => {
     files = files.filter(x => x !== f);
     renderFileList('compress-list', files, onRemove);
@@ -67,6 +76,7 @@ async function renderCompress() {
     if (dups.length) notify.warning(`${dups.length} archivo(s) ya estaban en la lista.`);
   };
 
+  // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-compress').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
     addFiles(picked);
@@ -82,12 +92,14 @@ async function renderCompress() {
   document.getElementById('compress-pick').addEventListener('click', () => pickOutputDir('compress-path').then(updateRun));
   bindDragDrop('zone-compress', ['pdf'], addFiles);
 
+  // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-compress').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-compress').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('compress-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
   }
 
+  // ── Cancelación y ejecución ──────────────────────────────────────────────────
   document.getElementById('cancel-compress').addEventListener('click', async () => {
     await window.api.cancelOperation();
     notify.warning('Cancelando compresión...');
@@ -107,12 +119,12 @@ async function renderCompress() {
     const okItems = ok.map(r => {
       const before = formatBytes(r.sizeBefore), after = formatBytes(r.sizeAfter);
       const savings = r.sizeBefore > 0 ? Math.round((1 - r.sizeAfter / r.sizeBefore) * 100) : 0;
-      return `📄 ${basename(r.out)} (${before} → ${after}${savings > 0 ? ` — reducido ${savings}%` : ''})`;
+      return `${icon('file',14)} ${basename(r.out)} (${before} → ${after}${savings > 0 ? ` — reducido ${savings}%` : ''})`;
     });
 
     document.getElementById('compress-result').innerHTML =
-      (ok.length  ? resultBox('success', `✓ ${ok.length} PDF(s) comprimido(s)`, okItems, true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
+      (ok.length  ? resultBox('success', `${ok.length} PDF(s) comprimido(s)`, okItems, true) : '') +
+      (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
 
     if (ok.length)  notify.success(`${ok.length} PDF(s) comprimido(s) correctamente.`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron.`);

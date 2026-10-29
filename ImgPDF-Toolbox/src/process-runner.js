@@ -1,3 +1,11 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     src/process-runner.js
+// Descripción: Ejecución de procesos externos (Ghostscript, ImageMagick, winget):
+//              exec y spawn con decodificación tolerante, registro del proceso activo y
+//              cancelación del árbol de procesos. Incluye utilidades de sistema: localizar
+//              Ghostscript, generar nombres de archivo únicos y detectar winget.
+// ═════════════════════════════════════════════════════════════════════════════
+
 const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -160,6 +168,31 @@ function findGhostscript() {
   return 'gswin64c';
 }
 
+// Devuelve la carpeta de instalación de ImageMagick (la que contiene magick.exe) o null.
+// Se busca en Program Files porque el PATH del proceso se hereda al abrir la app y no
+// incluye las herramientas instaladas después (p. ej. al lanzar desde una terminal abierta).
+function findImageMagickDir() {
+  for (const root of ['C:\Program Files', 'C:\Program Files (x86)']) {
+    try {
+      const match = fs.readdirSync(root)
+        .filter(d => d.startsWith('ImageMagick') && fs.existsSync(path.join(root, d, 'magick.exe')))
+        .sort()
+        .pop();
+      if (match) return path.join(root, match);
+    } catch (_) {}
+  }
+  return null;
+}
+
+// Garantiza que magick.exe sea invocable: antepone su carpeta al PATH del proceso si falta.
+function ensureImageMagickInPath() {
+  const dir = findImageMagickDir();
+  if (!dir) return false;
+  const entries = (process.env.PATH || '').split(path.delimiter).map(p => p.toLowerCase());
+  if (!entries.includes(dir.toLowerCase())) process.env.PATH = dir + path.delimiter + (process.env.PATH || '');
+  return true;
+}
+
 function getUniqueFilePath(targetPath) {
   if (!fs.existsSync(targetPath)) return targetPath;
   const dir  = path.dirname(targetPath);
@@ -187,6 +220,8 @@ module.exports = {
   getIsCancelled,
   setCancelled,
   findGhostscript,
+  findImageMagickDir,
+  ensureImageMagickInPath,
   getUniqueFilePath,
   wingetAvailable,
 };

@@ -1,16 +1,24 @@
-// ── modules/split.js ──────────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/modules/split.js
+// Descripción: Módulo «Separar PDF»: extrae páginas individuales, bloques de páginas o
+//              rangos personalizados de un documento.
+// ═════════════════════════════════════════════════════════════════════════════
+
 function renderSplit() {
+  // ── Estado y configuración del módulo ────────────────────────────────────────
   let file = null, totalPages = 0;
   let mode = 'individual', blockSize = 5, customRanges = '';
+
+  // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
 
   ws.innerHTML = `<div class="module">
-    <div class="module-title">✂️ Separar PDF</div>
+    <div class="module-title">${icon('scissors',22)} Separar PDF</div>
 
     <div class="file-zone" id="zone-spl">
       <div class="btn-row">
-        <button class="btn-secondary" id="pick-split">📂 Seleccionar PDF</button>
-        <button class="btn-secondary" id="clear-split" style="display:none">🗑️ Limpiar</button>
+        <button class="btn-secondary" id="pick-split">${icon('folder-open',16)} Seleccionar PDF</button>
+        <button class="btn-secondary" id="clear-split" style="display:none">${icon('trash',16)} Limpiar</button>
         <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="split-file">
@@ -53,9 +61,9 @@ function renderSplit() {
 
     document.getElementById('split-file').innerHTML = `
       <div class="file-item">
-        <span class="file-name">📄 ${basename(file)}</span>
-        <span style="font-size:0.75rem;color:var(--warning)" id="calc-pages">⏳ Analizando páginas...</span>
-        <button class="file-remove" id="rm-split">✕</button>
+        <span class="file-name">${icon('file',14)} ${basename(file)}</span>
+        <span style="font-size:0.75rem;color:var(--warning)" id="calc-pages">${iconLabel('loader', 'Analizando páginas...', 14)}</span>
+        <button class="file-remove" id="rm-split">${icon('close',14)}</button>
       </div>`;
     document.getElementById('rm-split').addEventListener('click', reset);
 
@@ -75,7 +83,7 @@ function renderSplit() {
     countEl.style.color = 'var(--success)';
     notify.info(`PDF cargado: ${totalPages} páginas detectadas.`);
 
-    // Mostrar wizard y bindear modo-row ahora que el DOM existe
+    // Muestra el asistente y enlaza el selector de modo, ya presente en el DOM
     const wizard = document.getElementById('split-wizard');
     wizard.style.cssText = 'display:flex; flex-direction:column; gap:1.25rem';
 
@@ -85,7 +93,7 @@ function renderSplit() {
       { label: 'Rangos múltiples',  value: 'custom'     },
     ], mode, v => { mode = v; renderOpts(); updateSummary(); });
 
-    // Bindear carpeta de salida dentro del wizard
+    // Enlaza el selector de carpeta de salida del asistente
     document.getElementById('spl-pick').addEventListener('click', () =>
       pickOutputDir('spl-path').then(updateSummary)
     );
@@ -140,7 +148,7 @@ function renderSplit() {
         html += `<span style="color:var(--error)">⚠ Ingresa al menos un rango válido.</span>`;
         valid = false;
       } else {
-        // Validación de formato antes de ejecutar — nuestra corrección
+        // Valida el formato de los rangos antes de ejecutar
         const bad = parts.filter(p => !/^\d+(-\d+)?$/.test(p));
         if (bad.length) {
           html += `<span style="color:var(--error)">⚠ Formato inválido: ${bad.join(', ')}. Usa números como 5 o rangos como 1-10.</span>`;
@@ -187,16 +195,16 @@ function renderSplit() {
     window.api.playBeep();
 
     if (!res.ok) {
-      document.getElementById('split-result').innerHTML = resultBox('error', '✗ Error de validación', [res.error]);
+      document.getElementById('split-result').innerHTML = resultBox('error', 'Error de validación', [res.error]);
       notify.error(res.error);
     } else {
       const ok  = res.results.filter(r => r.ok);
       const err = res.results.filter(r => !r.ok);
       document.getElementById('split-result').innerHTML =
         (ok.length  ? resultBox('success',
-          `✓ ${ok.length} archivo(s) generado(s)${res.wasCancelled ? ' — operación cancelada antes de terminar' : ''}`,
-          ok.map(r => `📄 ${basename(r.out)}`), true) : '') +
-        (err.length ? resultBox('error', `✗ ${err.length} error(es)`, err.map(r => String(r.error))) : '');
+          `${ok.length} archivo(s) generado(s)${res.wasCancelled ? ' — operación cancelada antes de terminar' : ''}`,
+          ok.map(r => `${icon('file',14)} ${basename(r.out)}`), true) : '') +
+        (err.length ? resultBox('error', `${err.length} error(es)`, err.map(r => String(r.error))) : '');
 
       if (ok.length)  notify.success(`${ok.length} partes extraídas correctamente.`);
       if (err.length) notify.error(`${err.length} partes fallaron.`);

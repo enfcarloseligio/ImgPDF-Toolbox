@@ -1,3 +1,9 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     src/ipc-pdf-ops.js
+// Descripción: Handlers IPC de operaciones sobre PDF: unir, consultar información, separar,
+//              comprimir, rotar, desbloquear y convertir a estándares (PDF/A, PDF/X, PDF/UA).
+// ═════════════════════════════════════════════════════════════════════════════
+
 const { ipcMain, app } = require('electron');
 const path = require('path');
 const fs   = require('fs');

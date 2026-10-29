@@ -1,3 +1,10 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     src/ipc-system.js
+// Descripción: Handlers IPC de sistema: diálogos de archivos, verificación, instalación y
+//              actualización de ImageMagick y Ghostscript, y gestión de fuentes (del sistema
+//              y catálogo de Google Fonts).
+// ═════════════════════════════════════════════════════════════════════════════
+
 const { app, ipcMain, dialog, shell } = require('electron');
 const fs     = require('fs');
 const os     = require('os');
@@ -7,8 +14,15 @@ const {
   run,
   cancelCurrentOperation,
   findGhostscript,
+  findImageMagickDir,
+  ensureImageMagickInPath,
   wingetAvailable,
 } = require('./process-runner');
+
+// ── Entorno de herramientas ──────────────────────────────────────────────────
+// Expone ImageMagick en el PATH del proceso desde el arranque, aunque se haya
+// instalado después de abrir la terminal o el editor que lanzó la aplicación.
+ensureImageMagickInPath();
 
 // ── Diálogos y shell ─────────────────────────────────────────────────────────
 
@@ -43,8 +57,10 @@ ipcMain.handle('cancel-operation', () => {
 
 // ── Verificar herramientas ───────────────────────────────────────────────────
 
-ipcMain.handle('check-tools', async () => {
+async function detectTools() {
   const result = { imageMagick: false, ghostscript: false, imVersion: '', gsVersion: '', winget: false };
+
+  ensureImageMagickInPath();
 
   try {
     const imOut = await run('magick -version');
@@ -61,18 +77,34 @@ ipcMain.handle('check-tools', async () => {
 
   result.winget = await wingetAvailable();
   return result;
-});
+}
+
+ipcMain.handle('check-tools', () => detectTools());
 
 // ── Instalar herramientas ────────────────────────────────────────────────────
+
+// Comprueba si la herramienta quedó instalada buscando su carpeta en Program Files
+// (el PATH del proceso actual no se refresca tras instalar).
+function isToolInstalled(tool) {
+  if (tool === 'imagemagick') return !!findImageMagickDir();
+  return ['C:\Program Files', 'C:\Program Files (x86)'].some(root => {
+    try {
+      const gs = path.join(root, 'gs');
+      return fs.existsSync(gs) && fs.readdirSync(gs).length > 0;
+    } catch (_) { return false; }
+  });
+}
 
 ipcMain.handle('install-tool', async (_, tool) => {
   const baseDir = app.isPackaged
     ? path.join(process.resourcesPath, 'bin')
     : path.join(__dirname, '..', 'extraResources');
 
+  // Instaladores locales (carpeta extraResources/). Se abren en modo normal (con
+  // asistente y UAC): la instalación silenciosa suele fallar por políticas de seguridad.
   const localInstallers = {
-    imagemagick: { file: 'ImageMagick-7.1.2-30-Q16-HDRI-x64-dll.exe', flags: '/VERYSILENT /NORESTART /TASKS="setpath"' },
-    ghostscript: { file: 'gs10071w64.exe', flags: '/S' }
+    imagemagick: { file: 'ImageMagick-7.1.2-34-Q16-HDRI-x64-dll.exe' },
+    ghostscript: { file: 'gs10080w64.exe' },
   };
 
   const selected = localInstallers[tool];
@@ -82,11 +114,17 @@ ipcMain.handle('install-tool', async (_, tool) => {
 
   if (fs.existsSync(installerPath)) {
     try {
-      await run(`"${installerPath}" ${selected.flags}`);
-      return { ok: true, source: 'local' };
+      // Start-Process -Verb RunAs: pide permisos de administrador y espera a que el asistente termine
+      const psPath = installerPath.replace(/'/g, "''");
+      await run(`powershell -NoProfile -Command "Start-Process -FilePath '${psPath}' -Verb RunAs -Wait"`);
     } catch (e) {
-      return { ok: false, error: `Error en instalador local: ${e.toString()}` };
+      return { ok: false, error: `No se pudo abrir el instalador (¿se canceló el permiso de administrador?): ${e.toString()}` };
     }
+    // El asistente puede cerrarse sin instalar: comprobar que realmente quedó instalado
+    if (!isToolInstalled(tool)) return { ok: false, cancelled: true, error: 'La instalación no se completó.' };
+    // Disponible de inmediato, sin reiniciar la aplicación
+    ensureImageMagickInPath();
+    return { ok: true, source: 'local' };
   }
 
   const hasWinget = await wingetAvailable();
@@ -106,30 +144,97 @@ ipcMain.handle('install-tool', async (_, tool) => {
 });
 
 // ── Actualizar herramientas ──────────────────────────────────────────────────
+// La comprobación compara la versión instalada con la última release oficial
+// publicada en GitHub. No depende de winget: Ghostscript no está en su repositorio
+// y winget puede fallar por certificados de la fuente msstore.
 
-ipcMain.handle('update-tools', async () => {
-  const results = { imagemagick: 'error', ghostscript: 'error', wingetAvailable: false };
-  const hasWinget = await wingetAvailable();
-  results.wingetAvailable = hasWinget;
-  if (!hasWinget) return results;
+const RELEASE_SOURCES = {
+  imagemagick: {
+    api:  'https://api.github.com/repos/ImageMagick/ImageMagick/releases/latest',
+    page: 'https://imagemagick.org/script/download.php',
+    // Etiqueta "7.1.2-34" → [7, 1, 2, 34]
+    parseTag: tag => (tag.match(/\d+/g) || []).map(Number),
+  },
+  ghostscript: {
+    api:  'https://api.github.com/repos/ArtifexSoftware/ghostpdl-downloads/releases/latest',
+    page: 'https://www.ghostscript.com/releases/gsdnld.html',
+    // Etiqueta "gs10080" → [10, 8, 0]
+    parseTag: tag => {
+      const m = tag.match(/gs(\d+?)(\d{2})(\d)$/);
+      return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [];
+    },
+  },
+};
 
-  const isUpToDate = (out) => {
-    const t = (out || '').toLowerCase();
-    return t.includes('successfully') || t.includes('correctamente') ||
-           t.includes('no applicable') || t.includes('no se ha encontrado') ||
-           t.includes('no hay versiones') || t.includes('no se encontr');
-  };
+// Consulta una URL de la API de GitHub y devuelve el JSON (rechaza por error HTTP o timeout).
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'ImgPDF-Toolbox', Accept: 'application/vnd.github+json' } }, res => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+        try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
+      });
+    });
+    req.setTimeout(10000, () => req.destroy(new Error('Tiempo de espera agotado')));
+    req.on('error', reject);
+  });
+}
 
-  for (const [key, id] of [['imagemagick', 'ImageMagick.ImageMagick'], ['ghostscript', 'ArtifexSoftware.GhostScript']]) {
-    try {
-      const out = await run(`winget upgrade --id ${id}`);
-      results[key] = isUpToDate(out) ? 'ok' : 'check';
-    } catch (e) {
-      results[key] = isUpToDate(e.toString()) ? 'ok' : 'error';
-    }
+// Compara dos listas numéricas de versión: devuelve >0 si a es mayor que b.
+function compareVersions(a, b) {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const diff = (a[i] || 0) - (b[i] || 0);
+    if (diff !== 0) return diff;
   }
+  return 0;
+}
 
-  return results;
+// Estado de una herramienta: not-installed | up-to-date | available | unknown
+async function checkToolUpdate(key, installedVersion) {
+  const source = RELEASE_SOURCES[key];
+  if (!installedVersion) return { status: 'not-installed', page: source.page };
+  try {
+    const release = await fetchJson(source.api);
+    const latest  = source.parseTag(release.tag_name || '');
+    const current = (installedVersion.match(/\d+/g) || []).map(Number);
+    if (!latest.length) throw new Error('Etiqueta de versión no reconocida');
+    return {
+      status:    compareVersions(latest, current) > 0 ? 'available' : 'up-to-date',
+      installed: installedVersion,
+      latest:    release.name || release.tag_name,
+      latestTag: release.tag_name,
+      page:      source.page,
+    };
+  } catch (e) {
+    return { status: 'unknown', installed: installedVersion, page: source.page, error: e.message };
+  }
+}
+
+ipcMain.handle('check-updates', async () => {
+  const tools = await detectTools();
+  const [imagemagick, ghostscript] = await Promise.all([
+    checkToolUpdate('imagemagick', tools.imageMagick ? tools.imVersion : ''),
+    checkToolUpdate('ghostscript', tools.ghostscript ? tools.gsVersion : ''),
+  ]);
+  return { imagemagick, ghostscript };
+});
+
+// Aplica la actualización: ImageMagick vía winget (fuente propia, sin msstore);
+// Ghostscript no está en winget, por lo que se remite a su página oficial.
+ipcMain.handle('upgrade-tool', async (_, tool) => {
+  const source = RELEASE_SOURCES[tool];
+  if (!source) return { ok: false, error: 'Herramienta desconocida' };
+  if (tool !== 'imagemagick' || !(await wingetAvailable())) return { ok: false, manual: true, url: source.page };
+
+  try {
+    await run('winget upgrade --id ImageMagick.ImageMagick -e --source winget --accept-package-agreements --accept-source-agreements');
+    ensureImageMagickInPath();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, manual: true, url: source.page, error: e.toString() };
+  }
 });
 
 // ── Fuentes del sistema ──────────────────────────────────────────────────────

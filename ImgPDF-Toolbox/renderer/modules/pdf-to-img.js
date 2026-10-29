@@ -1,13 +1,21 @@
-// ── modules/pdf-to-img.js — versión con progreso real ────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/modules/pdf-to-img.js
+// Descripción: Módulo «PDF → Imágenes»: exporta las páginas de uno o varios PDFs como
+//              PNG/JPG con densidad y color de fondo configurables, lista ordenable y
+//              barra de progreso real.
+// ═════════════════════════════════════════════════════════════════════════════
+
 async function renderPdfToImg() {
+  // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF' });
   let files = [], density = cfg.density, format = cfg.format, background = cfg.background;
   let unsubProgress = null;
   let currentRunId = 0;
 
+  // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
-    <div class="module-title">📄 PDF → Imágenes</div>
+    <div class="module-title">${icon('pdf-file',22)} PDF → Imágenes</div>
     <div class="option-group"><label>Formato de salida</label><div class="option-row" id="fmt-row"></div></div>
     <div class="option-group"><label>Calidad (DPI)</label><div class="option-row" id="dpi-row"></div></div>
     <div class="option-group"><label>Fondo</label><div class="option-row" id="bg-row"></div></div>
@@ -16,8 +24,8 @@ async function renderPdfToImg() {
         <span class="file-count-badge" id="p2i-badge">0 PDFs cargados</span>
       </div>
       <div class="btn-row">
-        <button class="btn-secondary" id="pick-pdfs2">📂 Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-p2i" style="display:none">🗑️ Limpiar</button>
+        <button class="btn-secondary" id="pick-pdfs2">${icon('folder-open',16)} Seleccionar PDFs</button>
+        <button class="btn-secondary" id="clear-p2i" style="display:none">${icon('trash',16)} Limpiar</button>
         <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="pdf2-list">
@@ -33,6 +41,7 @@ async function renderPdfToImg() {
     <div id="p2i-result"></div>
   </div>`;
 
+  // ── Opciones de configuración ────────────────────────────────────────────────
   optButtons(document.getElementById('fmt-row'), [
     { label: 'PNG', value: 'png' },
     { label: 'JPG', value: 'jpg' },
@@ -84,6 +93,7 @@ async function renderPdfToImg() {
     updateRun();
   };
 
+  // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-pdfs2').addEventListener('click', async () => {
     const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
     addFiles(picked);
@@ -102,6 +112,7 @@ async function renderPdfToImg() {
   document.getElementById('p2i-pick').addEventListener('click', () => pickOutputDir('p2i-path').then(updateRun));
   bindDragDrop('zone-p2i', ['pdf'], addFiles);
 
+  // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-p2i').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-p2i').style.display = files.length ? 'inline-block' : 'none';
@@ -205,8 +216,8 @@ async function renderPdfToImg() {
     const ok  = res.filter(r => r.ok);
     const err = res.filter(r => !r.ok);
     document.getElementById('p2i-result').innerHTML =
-      (ok.length  ? resultBox('success', `✓ ${ok.length} PDF(s) procesado(s)`, ok.map(r => `📄 ${basename(r.file)} — ${r.pages} páginas`), true) : '') +
-      (err.length ? resultBox('error',   `✗ ${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
+      (ok.length  ? resultBox('success', `${ok.length} PDF(s) procesado(s)`, ok.map(r => `${icon('file',14)} ${basename(r.file)} — ${r.pages} páginas`), true) : '') +
+      (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
 
     if (ok.length)  notify.success(`${ok.length} PDF(s) extraído(s) correctamente.`);
     if (err.length) notify.error(`${err.length} archivo(s) fallaron.`);

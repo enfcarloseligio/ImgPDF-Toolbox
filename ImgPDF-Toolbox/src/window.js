@@ -1,6 +1,15 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     src/window.js
+// Descripción: Creación y configuración de la ventana principal (BrowserWindow) con
+//              aislamiento de contexto y sin integración de Node en el renderer.
+// ═════════════════════════════════════════════════════════════════════════════
+
 const { BrowserWindow } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+
+// ── Ventana principal ──────────────────────────────────────────────────────────
+// Crea el BrowserWindow, aplica el icono si existe y carga renderer/index.html.
 
 function createWindow() {
   const iconPath = path.join(__dirname, '..', 'renderer', 'assets', 'icon.ico');
@@ -19,5 +28,7 @@ function createWindow() {
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   return win;
 }
+
+// ── Exportaciones ──────────────────────────────────────────────────────────────
 
 module.exports = { createWindow };

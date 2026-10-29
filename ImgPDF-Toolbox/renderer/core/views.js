@@ -1,24 +1,27 @@
-// ── core/views.js ─────────────────────────────────────────────────────────────
-// Vistas principales de la app: Home, PDF, Imágenes y Update.
-// Cada vista reemplaza el contenido del contenedor #view-container.
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/core/views.js
+// Descripción: Vistas principales de la aplicación (inicio, categorías y actualización) y su
+//              enrutador showView(). Cada vista reemplaza el contenido de #view-container.
+// ═════════════════════════════════════════════════════════════════════════════
 
-// Catálogo de módulos por categoría
+// ── Catálogo de módulos por categoría ───────────────────────────────────────
+
 const CATEGORIES = {
   'pdf-tools': {
     title: 'Herramientas PDF',
     desc:  'Operaciones sobre documentos PDF: unir, separar, comprimir y más',
     icon:  'pdf-tools',
     modules: [
-      { id: 'pdf-to-img',       label: 'PDF → IMG',    desc: 'Extrae páginas como imagen',      icon: '📄' },
-      { id: 'merge',            label: 'Unir PDFs',    desc: 'Fusiona en orden',                icon: '📑' },
-      { id: 'split',            label: 'Separar PDF',  desc: 'Páginas, bloques o rangos',       icon: '✂️' },
-      { id: 'compress',         label: 'Comprimir',    desc: 'Reduce el peso del PDF',          icon: '🗜️' },
-      { id: 'folio',            label: 'Foliar',       desc: 'Numeración y sellos',             icon: '🔢' },
-      { id: 'watermark',        label: 'Marca texto',  desc: 'Texto diagonal o posicionado',    icon: '💧' },
-      { id: 'watermark-image',  label: 'Marca imagen', desc: 'Logo o firma sobre documentos',   icon: '🏷️' },
-      { id: 'rotate',           label: 'Rotar',        desc: 'Gira páginas de PDF',             icon: '🔄' },
-      { id: 'unlock',           label: 'Desbloquear',  desc: 'Elimina restricciones PDF',       icon: '🔓' },
-      { id: 'pdf-standards',    label: 'Estándares',   desc: 'PDF/A, PDF/X, PDF/UA',            icon: '📋' },
+      { id: 'pdf-to-img',       label: 'PDF → IMG',    desc: 'Extrae páginas como imagen',      icon: 'pdf-file' },
+      { id: 'merge',            label: 'Unir PDFs',    desc: 'Fusiona en orden',                icon: 'merge' },
+      { id: 'split',            label: 'Separar PDF',  desc: 'Páginas, bloques o rangos',       icon: 'scissors' },
+      { id: 'compress',         label: 'Comprimir',    desc: 'Reduce el peso del PDF',          icon: 'compress' },
+      { id: 'folio',            label: 'Foliar',       desc: 'Numeración y sellos',             icon: 'hash' },
+      { id: 'watermark',        label: 'Marca texto',  desc: 'Texto diagonal o posicionado',    icon: 'droplet' },
+      { id: 'watermark-image',  label: 'Marca imagen', desc: 'Logo o firma sobre documentos',   icon: 'tag' },
+      { id: 'rotate',           label: 'Rotar',        desc: 'Gira páginas de PDF',             icon: 'rotate' },
+      { id: 'unlock',           label: 'Desbloquear',  desc: 'Elimina restricciones PDF',       icon: 'unlock' },
+      { id: 'pdf-standards',    label: 'Estándares',   desc: 'PDF/A, PDF/X, PDF/UA',            icon: 'clipboard-check' },
     ],
   },
   'image-tools': {
@@ -26,10 +29,10 @@ const CATEGORIES = {
     desc:  'Procesa, ajusta y convierte tus imágenes',
     icon:  'image-tools',
     modules: [
-      { id: 'img-to-pdf',       label: 'IMG → PDF',    desc: 'Convierte imágenes a PDF',        icon: '🖼️' },
-      { id: 'rotate',           label: 'Rotar',        desc: 'Gira imágenes',                   icon: '🔄' },
-      { id: 'watermark',        label: 'Marca texto',  desc: 'Texto diagonal o posicionado',    icon: '💧' },
-      { id: 'watermark-image',  label: 'Marca imagen', desc: 'Logo o firma sobre imágenes',     icon: '🏷️' },
+      { id: 'img-to-pdf',       label: 'IMG → PDF',    desc: 'Convierte imágenes a PDF',        icon: 'image-file' },
+      { id: 'rotate',           label: 'Rotar',        desc: 'Gira imágenes',                   icon: 'rotate' },
+      { id: 'watermark',        label: 'Marca texto',  desc: 'Texto diagonal o posicionado',    icon: 'droplet' },
+      { id: 'watermark-image',  label: 'Marca imagen', desc: 'Logo o firma sobre imágenes',     icon: 'tag' },
     ],
   },
 };
@@ -117,7 +120,7 @@ function renderCategoryView(categoryKey) {
       <nav class="menu-grid">
         ${cat.modules.map(m => `
           <button class="card-btn" data-module="${m.id}">
-            <span class="card-icon">${m.icon}</span>
+            <span class="card-icon">${icon(m.icon, 28)}</span>
             <span class="card-title">${m.label}</span>
             <span class="card-desc">${m.desc}</span>
           </button>

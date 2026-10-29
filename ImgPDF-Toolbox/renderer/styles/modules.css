@@ -1,7 +1,8 @@
-/* ── modules.css ─────────────────────────────────────────────────────────────
-   Estilos específicos del workspace y módulos funcionales.
-   Variables y reset en global.css.
-────────────────────────────────────────────────────────────────────────────── */
+/* ═════════════════════════════════════════════════════════════════════════════
+   Archivo:     renderer/styles/modules.css
+   Descripción: Estilos del área de trabajo y de los módulos funcionales: opciones, zonas de
+                archivos, listas, resultados y progreso. Variables y reset en global.css.
+   ═════════════════════════════════════════════════════════════════════════════ */
 
 /* ── Módulo base ─────────────────────────────────────────────────────────── */
 .module { width: 100%; display: flex; flex-direction: column; gap: 1.25rem; }
@@ -337,7 +338,7 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   line-height: 1;
 }
 
-/* ── Estilos para Unir PDFs (Flechas Azules y Drag & Drop) ────────────────── */
+/* ── Lista ordenable: flechas de orden y asa de arrastre ──────────────────── */
 .btn-order {
   display: inline-flex;
   align-items: center;

@@ -33,3 +33,11 @@ Para ejecutar o compilar el proyecto en modo de desarrollo necesitas:
    ```bash
    git clone [https://github.com/TU_USUARIO/ImgPDF-Toolbox.git](https://github.com/TU_USUARIO/ImgPDF-Toolbox.git)
    cd ImgPDF-Toolbox
+```
+
+---
+
+## 🙏 Créditos
+
+* Iconos: [Flaticon UIcons](https://www.flaticon.com/uicons) (licencia Free, requiere atribución).
+* Procesamiento: [Ghostscript](https://www.ghostscript.com) e [ImageMagick](https://imagemagick.org).

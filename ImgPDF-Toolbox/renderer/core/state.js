@@ -1,6 +1,10 @@
-// ── core/state.js ─────────────────────────────────────────────────────────────
-// Estado global centralizado. Los módulos NUNCA modifican state directamente,
-// siempre usan las funciones de mutación expuestas aquí.
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     renderer/core/state.js
+// Descripción: Estado global centralizado de la aplicación. Los módulos no modifican state
+//              directamente: usan las funciones de mutación expuestas en este archivo.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Estado global ───────────────────────────────────────────────────────────
 
 const state = {
   activeModule:  null,

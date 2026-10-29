@@ -1,8 +1,9 @@
-/* ── global.css ──────────────────────────────────────────────────────────────
-   Fuentes empaquetadas, variables de identidad, reset, layout general,
-   header, footer, splash, botones globales y notificaciones.
-   NO contiene estilos de módulos específicos (esos van en modules.css).
-────────────────────────────────────────────────────────────────────────────── */
+/* ═════════════════════════════════════════════════════════════════════════════
+   Archivo:     renderer/styles/global.css
+   Descripción: Estilos globales: fuentes empaquetadas, variables de identidad, reset,
+                layout general, header, footer, splash, botones y notificaciones.
+                No contiene estilos de módulos específicos (ver modules.css).
+   ═════════════════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    1. FUENTES EMPAQUETADAS
@@ -452,7 +453,9 @@ code {
 }
 .btn-open-dir:hover { background: var(--primary-soft); }
 
-.btn-sm { padding: 0.38rem 0.85rem !important; font-size: var(--text-xs) !important; }
+/* Variante compacta. Se declara después de las variantes base con la misma
+   especificidad, por lo que prevalece por orden de cascada. */
+.btn-sm { padding: 0.38rem 0.85rem; font-size: var(--text-xs); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    9. NOTIFICACIONES (TOASTS)
@@ -551,4 +554,26 @@ code {
   .toast {
     max-width: calc(100vw - 3rem);
   }
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   ICONOS SVG (core/icons.js) — heredan color del texto vía currentColor
+   ═══════════════════════════════════════════════════════════════════════════ */
+.ic { display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
+
+.splash-logo, .brand-icon { color: var(--primary); display: inline-flex; align-items: center; justify-content: center; }
+.splash-logo { color: var(--accent); }
+.brand-icon .ic { width: 32px; height: 32px; }
+
+.scan-icon { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); }
+.scan-step.ok   .scan-icon { color: #4ADE80; }
+.scan-step.warn .scan-icon { color: #FCD34D; }
+.install-title .ic, .manual-title .ic { margin-right: 0.15rem; }
+
+.toast-icon { display: inline-flex; align-items: center; }
+.toast-close { display: inline-flex; align-items: center; }
+
+.swatch {
+  display: inline-block; width: 0.8em; height: 0.8em; border-radius: 50%;
+  margin-right: 0.4em; vertical-align: -0.05em;
+  border: 1px solid rgba(0,0,0,0.25);
 }

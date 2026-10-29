@@ -1,3 +1,9 @@
+// ═════════════════════════════════════════════════════════════════════════════
+// Archivo:     src/ipc-conversions.js
+// Descripción: Handlers IPC de conversión: imagen → PDF y PDF → imagen (con conteo de
+//              páginas y progreso real hacia el renderer).
+// ═════════════════════════════════════════════════════════════════════════════
+
 const { ipcMain } = require('electron');
 const path = require('path');
 const fs   = require('fs');
