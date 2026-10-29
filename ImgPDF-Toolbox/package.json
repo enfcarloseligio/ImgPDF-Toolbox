@@ -17,7 +17,8 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "rcedit": "^5.0.2"
   },
   "build": {
     "appId": "com.enfcarloseligio.imgpdf-toolbox",
@@ -50,6 +51,7 @@
         "from": "extraResources",
         "to": "bin"
       }
-    ]
+    ],
+    "afterPack": "scripts/after-pack.js"
   }
 }
