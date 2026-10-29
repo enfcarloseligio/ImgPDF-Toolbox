@@ -15,18 +15,9 @@ function renderSplit() {
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('scissors',22)} Separar PDF</div>
 
-    <div class="file-zone" id="zone-spl">
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-split">${icon('folder-open',16)} Seleccionar PDF</button>
-        <button class="btn-secondary" id="clear-split" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="split-file">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-spl', pick: 'pick-split', clear: 'clear-split', list: 'split-file', kind: 'pdf', multiple: false })}
 
-    <!-- Configuración, salida y acciones: se muestran al cargar un archivo válido -->
+    <!-- Configuración, salida y acciones: visibles desde el inicio, como en el resto de herramientas -->
     <div class="option-group wide">
       <label>Modo de separación</label>
       <div class="option-row" id="mode-row"></div>
@@ -43,27 +34,28 @@ function renderSplit() {
   </div>`;
   organizeModule(ws);
 
-  // ── Visibilidad de los pasos que dependen del archivo ────────────────────────
-  // Configuración, carpeta de salida y barra de acciones solo aparecen con un PDF válido.
-  function setWizardVisible(visible) {
-    ws.querySelectorAll('.step-config, .step-output, .action-bar')
-      .forEach(el => { el.style.display = visible ? '' : 'none'; });
-  }
-  setWizardVisible(false);
-
   // ── Selección de la carpeta de salida ────────────────────────────────────────
   document.getElementById('spl-pick').addEventListener('click', () =>
     pickOutputDir('spl-path').then(updateSummary)
   );
 
+  // ── Modo de separación ───────────────────────────────────────────────────────
+  optButtons(document.getElementById('mode-row'), [
+    { label: 'Página por página', value: 'individual' },
+    { label: 'Bloques fijos',     value: 'block'      },
+    { label: 'Rangos múltiples',  value: 'custom'     },
+  ], mode, v => { mode = v; renderOpts(); updateSummary(); });
+
+  renderOpts();
+  updateSummary();
+
   // ── Reset completo ──────────────────────────────────────────────────────────
   function reset() {
     file = null; totalPages = 0;
-    document.getElementById('split-file').innerHTML    = '<span class="file-empty">Ningún archivo seleccionado</span>';
-    setWizardVisible(false);
+    document.getElementById('split-file').innerHTML    = fileEmptyHtml('pdf');
     document.getElementById('clear-split').style.display  = 'none';
     document.getElementById('split-result').innerHTML      = '';
-    document.getElementById('split-summary').innerHTML     = '';
+    updateSummary();
   }
 
   // ── Cargar y analizar PDF ───────────────────────────────────────────────────
@@ -95,16 +87,6 @@ function renderSplit() {
     countEl.textContent = `✓ ${totalPages} páginas detectadas`;
     countEl.style.color = 'var(--success)';
     notify.info(`PDF cargado: ${totalPages} páginas detectadas.`);
-
-    // Muestra los pasos dependientes del archivo y enlaza el selector de modo
-    setWizardVisible(true);
-
-    optButtons(document.getElementById('mode-row'), [
-      { label: 'Página por página', value: 'individual' },
-      { label: 'Bloques fijos',     value: 'block'      },
-      { label: 'Rangos múltiples',  value: 'custom'     },
-    ], mode, v => { mode = v; renderOpts(); updateSummary(); });
-
 
     renderOpts();
     updateSummary();
@@ -145,7 +127,9 @@ function renderSplit() {
     let html  = `<strong>Resumen de la operación:</strong><br>`;
     let valid = true;
 
-    if (mode === 'individual') {
+    if (!file) {
+      html += `↳ Selecciona un PDF para calcular el resultado.`;
+    } else if (mode === 'individual') {
       html += `↳ Se generarán <strong>${totalPages} documentos nuevos</strong> (1 página cada uno).`;
     } else if (mode === 'block') {
       const n = Math.ceil(totalPages / (blockSize || 1));
@@ -174,13 +158,13 @@ function renderSplit() {
 
   // ── Eventos de selección y drag-drop ───────────────────────────────────────
   document.getElementById('pick-split').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
+    const picked = await pickFiles('pdf');
     if (picked.length) loadFile(picked[0]);
   });
 
   document.getElementById('clear-split').addEventListener('click', reset);
 
-  bindDragDrop('zone-spl', ['pdf'], dropped => { if (dropped.length) loadFile(dropped[0]); });
+  bindDragDrop('zone-spl', FILE_KINDS.pdf.extensions, dropped => { if (dropped.length) loadFile(dropped[0]); });
 
   // ── Cancelar y ejecutar ─────────────────────────────────────────────────────
   document.getElementById('cancel-split').addEventListener('click', async () => {

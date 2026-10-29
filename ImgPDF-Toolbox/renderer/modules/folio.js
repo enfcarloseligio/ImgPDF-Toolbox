@@ -133,19 +133,7 @@ async function renderFolio() {
     </div>
 
     <!-- Archivos -->
-    <div class="file-zone" id="zone-folio">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="folio-badge">0 PDFs cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-folio">${icon('folder-open',16)} Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-folio" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="folio-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-folio', pick: 'pick-folio', clear: 'clear-folio', badge: 'folio-badge', list: 'folio-list', kind: 'pdf', multiple: true })}
 
     ${outputDirRow('folio')}
 
@@ -494,7 +482,7 @@ async function renderFolio() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-folio').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name:'PDF', extensions:['pdf'] }]);
+    const picked = await pickFiles('pdf');
     addFiles(picked);
   });
   document.getElementById('clear-folio').addEventListener('click', () => {
@@ -505,13 +493,13 @@ async function renderFolio() {
   });
   document.getElementById('folio-pick').addEventListener('click', () =>
     pickOutputDir('folio-path').then(updateRun));
-  bindDragDrop('zone-folio', ['pdf'], addFiles);
+  bindDragDrop('zone-folio', FILE_KINDS['pdf'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-folio').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-folio').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('folio-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
+    document.getElementById('folio-badge').textContent   = fileCountText(files.length, 'pdf');
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

@@ -14,19 +14,7 @@ function renderMerge() {
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('merge',22)} Unir PDFs</div>
     <p class="module-desc">Selecciona los archivos en el orden en que quieres unirlos. Usa ↑↓ para reordenar.</p>
-    <div class="file-zone" id="zone-mrg">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="mrg-badge">0 PDFs en lista</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-merge">${icon('folder-open',16)} Agregar PDFs</button>
-        <button class="btn-secondary" id="clear-merge" style="display:none">${icon('trash',16)} Limpiar lista</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="merge-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-mrg', pick: 'pick-merge', clear: 'clear-merge', badge: 'mrg-badge', list: 'merge-list', kind: 'pdf', multiple: true })}
     ${outputDirRow('mrg')}
     <div class="btn-row">
       <button class="btn-primary" id="run-merge" disabled style="width:auto">Unir PDFs</button>
@@ -38,7 +26,7 @@ function renderMerge() {
 
   // ── Lista de archivos ────────────────────────────────────────────────────────
   function refresh() {
-    document.getElementById('mrg-badge').textContent = `${files.length} documento(s) para unir`;
+    document.getElementById('mrg-badge').textContent = fileCountText(files.length, 'pdf');
     renderOrderedFileList('merge-list', files, updated => {
       files = [...updated];
       refresh();
@@ -59,7 +47,7 @@ function renderMerge() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-merge').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
+    const picked = await pickFiles('pdf');
     addFiles(picked);
   });
 
@@ -71,7 +59,7 @@ function renderMerge() {
 
   document.getElementById('mrg-pick').addEventListener('click', () => pickOutputDir('mrg-path').then(updateRun));
 
-  bindDragDrop('zone-mrg', ['pdf'], addFiles);
+  bindDragDrop('zone-mrg', FILE_KINDS['pdf'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {

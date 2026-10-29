@@ -4,7 +4,10 @@
 //              PDFs con tamaño, opacidad, posición, ángulo y repetición configurables.
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function renderWatermarkImage() {
+async function renderWatermarkImage(ctx = {}) {
+  // La categoría desde la que se abre decide el tipo de archivo: PDF o imagen
+  const kind = ctx.context === 'image' ? 'image' : 'pdf';
+
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('watermark-image', {
     sizePercent:  25,
@@ -37,24 +40,12 @@ async function renderWatermarkImage() {
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('tag',22)} Marca de agua — Imagen</div>
-    <p class="module-desc">Superpone una imagen (PNG con transparencia recomendado) sobre PDFs e imágenes.</p>
+    <p class="module-desc">Superpone una imagen (PNG con transparencia recomendado) sobre ${kind === 'image' ? 'imágenes' : 'PDFs'}.</p>
 
-    <!-- Imagen de marca: zona para arrastrar o seleccionar -->
+    <!-- Imagen de marca: mismas zonas y estructura que los archivos destino -->
     <div class="option-group">
       <label>Imagen de marca de agua</label>
-      <div class="file-zone mark-drop" id="zone-mark" tabindex="0" title="Arrastra una imagen o haz clic para seleccionarla">
-        <div class="mark-thumb" id="mark-preview-thumb">
-          <img id="mark-thumb-img" alt="">
-        </div>
-        <div class="mark-info">
-          <div class="mark-name" id="mark-name">Arrastra tu imagen aquí o haz clic para seleccionarla</div>
-          <div class="mark-hint">PNG con transparencia recomendado · PNG, JPG, SVG o WEBP</div>
-        </div>
-        <div class="btn-row">
-          <button class="btn-secondary" id="pick-mark">${icon('image-file',16)} Seleccionar imagen</button>
-          <button class="btn-secondary" id="clear-mark" style="display:none">${icon('trash',16)} Quitar</button>
-        </div>
-      </div>
+      ${fileZoneHtml({ zone: 'zone-mark', pick: 'pick-mark', clear: 'clear-mark', badge: 'mark-badge', list: 'mark-list', kind: 'image', multiple: false })}
     </div>
 
     <!-- Tamaño relativo -->
@@ -127,18 +118,9 @@ async function renderWatermarkImage() {
     </div>
 
     <!-- Archivos destino -->
-    <div class="file-zone" id="zone-wmi">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="wmi-badge">0 archivos cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-wmi">${icon('folder-open',16)} Seleccionar archivos</button>
-        <button class="btn-secondary" id="clear-wmi" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="wmi-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
+    <div class="option-group">
+      <label>Archivos a procesar</label>
+      ${fileZoneHtml({ zone: 'zone-wmi', pick: 'pick-wmi', clear: 'clear-wmi', badge: 'wmi-badge', list: 'wmi-list', kind: kind, multiple: true })}
     </div>
 
     ${outputDirRow('wmi')}
@@ -155,42 +137,35 @@ async function renderWatermarkImage() {
   // ── Imagen de marca: selección, arrastre y limpieza ─────────────────────────
   const MARK_EXTENSIONS = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
 
-  // Aplica (o quita, con null) la imagen de marca y sincroniza miniatura, nombre y vista previa.
+  // Aplica (o quita, con null) la imagen de marca y sincroniza la lista, el contador y la vista previa.
   function setMark(filePath) {
     markFile = filePath;
-    const thumb = document.getElementById('mark-preview-thumb');
-    const name  = document.getElementById('mark-name');
+    const list = document.getElementById('mark-list');
 
     if (filePath) {
-      document.getElementById('mark-thumb-img').src = toFileUrl(filePath);
-      thumb.style.display = 'block';
-      name.textContent = basename(filePath);
-      name.classList.add('has-file');
+      list.innerHTML = `
+        <div class="file-item">
+          <img class="mark-thumb-sm" id="mark-thumb-img" src="${toFileUrl(filePath)}" alt="">
+          <span class="file-name" title="${filePath}">${basename(filePath)}</span>
+          <button class="file-remove" id="rm-mark" title="Quitar">${icon('close', 14)}</button>
+        </div>`;
+      document.getElementById('rm-mark').addEventListener('click', () => setMark(null));
     } else {
-      thumb.style.display = 'none';
-      name.textContent = 'Arrastra tu imagen aquí o haz clic para seleccionarla';
-      name.classList.remove('has-file');
+      list.innerHTML = fileEmptyHtml('image');
     }
+
+    document.getElementById('mark-badge').textContent = fileCountText(filePath ? 1 : 0, 'image');
     document.getElementById('clear-mark').style.display = filePath ? 'inline-block' : 'none';
 
     updatePreview();
     updateRun();
   }
 
-  async function pickMark() {
-    const picked = await window.api.selectFiles([{ name: 'Imágenes', extensions: MARK_EXTENSIONS }]);
+  document.getElementById('pick-mark').addEventListener('click', async () => {
+    const picked = await pickFiles('image', MARK_EXTENSIONS);
     if (picked.length) setMark(picked[0]);
-  }
-
-  document.getElementById('pick-mark').addEventListener('click', e => { e.stopPropagation(); pickMark(); });
-  document.getElementById('clear-mark').addEventListener('click', e => { e.stopPropagation(); setMark(null); });
-
-  // Clic en cualquier parte de la zona (fuera de los botones) o Enter/Espacio con foco
-  const markZone = document.getElementById('zone-mark');
-  markZone.addEventListener('click', pickMark);
-  markZone.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickMark(); }
   });
+  document.getElementById('clear-mark').addEventListener('click', () => setMark(null));
 
   bindDragDrop('zone-mark', MARK_EXTENSIONS, paths => setMark(paths[0]));
 
@@ -377,9 +352,7 @@ async function renderWatermarkImage() {
   };
 
   document.getElementById('pick-wmi').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{
-      name: 'Imágenes y PDFs', extensions: ['pdf','png','jpg','jpeg']
-    }]);
+    const picked = await pickFiles(kind);
     addFiles(picked);
   });
 
@@ -392,13 +365,13 @@ async function renderWatermarkImage() {
 
   document.getElementById('wmi-pick').addEventListener('click', () =>
     pickOutputDir('wmi-path').then(updateRun));
-  bindDragDrop('zone-wmi', ['pdf','png','jpg','jpeg'], addFiles);
+  bindDragDrop('zone-wmi', FILE_KINDS[kind].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-wmi').disabled = !(files.length && markFile && state.outputDir && !state.isProcessing);
     document.getElementById('clear-wmi').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('wmi-badge').textContent   = `${files.length} archivo(s) seleccionado(s)`;
+    document.getElementById('wmi-badge').textContent   = fileCountText(files.length, kind);
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

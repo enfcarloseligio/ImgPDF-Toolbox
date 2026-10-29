@@ -19,19 +19,7 @@ async function renderCompress() {
       <div class="option-row" id="profile-row"></div>
       <div class="profile-hint" id="profile-hint"></div>
     </div>
-    <div class="file-zone" id="zone-compress">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="compress-badge">0 PDFs cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-compress">${icon('folder-open',16)} Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-compress" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="compress-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-compress', pick: 'pick-compress', clear: 'clear-compress', badge: 'compress-badge', list: 'compress-list', kind: 'pdf', multiple: true })}
     ${outputDirRow('compress')}
     <div class="btn-row">
       <button class="btn-primary" id="run-compress" disabled style="width:auto">Comprimir PDFs</button>
@@ -80,7 +68,7 @@ async function renderCompress() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-compress').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
+    const picked = await pickFiles('pdf');
     addFiles(picked);
   });
 
@@ -92,13 +80,13 @@ async function renderCompress() {
   });
 
   document.getElementById('compress-pick').addEventListener('click', () => pickOutputDir('compress-path').then(updateRun));
-  bindDragDrop('zone-compress', ['pdf'], addFiles);
+  bindDragDrop('zone-compress', FILE_KINDS['pdf'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-compress').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-compress').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('compress-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
+    document.getElementById('compress-badge').textContent   = fileCountText(files.length, 'pdf');
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

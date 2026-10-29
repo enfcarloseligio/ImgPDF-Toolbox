@@ -86,7 +86,12 @@
   gap: 1rem;
   align-items: start;
 }
+.upload-grid > * { min-width: 0; }
 .upload-grid > .option-group { height: 100%; }
+/* Las zonas hermanas comparten estructura y alto, de modo que quedan alineadas */
+.upload-grid > .option-group > .file-zone { flex: 1; }
+/* En zonas hermanas el contador ocupa su propia línea para que todo quede al mismo nivel */
+.upload-grid .file-zone-header { flex: 1 0 100%; }
 
 /* Barra de acciones: queda fija al pie mientras el módulo es más alto que la ventana */
 .action-bar {
@@ -160,6 +165,8 @@
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
+  /* Las líneas se apilan desde arriba: zonas hermanas de distinta altura quedan alineadas */
+  align-content: flex-start;
   gap: 0.6rem 0.9rem;
   transition: border-color var(--t), background var(--t);
 }
@@ -168,6 +175,8 @@
   border-color: var(--accent);
   background: rgba(6,182,212,0.04);
 }
+
+.drop-hint { font-size: var(--text-xs); color: var(--text-muted); }
 
 .file-zone-header {
   display: flex;
@@ -185,6 +194,7 @@
   padding: 0.15rem 0.65rem;
 }
 
+.file-zone, .file-list, .file-item { min-width: 0; }
 .file-list  { display: flex; flex-direction: column; gap: 0.4rem; flex: 1 0 100%; }
 /* Sin archivos, el aviso vacío comparte línea con los botones */
 .file-list:has(> .file-empty:only-child) { flex: 1 1 auto; }
@@ -624,31 +634,16 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Marca de imagen: zona para arrastrar o seleccionar la imagen ─────────── */
-.mark-drop {
-  gap: 0.75rem;
-  padding: 0.8rem 1rem;
-  cursor: pointer;
-}
-
-.mark-drop:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.mark-thumb {
-  display: none;
-  width: 64px;
-  height: 64px;
+/* ── Marca de imagen: miniatura de la imagen seleccionada ────────────────── */
+.mark-thumb-sm {
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  overflow: hidden;
+  object-fit: contain;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: repeating-conic-gradient(#e2e8f0 0% 25%, transparent 0% 50%) 0 0 / 10px 10px;
+  border-radius: 4px;
+  background: repeating-conic-gradient(#e2e8f0 0% 25%, transparent 0% 50%) 0 0 / 8px 8px;
 }
-.mark-thumb img { width: 100%; height: 100%; object-fit: contain; }
-
-.mark-info { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
-.mark-name { font-size: 0.85rem; color: var(--text-muted); }
-.mark-name.has-file { color: var(--deep); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mark-hint { font-size: 0.74rem; color: var(--text-muted); }
 
 /* ── Slider de opacidad ──────────────────────────────────────────────────── */
 input[type="range"] {

@@ -18,19 +18,7 @@ async function renderImgToPdf() {
       <div class="option-row" id="q-row"></div>
       <p class="option-hint">Original conserva los píxeles exactos de la imagen sin recomprimir (el PDF puede pesar más). Las demás aplican compresión JPEG proporcional.</p>
     </div>
-    <div class="file-zone" id="zone-i2p">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="i2p-badge">0 imágenes cargadas</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-imgs">${icon('folder-open',16)} Seleccionar imágenes</button>
-        <button class="btn-secondary" id="clear-i2p" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="img-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-i2p', pick: 'pick-imgs', clear: 'clear-i2p', badge: 'i2p-badge', list: 'img-list', kind: 'image', multiple: true })}
     ${outputDirRow('i2p')}
     <div class="btn-row">
       <button class="btn-primary" id="run-i2p" disabled style="width:auto">Convertir a PDF</button>
@@ -69,7 +57,7 @@ async function renderImgToPdf() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-imgs').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'Imágenes', extensions: ['png','jpg','jpeg'] }]);
+    const picked = await pickFiles('image');
     addFiles(picked);
   });
 
@@ -81,13 +69,13 @@ async function renderImgToPdf() {
   });
 
   document.getElementById('i2p-pick').addEventListener('click', () => pickOutputDir('i2p-path').then(updateRun));
-  bindDragDrop('zone-i2p', ['png','jpg','jpeg'], addFiles);
+  bindDragDrop('zone-i2p', FILE_KINDS['image'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-i2p').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-i2p').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('i2p-badge').textContent   = `${files.length} imagen(es) seleccionada(s)`;
+    document.getElementById('i2p-badge').textContent   = fileCountText(files.length, 'image');
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

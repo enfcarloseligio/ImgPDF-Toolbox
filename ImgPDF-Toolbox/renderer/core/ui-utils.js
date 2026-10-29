@@ -158,12 +158,53 @@ async function runWithProgress(moduleId, containerId, task) {
   }
 }
 
+// ── Zona de archivos estándar ────────────────────────────────────────────────
+// Todas las herramientas usan la misma caja de entrada, con la misma estructura y los
+// mismos textos: «Seleccionar PDF» (admite uno), «Seleccionar PDFs» (varios),
+// «Seleccionar imagen» e «Seleccionar imágenes».
+
+const FILE_KINDS = {
+  pdf:   { one: 'PDF',    many: 'PDFs',     none: 'Ningún PDF seleccionado',      extensions: ['pdf'],                dialogName: 'PDF' },
+  image: { one: 'imagen', many: 'imágenes', none: 'Ninguna imagen seleccionada', extensions: ['png', 'jpg', 'jpeg'], dialogName: 'Imágenes' },
+};
+
+// Contador de la zona: «0 PDFs», «1 PDF», «3 imágenes»…
+function fileCountText(count, kind = 'pdf') {
+  const k = FILE_KINDS[kind];
+  return `${count} ${count === 1 ? k.one : k.many}`;
+}
+
+// Aviso de lista vacía acorde al tipo de archivo de la zona.
+function fileEmptyHtml(kind = 'pdf') {
+  return `<span class="file-empty">${FILE_KINDS[kind].none}</span>`;
+}
+
+// Diálogo de selección filtrado por tipo (extensions permite restringir aún más).
+function pickFiles(kind = 'pdf', extensions = FILE_KINDS[kind].extensions) {
+  return window.api.selectFiles([{ name: FILE_KINDS[kind].dialogName, extensions }]);
+}
+
+// HTML de la caja de archivos. Los ids se pasan explícitos porque cada módulo enlaza sus
+// eventos por id. Sin badge no se muestra contador (p. ej. Separar PDF).
+function fileZoneHtml({ zone, pick, clear, badge, list, kind = 'pdf', multiple = true }) {
+  const noun = FILE_KINDS[kind][multiple ? 'many' : 'one'];
+  return `<div class="file-zone" id="${zone}" data-kind="${kind}">
+      ${badge ? `<div class="file-zone-header"><span class="file-count-badge" id="${badge}">${fileCountText(0, kind)}</span></div>` : ''}
+      <div class="btn-row">
+        <button class="btn-secondary" id="${pick}">${icon('folder-open', 16)} Seleccionar ${noun}</button>
+        <button class="btn-secondary" id="${clear}" style="display:none">${icon('trash', 16)} Limpiar</button>
+        <span class="drop-hint">O arrastra y suelta aquí</span>
+      </div>
+      <div class="file-list" id="${list}">${fileEmptyHtml(kind)}</div>
+    </div>`;
+}
+
 // ── Fila de carpeta de salida ───────────────────────────────────────────────
 
 function outputDirRow(id) {
   const saved = state.outputDir || 'No seleccionada';
   return `<div class="output-row">
-    <button class="btn-secondary btn-sm" id="${id}-pick">${iconLabel('folder', 'Carpeta de salida')}</button>
+    <button class="btn-secondary btn-sm" id="${id}-pick">${iconLabel('folder', 'Seleccionar carpeta')}</button>
     <span class="output-path" id="${id}-path">${saved}</span>
   </div>`;
 }
@@ -173,7 +214,7 @@ function renderFileList(containerId, files, onRemove) {
   const list = document.getElementById(containerId);
   if (!list) return;
   if (!files.length) {
-    list.innerHTML = '<span class="file-empty">Ningún archivo seleccionado</span>';
+    list.innerHTML = fileEmptyHtml(list.closest('.file-zone')?.dataset.kind);
     return;
   }
   list.innerHTML = files.map((f, i) => `
@@ -201,7 +242,7 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
   if (parentZone) parentZone.classList.remove('drag-active');
 
   if (!files.length) {
-    list.innerHTML = '<span class="file-empty">Ningún archivo seleccionado</span>';
+    list.innerHTML = fileEmptyHtml(parentZone?.dataset.kind);
     return;
   }
 

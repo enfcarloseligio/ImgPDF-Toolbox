@@ -129,19 +129,7 @@ async function renderPdfStandards() {
     <div id="standard-info-panel"></div>
 
     <!-- Archivos -->
-    <div class="file-zone" id="zone-pdfstd">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="pdfstd-badge">0 PDFs cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-pdfstd">${icon('folder-open',16)} Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-pdfstd" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="pdfstd-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-pdfstd', pick: 'pick-pdfstd', clear: 'clear-pdfstd', badge: 'pdfstd-badge', list: 'pdfstd-list', kind: 'pdf', multiple: true })}
 
     ${outputDirRow('pdfstd')}
 
@@ -232,7 +220,7 @@ async function renderPdfStandards() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-pdfstd').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name:'PDF', extensions:['pdf'] }]);
+    const picked = await pickFiles('pdf');
     addFiles(picked);
   });
   document.getElementById('clear-pdfstd').addEventListener('click', () => {
@@ -243,13 +231,13 @@ async function renderPdfStandards() {
   });
   document.getElementById('pdfstd-pick').addEventListener('click', () =>
     pickOutputDir('pdfstd-path').then(updateRun));
-  bindDragDrop('zone-pdfstd', ['pdf'], addFiles);
+  bindDragDrop('zone-pdfstd', FILE_KINDS['pdf'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-pdfstd').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-pdfstd').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('pdfstd-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
+    document.getElementById('pdfstd-badge').textContent   = fileCountText(files.length, 'pdf');
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

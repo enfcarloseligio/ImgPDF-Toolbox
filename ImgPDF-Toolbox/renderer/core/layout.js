@@ -2,7 +2,7 @@
 // Archivo:     renderer/core/layout.js
 // Descripción: Estructura estándar de los módulos de herramienta. Reordena el contenido de
 //              cada módulo en pasos numerados con el mismo orden en toda la aplicación:
-//              1 Archivos → 2 Configuración → 3 Vista previa → 4 Carpeta de salida, seguido
+//              1 Archivos → 2 Carpeta de salida → 3 Configuración → 4 Vista previa, seguido
 //              del resultado y de una barra de acciones fija con el progreso.
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -13,9 +13,9 @@
 const LAYOUT_STEPS = [
   { key: 'files',   title: 'Archivos' },
   { key: 'card' },
+  { key: 'output',  title: 'Carpeta de salida' },
   { key: 'config',  title: 'Configuración' },
   { key: 'preview', title: 'Vista previa' },
-  { key: 'output',  title: 'Carpeta de salida' },
 ];
 
 // Determina a qué paso pertenece un bloque de la plantilla. Un atributo data-step explícito
