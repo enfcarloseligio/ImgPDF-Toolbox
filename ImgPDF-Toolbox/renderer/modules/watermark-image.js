@@ -24,8 +24,6 @@ async function renderWatermarkImage(ctx = {}) {
   let files       = [];
   let markFile    = null;
 
-  // Convierte una ruta de Windows en una URL file:/// válida para <img>
-  const toFileUrl = p => 'file:///' + encodeURI(p.replace(/\\/g, '/')).replace(/#/g, '%23').replace(/\?/g, '%3F');
   let sizePercent = cfg.sizePercent;
   let opacity     = cfg.opacity;
   let position    = cfg.position;

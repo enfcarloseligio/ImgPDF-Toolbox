@@ -30,7 +30,8 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 - **Progreso real:** cada operación muestra el archivo en curso y cuántas páginas lleva procesadas del total, con opción de cancelar.
 - **Flujo uniforme:** todas las herramientas siguen el mismo orden (archivos → carpeta de salida → configuración → vista previa) y una barra de acción siempre visible.
 - **Arrastrar y soltar con posición:** suelta archivos donde quieras insertarlos en la lista; también puedes reordenarla con el asa o las flechas.
-- **Calidad sin pérdida cuando la necesitas:** IMG → PDF puede conservar los píxeles exactos de la imagen y PDF → IMG permite elegir la calidad del JPG.
+- **Calidad sin pérdida cuando la necesitas:** IMG → PDF puede conservar los píxeles exactos de la imagen, PDF → IMG permite elegir la calidad del JPG y el recorte puede guardarse con la calidad original.
+- **Edición de imágenes:** convierte entre formatos, recorta con un editor visual y proporciones estándar, redimensiona, comprime y quita fondos de color uniforme.
 - **Vista previa en vivo** de marcas de agua y foliado.
 - **Tipografías propias:** fuentes del sistema o del catálogo de Google Fonts para marcas de texto y folios.
 - **Configuración recordada** por herramienta y última carpeta de salida.
@@ -58,6 +59,11 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | Herramienta | Qué hace |
 |---|---|
 | **IMG → PDF** | Convierte PNG y JPG a PDF. «Original» conserva los píxeles sin recomprimir; el resto aplica compresión proporcional. |
+| **Convertir** | Cambia el formato entre PNG, JPG, WebP, AVIF, JPEG XL, TIFF, BMP, GIF e ICO (con tamaños de icono). Controla calidad, modo sin pérdida, fondo de la transparencia y metadatos. Lee además HEIC, SVG y otros. |
+| **Recortar** | Editor visual: mueve y redimensiona el recuadro con 8 asas, dibuja uno nuevo o escribe X, Y, ancho y alto. Proporciones 1:1, 5:4, 4:3, 3:2 y 16:9 con su versión vertical (4:5, 3:4, 2:3, 9:16) y proporción personalizada. Guarda con la calidad original o comprimida. |
+| **Redimensionar** | Por píxeles exactos, por porcentaje o limitando el lado mayor; manteniendo la proporción o libre (puede deformar), con opción de no ampliar. |
+| **Comprimir** | Tres niveles de compresión, conversión opcional a WebP o JPG, límite de tamaño y limpieza de metadatos. Omite lo que no se puede reducir más. |
+| **Quitar fondo** | Vuelve transparente un fondo de color uniforme, desde los bordes o en toda la imagen, con tolerancia, gotero y vista previa en vivo. Está pensado para fondos lisos; no recorta siluetas sobre fondos complejos. |
 | **Rotar** | Gira imágenes en lote. |
 | **Marca texto / Marca imagen** | Las mismas marcas de agua, aplicadas a imágenes. |
 
@@ -66,6 +72,10 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | PDF → Imágenes | Marca de agua de texto |
 |---|---|
 | ![PDF a imágenes](docs/img/pdf-a-imagenes.png) | ![Marca de agua de texto](docs/img/marca-de-agua.png) |
+
+| Recortar imagen | Convertir imágenes |
+|---|---|
+| ![Recortar imagen](docs/img/recortar-imagen.jpg) | ![Convertir imágenes](docs/img/convertir-imagenes.png) |
 
 ---
 
@@ -114,9 +124,9 @@ ImgPDF-Toolbox/
 │   ├── src/                   # Lógica del proceso principal
 │   │   ├── process-runner.js  #   Ejecución y cancelación de Ghostscript / ImageMagick
 │   │   ├── progress.js        #   Progreso real por página
-│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones)
+│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes)
 │   └── renderer/              # Interfaz (HTML, CSS y JS sin framework)
-│       ├── core/              #   Estado, iconos, layout por pasos, utilidades, vistas
+│       ├── core/              #   Estado, iconos, layout por pasos, lotes, editor de recorte, utilidades, vistas
 │       ├── modules/           #   Una herramienta por archivo
 │       ├── styles/            #   global.css, modules.css, views.css
 │       └── assets/            #   Iconos SVG, tipografías e icono de la app

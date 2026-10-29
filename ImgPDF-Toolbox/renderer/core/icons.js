@@ -24,6 +24,8 @@ const ICON_LIST = [
   'check', 'check-circle', 'x-circle', 'alert', 'info', 'lightbulb', 'loader',
   // Opciones
   'eye', 'eye-off', 'monitor', 'globe', 'book', 'printer', 'award', 'crosshair',
+  // Herramientas de imagen
+  'convert', 'crop', 'resize', 'wand', 'link', 'unlink', 'rotate-box',
 ];
 
 async function preloadIcons() {

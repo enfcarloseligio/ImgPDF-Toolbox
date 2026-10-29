@@ -81,7 +81,9 @@ function organizeModule(ws) {
     if (!items.length) return;
     if (key === 'card') { parts.push(...items); return; }
 
-    const step = buildStep(++number, key, title, items);
+    // Un bloque puede personalizar el título de su paso con data-step-title
+    const customTitle = items.map(el => el.dataset.stepTitle).find(Boolean);
+    const step = buildStep(++number, key, customTitle || title, items);
     if ((key === 'config' || key === 'preview') && groups.config.length && groups.preview.length) {
       if (!split) {
         split = document.createElement('div');

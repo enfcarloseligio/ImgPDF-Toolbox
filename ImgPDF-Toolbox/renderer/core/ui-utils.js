@@ -14,6 +14,19 @@ function basename(filePath) {
   return (filePath || '').replace(/\\/g, '/').split('/').pop();
 }
 
+// Convierte una ruta de Windows en una URL file:/// válida (espacios, # y ?) para <img>.
+function toFileUrl(filePath) {
+  return 'file:///' + encodeURI(filePath.replace(/\\/g, '/')).replace(/#/g, '%23').replace(/\?/g, '%3F');
+}
+
+// Peso legible: «1.5 MB», «320 KB»…
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 function dirname(filePath) {
   const norm = (filePath || '').replace(/\\/g, '/');
   return norm.substring(0, norm.lastIndexOf('/'));
@@ -166,6 +179,9 @@ async function runWithProgress(moduleId, containerId, task) {
 const FILE_KINDS = {
   pdf:   { one: 'PDF',    many: 'PDFs',     none: 'Ningún PDF seleccionado',      extensions: ['pdf'],                dialogName: 'PDF' },
   image: { one: 'imagen', many: 'imágenes', none: 'Ninguna imagen seleccionada', extensions: ['png', 'jpg', 'jpeg'], dialogName: 'Imágenes' },
+  // Herramientas de imagen que aceptan todos los formatos que ImageMagick puede leer
+  imageAny: { one: 'imagen', many: 'imágenes', none: 'Ninguna imagen seleccionada', dialogName: 'Imágenes',
+              extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'avif', 'heic', 'heif', 'ico', 'jxl', 'svg'] },
 };
 
 // Contador de la zona: «0 PDFs», «1 PDF», «3 imágenes»…
