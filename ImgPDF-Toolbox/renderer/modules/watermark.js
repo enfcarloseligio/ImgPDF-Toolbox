@@ -4,7 +4,10 @@
 //              posicionado sobre imágenes y PDFs, con selector de tipografía y vista previa.
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function renderWatermark() {
+async function renderWatermark(ctx = {}) {
+  // La categoría desde la que se abre decide el tipo de archivo: PDF o imagen
+  const kind = ctx.context === 'image' ? 'image' : 'pdf';
+
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('watermark', {
     text: 'CONFIDENCIAL', fontSize: 72, fontWeight: 400,
@@ -44,7 +47,7 @@ async function renderWatermark() {
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('droplet',22)} Marca de agua</div>
-    <p class="module-desc">Estampa texto personalizado, orientado y posicionado sobre imágenes y PDFs.</p>
+    <p class="module-desc">Estampa texto personalizado, orientado y posicionado sobre ${kind === 'image' ? 'imágenes' : 'PDFs'}.</p>
 
     <!-- Texto -->
     <div class="option-group">
@@ -102,7 +105,7 @@ async function renderWatermark() {
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
         <input type="color" id="wm-color" value="${color}"
           style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
-        <span style="font-size:0.78rem;color:var(--muted)">O elige un color personalizado</span>
+        <span style="font-size:0.78rem;color:var(--text-muted)">O elige un color personalizado</span>
       </div>
     </div>
 
@@ -129,30 +132,18 @@ async function renderWatermark() {
     </div>
 
     <!-- Vista previa interactiva -->
-    <div class="option-group">
+    <div class="option-group" data-step="preview">
       <label>Vista previa</label>
       <div class="wm-preview-container">
         <div class="wm-preview-box" id="wm-preview-box"></div>
-        <p style="font-size:0.72rem;color:var(--muted);text-align:center">
+        <p style="font-size:0.72rem;color:var(--text-muted);text-align:center">
           Vista aproximada — el resultado final dependerá del tamaño real del documento
         </p>
       </div>
     </div>
 
     <!-- Archivos -->
-    <div class="file-zone" id="zone-wm">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="wm-badge">0 archivos cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-wm">${icon('folder-open',16)} Seleccionar archivos</button>
-        <button class="btn-secondary" id="clear-wm" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="wm-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-wm', pick: 'pick-wm', clear: 'clear-wm', badge: 'wm-badge', list: 'wm-list', kind: kind, multiple: true })}
 
     ${outputDirRow('wm')}
 
@@ -163,6 +154,7 @@ async function renderWatermark() {
     <div class="progress-panel" id="wm-progress"></div>
     <div id="wm-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Vista previa interactiva ────────────────────────────────────────────────
   async function updatePreview() {
@@ -383,9 +375,7 @@ async function renderWatermark() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-wm').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{
-      name: 'Imágenes y PDFs', extensions: ['pdf','png','jpg','jpeg']
-    }]);
+    const picked = await pickFiles(kind);
     addFiles(picked);
   });
 
@@ -398,13 +388,13 @@ async function renderWatermark() {
 
   document.getElementById('wm-pick').addEventListener('click', () =>
     pickOutputDir('wm-path').then(updateRun));
-  bindDragDrop('zone-wm', ['pdf','png','jpg','jpeg'], addFiles);
+  bindDragDrop('zone-wm', FILE_KINDS[kind].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-wm').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-wm').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('wm-badge').textContent   = `${files.length} archivo(s) seleccionado(s)`;
+    document.getElementById('wm-badge').textContent   = fileCountText(files.length, kind);
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

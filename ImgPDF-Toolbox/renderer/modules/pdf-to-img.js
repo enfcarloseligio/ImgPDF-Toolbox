@@ -7,8 +7,8 @@
 
 async function renderPdfToImg() {
   // ── Estado y configuración del módulo ────────────────────────────────────────
-  const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF' });
-  let files = [], density = cfg.density, format = cfg.format, background = cfg.background;
+  const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF', jpgQuality: 100 });
+  let files = [], density = cfg.density, format = cfg.format, background = cfg.background, jpgQuality = cfg.jpgQuality;
   let currentRunId = 0;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
@@ -16,21 +16,18 @@ async function renderPdfToImg() {
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('pdf-file',22)} PDF → Imágenes</div>
     <div class="option-group"><label>Formato de salida</label><div class="option-row" id="fmt-row"></div></div>
-    <div class="option-group"><label>Calidad (DPI)</label><div class="option-row" id="dpi-row"></div></div>
-    <div class="option-group"><label>Fondo</label><div class="option-row" id="bg-row"></div></div>
-    <div class="file-zone" id="zone-p2i">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="p2i-badge">0 PDFs cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-pdfs2">${icon('folder-open',16)} Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-p2i" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="pdf2-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
+    <div class="option-group" id="jpgq-group">
+      <label>Calidad JPG</label>
+      <div class="option-row" id="jpgq-row"></div>
+      <p class="option-hint">100 conserva el máximo detalle; los valores menores reducen el peso.</p>
     </div>
+    <div class="option-group">
+      <label>Resolución (DPI)</label>
+      <div class="option-row" id="dpi-row"></div>
+      <p class="option-hint">Los DPI definen el tamaño en píxeles, no comprimen. PNG siempre es sin pérdida.</p>
+    </div>
+    <div class="option-group"><label>Fondo</label><div class="option-row" id="bg-row"></div></div>
+    ${fileZoneHtml({ zone: 'zone-p2i', pick: 'pick-pdfs2', clear: 'clear-p2i', badge: 'p2i-badge', list: 'pdf2-list', kind: 'pdf', multiple: true })}
     ${outputDirRow('p2i')}
     <div class="btn-row">
       <button class="btn-primary" id="run-p2i" disabled style="width:auto">Extraer imágenes</button>
@@ -39,13 +36,27 @@ async function renderPdfToImg() {
     <div class="progress-panel" id="p2i-progress"></div>
     <div id="p2i-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   optButtons(document.getElementById('fmt-row'), [
     { label: 'PNG', value: 'png' },
     { label: 'JPG', value: 'jpg' },
-  ], format, v => { format = v; updateBg(); },
+  ], format, v => { format = v; updateBg(); updateJpgQuality(); },
   v => saveModuleConfig('pdf-to-img', { format: v }));
+
+  // Calidad JPG: solo aplica al formato JPG (PNG es siempre sin pérdida)
+  optButtons(document.getElementById('jpgq-row'), [
+    { label: '100 — Máxima',   value: 100 },
+    { label: '95 — Alta',      value: 95  },
+    { label: '85 — Estándar',  value: 85  },
+  ], jpgQuality, v => { jpgQuality = v; },
+  v => saveModuleConfig('pdf-to-img', { jpgQuality: v }));
+
+  function updateJpgQuality() {
+    document.getElementById('jpgq-group').style.display = format === 'jpg' ? '' : 'none';
+  }
+  updateJpgQuality();
 
   optButtons(document.getElementById('dpi-row'), [
     { label: '300 DPI — Máxima', value: 300 },
@@ -94,7 +105,7 @@ async function renderPdfToImg() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-pdfs2').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
+    const picked = await pickFiles('pdf');
     addFiles(picked);
   });
 
@@ -109,13 +120,13 @@ async function renderPdfToImg() {
   });
 
   document.getElementById('p2i-pick').addEventListener('click', () => pickOutputDir('p2i-path').then(updateRun));
-  bindDragDrop('zone-p2i', ['pdf'], addFiles);
+  bindDragDrop('zone-p2i', FILE_KINDS['pdf'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-p2i').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-p2i').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('p2i-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
+    document.getElementById('p2i-badge').textContent   = fileCountText(files.length, 'pdf');
   }
 
   // ── Cancelar (con guard para evitar doble clic) ───────────────────────────
@@ -144,7 +155,7 @@ async function renderPdfToImg() {
     let res = [];
     try {
       res = await runWithProgress('pdf-to-img', 'p2i-progress',
-        () => window.api.convertPdfToImg({ files, density, format, background, outputDir: state.outputDir }));
+        () => window.api.convertPdfToImg({ files, density, format, background, jpgQuality, outputDir: state.outputDir }));
     } catch (e) {
       res = [{ file: '*', ok: false, error: String(e) }];
     }

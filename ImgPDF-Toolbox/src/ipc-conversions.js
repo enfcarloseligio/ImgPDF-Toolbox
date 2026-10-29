@@ -23,6 +23,16 @@ let pdfToImgBusy = false;
 
 // ── Imagen → PDF ─────────────────────────────────────────────────────────────
 
+// Argumentos de ImageMagick según la calidad elegida. 100 conserva los píxeles exactos
+// (compresión Zip, sin pérdida; el PDF puede pesar más que el original). Por debajo se
+// recomprime como JPEG con esa calidad, aplanando la transparencia sobre fondo blanco.
+function pdfQualityArgs(quality) {
+  const q = Number(quality) || 100;
+  return q >= 100
+    ? '-compress Zip'
+    : `-background white -alpha remove -alpha off -compress JPEG -quality ${q}`;
+}
+
 ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }) => {
   if (imgToPdfBusy) {
     return [{ file: '*', ok: false, error: 'Ya hay una conversión en curso.' }];
@@ -40,7 +50,7 @@ ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }
       if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
       const out = getUniqueFilePath(path.join(outputDir, path.basename(file, path.extname(file)) + '.pdf'));
       try {
-        await run(`magick "${file}" -quality ${quality} "${out}"`);
+        await run(`magick "${file}" ${pdfQualityArgs(quality)} "${out}"`);
         progress.tick({ currentFile: fi + 1, currentFileName: path.basename(file), currentPage: 1, currentFilePages: 1, currentOut: path.basename(out) });
         results.push({ file, out, ok: true });
       } catch (e) {
@@ -58,7 +68,7 @@ ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }
 
 // ── PDF → Imágenes con progreso real ─────────────────────────────────────────
 
-ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, background, outputDir }) => {
+ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, background, jpgQuality = 100, outputDir }) => {
   if (pdfToImgBusy) {
     return [{ file: '*', ok: false, error: 'Ya hay una conversión en curso.' }];
   }
@@ -127,6 +137,8 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
             '-dNOPAUSE', '-dBATCH', '-dQUIET', '-dSAFER',
             `-sDEVICE=${device}`,
             `-r${density}`,
+            '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4',
+            ...(device === 'jpeg' ? [`-dJPEGQ=${jpgQuality}`] : []),
             `-dFirstPage=${p}`,
             `-dLastPage=${p}`,
             `-sOutputFile=${outFile}`,
@@ -144,7 +156,7 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
             try {
               fs.renameSync(outFile, tmpPngRaw);
               await run(`magick "${tmpPngRaw}" -background "${background}" -alpha remove -alpha off "${tmpPngProcessed}"`);
-              await run(`magick "${tmpPngProcessed}" -quality 95 "${outFile}"`);
+              await run(`magick "${tmpPngProcessed}" -quality ${jpgQuality} "${outFile}"`);
 
               if (fs.existsSync(tmpPngRaw))       fs.unlinkSync(tmpPngRaw);
               if (fs.existsSync(tmpPngProcessed)) fs.unlinkSync(tmpPngProcessed);

@@ -33,6 +33,18 @@ contextBridge.exposeInMainWorld('api', {
   mergePdfs:             (opts)       => ipcRenderer.invoke('merge-pdfs', opts),
   getPdfInfo:            (file)       => ipcRenderer.invoke('get-pdf-info', file),
   splitPdf:              (opts)       => ipcRenderer.invoke('split-pdf', opts),
+  // Herramientas de imagen
+  getImageInfo:          (file)       => ipcRenderer.invoke('get-image-info', file),
+  getImagePreview:       (file)       => ipcRenderer.invoke('get-image-preview', file),
+  getImagePixel:         (opts)       => ipcRenderer.invoke('get-image-pixel', opts),
+  listImageFormats:      ()           => ipcRenderer.invoke('list-image-formats'),
+  convertImages:         (opts)       => ipcRenderer.invoke('convert-images', opts),
+  resizeImages:          (opts)       => ipcRenderer.invoke('resize-images', opts),
+  compressImages:        (opts)       => ipcRenderer.invoke('compress-images', opts),
+  cropImage:             (opts)       => ipcRenderer.invoke('crop-image', opts),
+  removeBackground:      (opts)       => ipcRenderer.invoke('remove-background', opts),
+  removeBackgroundPreview: (opts)     => ipcRenderer.invoke('remove-background-preview', opts),
+
   // Fuentes tipográficas
   getSystemFonts:        ()           => ipcRenderer.invoke('get-system-fonts'),
   getGoogleFontsCatalog: ()           => ipcRenderer.invoke('get-google-fonts-catalog'),

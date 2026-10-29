@@ -30,6 +30,11 @@ const CATEGORIES = {
     icon:  'image-tools',
     modules: [
       { id: 'img-to-pdf',       label: 'IMG → PDF',    desc: 'Convierte imágenes a PDF',        icon: 'image-file' },
+      { id: 'convert-images',   label: 'Convertir',    desc: 'PNG, JPG, WebP, AVIF y más',      icon: 'convert' },
+      { id: 'crop-image',       label: 'Recortar',     desc: 'Libre o con proporciones',        icon: 'crop' },
+      { id: 'resize-images',    label: 'Redimensionar', desc: 'Por píxeles o porcentaje',       icon: 'resize' },
+      { id: 'compress-images',  label: 'Comprimir',    desc: 'Reduce el peso de las imágenes',  icon: 'compress' },
+      { id: 'remove-bg',        label: 'Quitar fondo', desc: 'Por color, con vista previa',     icon: 'wand' },
       { id: 'rotate',           label: 'Rotar',        desc: 'Gira imágenes',                   icon: 'rotate' },
       { id: 'watermark',        label: 'Marca texto',  desc: 'Texto diagonal o posicionado',    icon: 'droplet' },
       { id: 'watermark-image',  label: 'Marca imagen', desc: 'Logo o firma sobre imágenes',     icon: 'tag' },
@@ -150,6 +155,7 @@ function renderCategoryView(categoryKey) {
       }
       container.querySelectorAll('.card-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      container.querySelector('.category-view').classList.add('module-active');
       const modId = btn.dataset.module;
       setActiveModule(modId);
       loadModule(modId, { context: categoryKey === 'image-tools' ? 'image' : 'pdf' });

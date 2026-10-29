@@ -14,6 +14,19 @@ function basename(filePath) {
   return (filePath || '').replace(/\\/g, '/').split('/').pop();
 }
 
+// Convierte una ruta de Windows en una URL file:/// válida (espacios, # y ?) para <img>.
+function toFileUrl(filePath) {
+  return 'file:///' + encodeURI(filePath.replace(/\\/g, '/')).replace(/#/g, '%23').replace(/\?/g, '%3F');
+}
+
+// Peso legible: «1.5 MB», «320 KB»…
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 function dirname(filePath) {
   const norm = (filePath || '').replace(/\\/g, '/');
   return norm.substring(0, norm.lastIndexOf('/'));
@@ -158,12 +171,56 @@ async function runWithProgress(moduleId, containerId, task) {
   }
 }
 
+// ── Zona de archivos estándar ────────────────────────────────────────────────
+// Todas las herramientas usan la misma caja de entrada, con la misma estructura y los
+// mismos textos: «Seleccionar PDF» (admite uno), «Seleccionar PDFs» (varios),
+// «Seleccionar imagen» e «Seleccionar imágenes».
+
+const FILE_KINDS = {
+  pdf:   { one: 'PDF',    many: 'PDFs',     none: 'Ningún PDF seleccionado',      extensions: ['pdf'],                dialogName: 'PDF' },
+  image: { one: 'imagen', many: 'imágenes', none: 'Ninguna imagen seleccionada', extensions: ['png', 'jpg', 'jpeg'], dialogName: 'Imágenes' },
+  // Herramientas de imagen que aceptan todos los formatos que ImageMagick puede leer
+  imageAny: { one: 'imagen', many: 'imágenes', none: 'Ninguna imagen seleccionada', dialogName: 'Imágenes',
+              extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'avif', 'heic', 'heif', 'ico', 'jxl', 'svg'] },
+};
+
+// Contador de la zona: «0 PDFs», «1 PDF», «3 imágenes»…
+function fileCountText(count, kind = 'pdf') {
+  const k = FILE_KINDS[kind];
+  return `${count} ${count === 1 ? k.one : k.many}`;
+}
+
+// Aviso de lista vacía acorde al tipo de archivo de la zona.
+function fileEmptyHtml(kind = 'pdf') {
+  return `<span class="file-empty">${FILE_KINDS[kind].none}</span>`;
+}
+
+// Diálogo de selección filtrado por tipo (extensions permite restringir aún más).
+function pickFiles(kind = 'pdf', extensions = FILE_KINDS[kind].extensions) {
+  return window.api.selectFiles([{ name: FILE_KINDS[kind].dialogName, extensions }]);
+}
+
+// HTML de la caja de archivos. Los ids se pasan explícitos porque cada módulo enlaza sus
+// eventos por id. Sin badge no se muestra contador (p. ej. Separar PDF).
+function fileZoneHtml({ zone, pick, clear, badge, list, kind = 'pdf', multiple = true }) {
+  const noun = FILE_KINDS[kind][multiple ? 'many' : 'one'];
+  return `<div class="file-zone" id="${zone}" data-kind="${kind}">
+      ${badge ? `<div class="file-zone-header"><span class="file-count-badge" id="${badge}">${fileCountText(0, kind)}</span></div>` : ''}
+      <div class="btn-row">
+        <button class="btn-secondary" id="${pick}">${icon('folder-open', 16)} Seleccionar ${noun}</button>
+        <button class="btn-secondary" id="${clear}" style="display:none">${icon('trash', 16)} Limpiar</button>
+        <span class="drop-hint">O arrastra y suelta aquí</span>
+      </div>
+      <div class="file-list" id="${list}">${fileEmptyHtml(kind)}</div>
+    </div>`;
+}
+
 // ── Fila de carpeta de salida ───────────────────────────────────────────────
 
 function outputDirRow(id) {
   const saved = state.outputDir || 'No seleccionada';
   return `<div class="output-row">
-    <button class="btn-secondary btn-sm" id="${id}-pick">${iconLabel('folder', 'Carpeta de salida')}</button>
+    <button class="btn-secondary btn-sm" id="${id}-pick">${iconLabel('folder', 'Seleccionar carpeta')}</button>
     <span class="output-path" id="${id}-path">${saved}</span>
   </div>`;
 }
@@ -173,7 +230,7 @@ function renderFileList(containerId, files, onRemove) {
   const list = document.getElementById(containerId);
   if (!list) return;
   if (!files.length) {
-    list.innerHTML = '<span class="file-empty">Ningún archivo seleccionado</span>';
+    list.innerHTML = fileEmptyHtml(list.closest('.file-zone')?.dataset.kind);
     return;
   }
   list.innerHTML = files.map((f, i) => `
@@ -201,7 +258,7 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
   if (parentZone) parentZone.classList.remove('drag-active');
 
   if (!files.length) {
-    list.innerHTML = '<span class="file-empty">Ningún archivo seleccionado</span>';
+    list.innerHTML = fileEmptyHtml(parentZone?.dataset.kind);
     return;
   }
 
@@ -450,20 +507,20 @@ function buildFontPicker(opts) {
   }
 
   if (opts.fontSource === 'system') {
-    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">${iconLabel('loader', 'Cargando fuentes del sistema...', 14)}</p>`;
+    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--text-muted)">${iconLabel('loader', 'Cargando fuentes del sistema...', 14)}</p>`;
 
     const cached = opts.systemFonts?.length ? opts.systemFonts : null;
     (cached ? Promise.resolve(cached) : window.api.getSystemFonts()).then(fonts => {
       if (!cached && opts.onFontsLoaded) opts.onFontsLoaded(fonts);
       if (!fonts.length) {
-        picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">No se encontraron fuentes instaladas.</p>`;
+        picker.innerHTML = `<p style="font-size:0.78rem;color:var(--text-muted)">No se encontraron fuentes instaladas.</p>`;
         return;
       }
       picker.innerHTML = `
         <div style="display:flex;gap:0.5rem;align-items:center">
           <input type="text" id="${opts.pickerId}-search" class="num-input"
             style="width:240px;text-align:left" placeholder="Buscar fuente...">
-          <span style="font-size:0.78rem;color:var(--muted)">${fonts.length} fuentes detectadas</span>
+          <span style="font-size:0.78rem;color:var(--text-muted)">${fonts.length} fuentes detectadas</span>
         </div>
         <select id="${opts.pickerId}-select" size="5"
           style="width:100%;margin-top:0.4rem;border:1px solid var(--border);
@@ -508,7 +565,7 @@ function buildFontPicker(opts) {
         </div>
         <button class="btn-secondary btn-sm" id="${opts.pickerId}-gf-load"
           style="height:36px;padding:0 0.9rem">Cargar fuente</button>
-        <span id="${opts.pickerId}-gf-status" style="font-size:0.76rem;color:var(--muted)"></span>
+        <span id="${opts.pickerId}-gf-status" style="font-size:0.76rem;color:var(--text-muted)"></span>
       </div>`;
 
     const familyInput   = document.getElementById(`${opts.pickerId}-gf-family`);

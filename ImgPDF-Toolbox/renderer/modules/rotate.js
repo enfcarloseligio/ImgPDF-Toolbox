@@ -4,7 +4,10 @@
 //              impares).
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function renderRotate() {
+async function renderRotate(ctx = {}) {
+  // La categoría desde la que se abre decide el tipo de archivo: PDF o imagen
+  const kind = ctx.context === 'image' ? 'image' : 'pdf';
+
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('rotate', { angle: 90, target: 'all' });
   let files = [], angle = cfg.angle, target = cfg.target;
@@ -13,28 +16,16 @@ async function renderRotate() {
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('rotate',22)} Rotación masiva</div>
-    <p class="module-desc">Gira imágenes (PNG/JPG) o documentos PDF en lote. Para PDFs puedes rotar todas las páginas o solo pares/impares.</p>
+    <p class="module-desc">${kind === 'image' ? 'Gira imágenes (PNG/JPG) en lote.' : 'Gira documentos PDF en lote. Puedes rotar todas las páginas o solo pares/impares.'}</p>
     <div class="option-group">
       <label>Ángulo de rotación</label>
       <div class="option-row" id="angle-row"></div>
     </div>
     <div class="option-group" id="target-group">
-      <label>Páginas a rotar (solo PDFs)</label>
+      <label>Páginas a rotar</label>
       <div class="option-row" id="target-row"></div>
     </div>
-    <div class="file-zone" id="zone-rotate">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="rotate-badge">0 archivos cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-rotate">${icon('folder-open',16)} Seleccionar archivos</button>
-        <button class="btn-secondary" id="clear-rotate" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="rotate-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-rotate', pick: 'pick-rotate', clear: 'clear-rotate', badge: 'rotate-badge', list: 'rotate-list', kind: kind, multiple: true })}
     ${outputDirRow('rotate')}
     <div class="btn-row">
       <button class="btn-primary" id="run-rotate" disabled style="width:auto">Rotar archivos</button>
@@ -43,6 +34,7 @@ async function renderRotate() {
     <div class="progress-panel" id="rotate-progress"></div>
     <div id="rotate-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   optButtons(document.getElementById('angle-row'), [
@@ -87,7 +79,7 @@ async function renderRotate() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-rotate').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'Imágenes y PDFs', extensions: ['pdf','png','jpg','jpeg'] }]);
+    const picked = await pickFiles(kind);
     addFiles(picked);
   });
 
@@ -100,13 +92,13 @@ async function renderRotate() {
   });
 
   document.getElementById('rotate-pick').addEventListener('click', () => pickOutputDir('rotate-path').then(updateRun));
-  bindDragDrop('zone-rotate', ['pdf','png','jpg','jpeg'], addFiles);
+  bindDragDrop('zone-rotate', FILE_KINDS[kind].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-rotate').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-rotate').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('rotate-badge').textContent   = `${files.length} archivo(s) seleccionado(s)`;
+    document.getElementById('rotate-badge').textContent   = fileCountText(files.length, kind);
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

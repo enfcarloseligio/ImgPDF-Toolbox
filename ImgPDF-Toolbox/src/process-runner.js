@@ -205,6 +205,13 @@ function ensureImageMagickInPath() {
   return true;
 }
 
+// Ruta ejecutable de ImageMagick: la detectada en Program Files o, si no, 'magick' del PATH.
+// Se usa con runSpawn (argumentos como lista, sin pasar por el shell).
+function magickBin() {
+  const dir = findImageMagickDir();
+  return dir ? path.join(dir, 'magick.exe') : 'magick';
+}
+
 function getUniqueFilePath(targetPath) {
   if (!fs.existsSync(targetPath)) return targetPath;
   const dir  = path.dirname(targetPath);
@@ -234,6 +241,7 @@ module.exports = {
   findGhostscript,
   findImageMagickDir,
   ensureImageMagickInPath,
+  magickBin,
   getUniqueFilePath,
   wingetAvailable,
 };

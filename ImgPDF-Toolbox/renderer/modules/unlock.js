@@ -37,19 +37,7 @@ async function renderUnlock() {
       </div>
     </div>
 
-    <div class="file-zone" id="zone-unlock">
-      <div class="file-zone-header">
-        <span class="file-count-badge" id="unlock-badge">0 PDFs cargados</span>
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" id="pick-unlock">${icon('folder-open',16)} Seleccionar PDFs</button>
-        <button class="btn-secondary" id="clear-unlock" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
-      </div>
-      <div class="file-list" id="unlock-list">
-        <span class="file-empty">Ningún archivo seleccionado</span>
-      </div>
-    </div>
+    ${fileZoneHtml({ zone: 'zone-unlock', pick: 'pick-unlock', clear: 'clear-unlock', badge: 'unlock-badge', list: 'unlock-list', kind: 'pdf', multiple: true })}
 
     ${outputDirRow('unlock')}
 
@@ -60,6 +48,7 @@ async function renderUnlock() {
     <div class="progress-panel" id="unlock-progress"></div>
     <div id="unlock-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   const hints = {
@@ -115,7 +104,7 @@ async function renderUnlock() {
 
   // ── Selección de archivos y carpeta de salida ────────────────────────────────
   document.getElementById('pick-unlock').addEventListener('click', async () => {
-    const picked = await window.api.selectFiles([{ name: 'PDF', extensions: ['pdf'] }]);
+    const picked = await pickFiles('pdf');
     addFiles(picked);
   });
 
@@ -128,14 +117,14 @@ async function renderUnlock() {
 
   document.getElementById('unlock-pick').addEventListener('click', () =>
     pickOutputDir('unlock-path').then(updateRun));
-  bindDragDrop('zone-unlock', ['pdf'], addFiles);
+  bindDragDrop('zone-unlock', FILE_KINDS['pdf'].extensions, addFiles);
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     const passwordOk = mode === 'owner' || (mode === 'password' && password.trim().length > 0);
     document.getElementById('run-unlock').disabled  = !(files.length && state.outputDir && passwordOk && !state.isProcessing);
     document.getElementById('clear-unlock').style.display = files.length ? 'inline-block' : 'none';
-    document.getElementById('unlock-badge').textContent   = `${files.length} documento(s) seleccionado(s)`;
+    document.getElementById('unlock-badge').textContent   = fileCountText(files.length, 'pdf');
   }
 
   // ── Cancelación y ejecución ──────────────────────────────────────────────────

@@ -172,6 +172,12 @@ const moduleMap = {
   // Transformación
   'rotate':          renderRotate,
   'unlock':          renderUnlock,
+  // Herramientas de imagen
+  'convert-images':  renderConvertImages,
+  'crop-image':      renderCropImage,
+  'resize-images':   renderResizeImages,
+  'compress-images': renderCompressImages,
+  'remove-bg':       renderRemoveBg,
   // Estándares y sistema
   'pdf-standards':   renderPdfStandards,
   'update':          renderUpdate,
