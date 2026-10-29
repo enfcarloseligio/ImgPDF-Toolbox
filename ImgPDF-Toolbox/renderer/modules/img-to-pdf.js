@@ -5,8 +5,6 @@
 // ═════════════════════════════════════════════════════════════════════════════
 
 async function renderImgToPdf() {
-  // Cargar config guardada
-
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('img-to-pdf', { quality: 100 });
   let files = [], quality = cfg.quality;
@@ -18,6 +16,7 @@ async function renderImgToPdf() {
     <div class="option-group">
       <label>Calidad</label>
       <div class="option-row" id="q-row"></div>
+      <p class="option-hint">Original conserva los píxeles exactos de la imagen sin recomprimir (el PDF puede pesar más). Las demás aplican compresión JPEG proporcional.</p>
     </div>
     <div class="file-zone" id="zone-i2p">
       <div class="file-zone-header">
@@ -26,7 +25,7 @@ async function renderImgToPdf() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-imgs">${icon('folder-open',16)} Seleccionar imágenes</button>
         <button class="btn-secondary" id="clear-i2p" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="img-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -40,10 +39,11 @@ async function renderImgToPdf() {
     <div class="progress-panel" id="i2p-progress"></div>
     <div id="i2p-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   optButtons(document.getElementById('q-row'), [
-    { label: '100% — Máxima', value: 100 },
+    { label: '100% — Original (sin pérdida)', value: 100 },
     { label: '75% — Alta',    value: 75  },
     { label: '50% — Media',   value: 50  },
     { label: '25% — Baja',    value: 25  },

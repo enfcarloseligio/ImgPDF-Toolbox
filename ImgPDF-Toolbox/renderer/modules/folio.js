@@ -123,7 +123,7 @@ async function renderFolio() {
     </div>
 
     <!-- Vista previa -->
-    <div class="option-group">
+    <div class="option-group" data-step="preview">
       <label>Vista previa del folio</label>
       <div class="folio-preview-box" id="folio-preview-box">
         <div class="folio-preview-doc">
@@ -140,7 +140,7 @@ async function renderFolio() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-folio">${icon('folder-open',16)} Seleccionar PDFs</button>
         <button class="btn-secondary" id="clear-folio" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="folio-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -156,6 +156,7 @@ async function renderFolio() {
     <div class="progress-panel" id="folio-progress"></div>
     <div id="folio-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Modos de folio ──────────────────────────────────────────────────────────
   const modes = [

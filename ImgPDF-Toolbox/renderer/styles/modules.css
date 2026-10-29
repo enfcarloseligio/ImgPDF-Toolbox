@@ -5,7 +5,104 @@
    ═════════════════════════════════════════════════════════════════════════════ */
 
 /* ── Módulo base ─────────────────────────────────────────────────────────── */
-.module { width: 100%; display: flex; flex-direction: column; gap: 1.25rem; }
+.module { width: 100%; display: flex; flex-direction: column; gap: 1rem; }
+
+.module-head { display: flex; flex-direction: column; gap: 0.25rem; }
+.module-head .module-desc { margin-top: 0; }
+
+/* ── Estructura por pasos (core/layout.js) ───────────────────────────────── */
+/* Cada paso es una tarjeta con cabecera numerada: archivos, configuración,
+   vista previa y carpeta de salida, siempre en ese orden. */
+.step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 0.95rem 1.25rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.step-head { display: flex; align-items: center; gap: 0.6rem; }
+
+.step-num {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #F8FAFC;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.step-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--deep);
+  line-height: 1.3;
+}
+
+.step-body { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Configuración: las opciones se reparten en columnas según el ancho disponible.
+   Los bloques con muchas opciones (4 o más botones) y los que no son grupos de
+   opciones ocupan la fila completa. */
+.step-body-config {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  grid-auto-flow: dense;
+  gap: 1rem 1.75rem;
+  align-items: start;
+}
+.step-body-config > :not(.option-group),
+.step-body-config > .option-group.wide,
+.step-body-config > .option-group:has(.option-row > .opt-btn:nth-child(4)) {
+  grid-column: 1 / -1;
+}
+
+/* Configuración + vista previa: dos columnas en ancho suficiente (consulta de contenedor) */
+.step-split-wrap { container-type: inline-size; }
+.step-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+
+@container (min-width: 860px) {
+  .step-split { grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); align-items: start; }
+  .step-split > .step-preview { position: sticky; top: 0.75rem; }
+}
+
+/* La cabecera del paso ya titula la vista previa: se oculta la etiqueta repetida */
+.step-body-preview > .option-group > label { display: none; }
+
+/* Varias zonas de carga (p. ej. imagen de marca + archivos) se colocan juntas */
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.upload-grid > .option-group { height: 100%; }
+
+/* Barra de acciones: queda fija al pie mientras el módulo es más alto que la ventana */
+.action-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem 1.1rem;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.10);
+}
 
 .module-title {
   font-family: var(--font-heading);
@@ -21,7 +118,7 @@
 .module-desc {
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  color: var(--muted);
+  color: var(--text-muted);
   margin-top: -0.5rem;
 }
 
@@ -38,6 +135,7 @@
 }
 
 .option-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.option-hint { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.45; }
 
 .opt-btn {
   background: var(--bg);
@@ -57,10 +155,12 @@
 .file-zone {
   border: 2px dashed var(--border);
   border-radius: var(--radius);
-  padding: 1.1rem;
+  padding: 0.8rem 1rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
   transition: border-color var(--t), background var(--t);
 }
 .file-zone:hover    { border-color: var(--accent); }
@@ -85,12 +185,14 @@
   padding: 0.15rem 0.65rem;
 }
 
-.file-list  { display: flex; flex-direction: column; gap: 0.4rem; }
+.file-list  { display: flex; flex-direction: column; gap: 0.4rem; flex: 1 0 100%; }
+/* Sin archivos, el aviso vacío comparte línea con los botones */
+.file-list:has(> .file-empty:only-child) { flex: 1 1 auto; }
 
 .file-empty {
   font-family: var(--font-body);
   font-size: var(--text-xs);
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .file-item {
@@ -117,7 +219,7 @@
 }
 
 .file-order {
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: var(--text-xs);
   width: 18px;
   flex-shrink: 0;
@@ -128,7 +230,7 @@
 .file-remove {
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 0.95rem;
   padding: 0 0.2rem;
@@ -153,8 +255,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--muted);
+  color: var(--text-muted);
   font-size: var(--text-xs);
+  padding: 0.4rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 /* ── Fila de botones ─────────────────────────────────────────────────────── */
@@ -211,7 +317,7 @@
 /* ── Panel de progreso real (archivo, páginas y salida en curso) ─────────── */
 .progress-panel  { display: none; flex-direction: column; gap: 0.4rem; }
 .progress-head   { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.78rem; color: var(--text); }
-.progress-detail { font-size: 0.72rem; color: var(--muted); min-height: 1em; }
+.progress-detail { font-size: 0.72rem; color: var(--text-muted); min-height: 1em; }
 
 /* ── Resumen de operación (split) ────────────────────────────────────────── */
 .summary-box {
@@ -240,7 +346,7 @@
 .update-card:hover { border-color: var(--primary); }
 
 .update-tool-name { font-family: var(--font-heading); font-weight: 600; color: var(--deep); font-size: var(--text-sm); }
-.update-tool-ver  { font-family: var(--font-body); font-size: var(--text-xs); color: var(--muted); }
+.update-tool-ver  { font-family: var(--font-body); font-size: var(--text-xs); color: var(--text-muted); }
 
 .update-badge {
   font-family: var(--font-heading);
@@ -257,7 +363,7 @@
 .profile-hint {
   font-family: var(--font-body);
   font-size: var(--text-xs);
-  color: var(--muted);
+  color: var(--text-muted);
   margin-top: 0.35rem;
   min-height: 1.2em;
   transition: color var(--t);
@@ -370,13 +476,13 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .btn-order:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-  color: var(--muted);
+  color: var(--text-muted);
   border-color: var(--border);
 }
 
 .file-drag-handle {
   cursor: grab;
-  color: var(--muted);
+  color: var(--text-muted);
   user-select: none;
   padding: 0 0.2rem;
   display: inline-flex;
@@ -391,7 +497,7 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .file-remove {
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0 0.2rem;
   display: inline-flex;
@@ -444,6 +550,12 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 }
 
 /* ── Estándares PDF: grid de selección ───────────────────────────────────── */
+.standards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 0.6rem;
+}
+
 .standard-row {
   display: flex;
   align-items: center;
@@ -480,7 +592,7 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 .standard-norm {
   font-family: var(--font-body);
   font-size: var(--text-xs);
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .standard-gs {
@@ -514,10 +626,8 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 
 /* ── Marca de imagen: zona para arrastrar o seleccionar la imagen ─────────── */
 .mark-drop {
-  flex-direction: row;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
   cursor: pointer;
 }
 
@@ -535,10 +645,10 @@ select.font-select:focus { outline: none; border-color: var(--primary); }
 }
 .mark-thumb img { width: 100%; height: 100%; object-fit: contain; }
 
-.mark-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
-.mark-name { font-size: 0.85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mark-name.has-file { color: var(--deep); font-weight: 600; }
-.mark-hint { font-size: 0.74rem; color: var(--muted); }
+.mark-info { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.mark-name { font-size: 0.85rem; color: var(--text-muted); }
+.mark-name.has-file { color: var(--deep); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mark-hint { font-size: 0.74rem; color: var(--text-muted); }
 
 /* ── Slider de opacidad ──────────────────────────────────────────────────── */
 input[type="range"] {

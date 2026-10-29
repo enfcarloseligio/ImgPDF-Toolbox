@@ -61,7 +61,7 @@ async function renderWatermarkImage() {
     <div class="option-group">
       <label>Tamaño relativo al documento</label>
       <div class="option-row" id="size-row"></div>
-      <p style="font-size:0.76rem;color:var(--muted);margin-top:0.25rem">
+      <p style="font-size:0.76rem;color:var(--text-muted);margin-top:0.25rem">
         Porcentaje del ancho del documento. La imagen se escala proporcionalmente.
       </p>
     </div>
@@ -73,7 +73,7 @@ async function renderWatermarkImage() {
         <input type="range" id="wmi-opacity-range" min="5" max="100" value="${opacity}"
           style="flex:1;accent-color:var(--primary)">
         <input type="number" class="num-input" id="wmi-opacity" value="${opacity}" min="5" max="100" style="width:70px">
-        <span style="font-size:0.82rem;color:var(--muted)">%</span>
+        <span style="font-size:0.82rem;color:var(--text-muted)">%</span>
       </div>
     </div>
 
@@ -116,11 +116,11 @@ async function renderWatermarkImage() {
     </div>
 
     <!-- Vista previa -->
-    <div class="option-group">
+    <div class="option-group" data-step="preview">
       <label>Vista previa aproximada</label>
       <div class="wm-preview-container">
         <div class="wm-preview-box" id="wmi-preview-box"></div>
-        <p style="font-size:0.72rem;color:var(--muted);text-align:center">
+        <p style="font-size:0.72rem;color:var(--text-muted);text-align:center">
           Vista aproximada — el resultado final depende del tamaño real del documento
         </p>
       </div>
@@ -134,7 +134,7 @@ async function renderWatermarkImage() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-wmi">${icon('folder-open',16)} Seleccionar archivos</button>
         <button class="btn-secondary" id="clear-wmi" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="wmi-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -150,6 +150,7 @@ async function renderWatermarkImage() {
     <div class="progress-panel" id="wmi-progress"></div>
     <div id="wmi-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Imagen de marca: selección, arrastre y limpieza ─────────────────────────
   const MARK_EXTENSIONS = ['png', 'jpg', 'jpeg', 'svg', 'webp'];

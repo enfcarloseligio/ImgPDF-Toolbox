@@ -44,7 +44,7 @@ async function renderUnlock() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-unlock">${icon('folder-open',16)} Seleccionar PDFs</button>
         <button class="btn-secondary" id="clear-unlock" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="unlock-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -60,6 +60,7 @@ async function renderUnlock() {
     <div class="progress-panel" id="unlock-progress"></div>
     <div id="unlock-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   const hints = {

@@ -19,36 +19,48 @@ function renderSplit() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-split">${icon('folder-open',16)} Seleccionar PDF</button>
         <button class="btn-secondary" id="clear-split" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="split-file">
         <span class="file-empty">Ningún archivo seleccionado</span>
       </div>
     </div>
 
-    <!-- Wizard: aparece solo después de cargar un archivo válido -->
-    <div id="split-wizard" style="display:none;flex-direction:column;gap:1.25rem">
-      <div class="option-group">
-        <label>Modo de separación</label>
-        <div class="option-row" id="mode-row"></div>
-      </div>
-      <div id="mode-opts"></div>
-      <div class="summary-box" id="split-summary"></div>
-      ${outputDirRow('spl')}
-      <div class="btn-row">
-        <button class="btn-primary" id="run-split"    disabled style="width:auto">Ejecutar separación</button>
-        <button class="btn-danger"  id="cancel-split" style="display:none;width:auto">Cancelar</button>
-      </div>
-      <div class="progress-panel" id="split-progress"></div>
-      <div id="split-result"></div>
+    <!-- Configuración, salida y acciones: se muestran al cargar un archivo válido -->
+    <div class="option-group wide">
+      <label>Modo de separación</label>
+      <div class="option-row" id="mode-row"></div>
     </div>
+    <div id="mode-opts"></div>
+    <div class="summary-box" id="split-summary"></div>
+    ${outputDirRow('spl')}
+    <div class="btn-row">
+      <button class="btn-primary" id="run-split"    disabled style="width:auto">Ejecutar separación</button>
+      <button class="btn-danger"  id="cancel-split" style="display:none;width:auto">Cancelar</button>
+    </div>
+    <div class="progress-panel" id="split-progress"></div>
+    <div id="split-result"></div>
   </div>`;
+  organizeModule(ws);
+
+  // ── Visibilidad de los pasos que dependen del archivo ────────────────────────
+  // Configuración, carpeta de salida y barra de acciones solo aparecen con un PDF válido.
+  function setWizardVisible(visible) {
+    ws.querySelectorAll('.step-config, .step-output, .action-bar')
+      .forEach(el => { el.style.display = visible ? '' : 'none'; });
+  }
+  setWizardVisible(false);
+
+  // ── Selección de la carpeta de salida ────────────────────────────────────────
+  document.getElementById('spl-pick').addEventListener('click', () =>
+    pickOutputDir('spl-path').then(updateSummary)
+  );
 
   // ── Reset completo ──────────────────────────────────────────────────────────
   function reset() {
     file = null; totalPages = 0;
     document.getElementById('split-file').innerHTML    = '<span class="file-empty">Ningún archivo seleccionado</span>';
-    document.getElementById('split-wizard').style.display = 'none';
+    setWizardVisible(false);
     document.getElementById('clear-split').style.display  = 'none';
     document.getElementById('split-result').innerHTML      = '';
     document.getElementById('split-summary').innerHTML     = '';
@@ -84,9 +96,8 @@ function renderSplit() {
     countEl.style.color = 'var(--success)';
     notify.info(`PDF cargado: ${totalPages} páginas detectadas.`);
 
-    // Muestra el asistente y enlaza el selector de modo, ya presente en el DOM
-    const wizard = document.getElementById('split-wizard');
-    wizard.style.cssText = 'display:flex; flex-direction:column; gap:1.25rem';
+    // Muestra los pasos dependientes del archivo y enlaza el selector de modo
+    setWizardVisible(true);
 
     optButtons(document.getElementById('mode-row'), [
       { label: 'Página por página', value: 'individual' },
@@ -94,10 +105,6 @@ function renderSplit() {
       { label: 'Rangos múltiples',  value: 'custom'     },
     ], mode, v => { mode = v; renderOpts(); updateSummary(); });
 
-    // Enlaza el selector de carpeta de salida del asistente
-    document.getElementById('spl-pick').addEventListener('click', () =>
-      pickOutputDir('spl-path').then(updateSummary)
-    );
 
     renderOpts();
     updateSummary();
@@ -107,7 +114,7 @@ function renderSplit() {
   function renderOpts() {
     const el = document.getElementById('mode-opts');
     if (mode === 'individual') {
-      el.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">Cada página del PDF se guardará como un archivo independiente.</p>`;
+      el.innerHTML = `<p style="font-size:0.78rem;color:var(--text-muted)">Cada página del PDF se guardará como un archivo independiente.</p>`;
     } else if (mode === 'block') {
       el.innerHTML = `<div class="range-row">
         <span>Dividir en bloques de</span>
@@ -120,7 +127,7 @@ function renderSplit() {
       });
     } else {
       el.innerHTML = `<div class="range-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <span style="font-size:0.8rem;color:var(--muted)">Separa rangos con comas. Ej: 1-15, 16-30, 31</span>
+        <span style="font-size:0.8rem;color:var(--text-muted)">Separa rangos con comas. Ej: 1-15, 16-30, 31</span>
         <input type="text" class="num-input" style="width:100%;text-align:left" id="cranges"
           value="${customRanges}" placeholder="Ej: 1-15, 16-30, 31">
       </div>`;

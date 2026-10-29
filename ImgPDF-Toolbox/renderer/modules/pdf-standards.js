@@ -120,9 +120,9 @@ async function renderPdfStandards() {
     <p class="module-desc">Convierte PDFs a formatos normalizados según estándares ISO. Cada estándar garantiza conformidad para un uso específico.</p>
 
     <!-- Selector de estándar -->
-    <div class="option-group">
+    <div class="option-group wide">
       <label>Selecciona el estándar de destino</label>
-      <div id="standards-grid" style="display:flex;flex-direction:column;gap:0.6rem"></div>
+      <div class="standards-grid" id="standards-grid"></div>
     </div>
 
     <!-- Panel de información del estándar seleccionado -->
@@ -136,7 +136,7 @@ async function renderPdfStandards() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-pdfstd">${icon('folder-open',16)} Seleccionar PDFs</button>
         <button class="btn-secondary" id="clear-pdfstd" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="pdfstd-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -152,6 +152,7 @@ async function renderPdfStandards() {
     <div class="progress-panel" id="pdfstd-progress"></div>
     <div id="pdfstd-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Renderizar grid de estándares ───────────────────────────────────────────
   function renderStandardsGrid() {
@@ -192,7 +193,7 @@ async function renderPdfStandards() {
         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
           <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.1rem;font-weight:700;color:var(--deep)">${s.label}</span>
           <span class="standard-badge ${s.badgeClass}" style="font-size:0.78rem">${icon(s.badgeClass === 'badge-warn' ? 'alert' : 'check-circle', 14)} ${s.badge}</span>
-          <span style="font-size:0.76rem;color:var(--muted)">${s.norm}</span>
+          <span style="font-size:0.76rem;color:var(--text-muted)">${s.norm}</span>
         </div>
         <p style="font-size:0.84rem;color:var(--text);line-height:1.6;margin-bottom:0.6rem">${s.desc}</p>
         <div style="background:var(--primary-soft);border-radius:6px;padding:0.6rem 0.85rem;margin-bottom:${s.warn?'0.6rem':'0'}">
@@ -203,7 +204,7 @@ async function renderPdfStandards() {
           <div class="result-title">${iconLabel('alert','Limitación importante')}</div>
           <div class="result-item">${s.warn}</div>
         </div>` : ''}
-        <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--muted)">
+        <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-muted)">
           Soporte Ghostscript: ${icon(s.gsOk ? 'check-circle' : 'alert', 14)} ${s.gs}
         </div>
       </div>`;

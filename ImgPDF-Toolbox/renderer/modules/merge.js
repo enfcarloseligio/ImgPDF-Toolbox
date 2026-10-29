@@ -21,7 +21,7 @@ function renderMerge() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-merge">${icon('folder-open',16)} Agregar PDFs</button>
         <button class="btn-secondary" id="clear-merge" style="display:none">${icon('trash',16)} Limpiar lista</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="merge-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -34,6 +34,7 @@ function renderMerge() {
     <div class="progress-panel" id="merge-progress"></div>
     <div id="merge-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Lista de archivos ────────────────────────────────────────────────────────
   function refresh() {

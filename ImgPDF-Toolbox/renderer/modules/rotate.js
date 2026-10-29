@@ -29,7 +29,7 @@ async function renderRotate() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-rotate">${icon('folder-open',16)} Seleccionar archivos</button>
         <button class="btn-secondary" id="clear-rotate" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="rotate-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -43,6 +43,7 @@ async function renderRotate() {
     <div class="progress-panel" id="rotate-progress"></div>
     <div id="rotate-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   optButtons(document.getElementById('angle-row'), [

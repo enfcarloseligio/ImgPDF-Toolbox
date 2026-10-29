@@ -150,6 +150,7 @@ function renderCategoryView(categoryKey) {
       }
       container.querySelectorAll('.card-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      container.querySelector('.category-view').classList.add('module-active');
       const modId = btn.dataset.module;
       setActiveModule(modId);
       loadModule(modId, { context: categoryKey === 'image-tools' ? 'image' : 'pdf' });

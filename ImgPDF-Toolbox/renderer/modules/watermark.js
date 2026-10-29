@@ -102,7 +102,7 @@ async function renderWatermark() {
       <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem">
         <input type="color" id="wm-color" value="${color}"
           style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
-        <span style="font-size:0.78rem;color:var(--muted)">O elige un color personalizado</span>
+        <span style="font-size:0.78rem;color:var(--text-muted)">O elige un color personalizado</span>
       </div>
     </div>
 
@@ -129,11 +129,11 @@ async function renderWatermark() {
     </div>
 
     <!-- Vista previa interactiva -->
-    <div class="option-group">
+    <div class="option-group" data-step="preview">
       <label>Vista previa</label>
       <div class="wm-preview-container">
         <div class="wm-preview-box" id="wm-preview-box"></div>
-        <p style="font-size:0.72rem;color:var(--muted);text-align:center">
+        <p style="font-size:0.72rem;color:var(--text-muted);text-align:center">
           Vista aproximada — el resultado final dependerá del tamaño real del documento
         </p>
       </div>
@@ -147,7 +147,7 @@ async function renderWatermark() {
       <div class="btn-row">
         <button class="btn-secondary" id="pick-wm">${icon('folder-open',16)} Seleccionar archivos</button>
         <button class="btn-secondary" id="clear-wm" style="display:none">${icon('trash',16)} Limpiar</button>
-        <span style="font-size:0.75rem;color:var(--muted);align-self:center">O arrastra y suelta aquí</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);align-self:center">O arrastra y suelta aquí</span>
       </div>
       <div class="file-list" id="wm-list">
         <span class="file-empty">Ningún archivo seleccionado</span>
@@ -163,6 +163,7 @@ async function renderWatermark() {
     <div class="progress-panel" id="wm-progress"></div>
     <div id="wm-result"></div>
   </div>`;
+  organizeModule(ws);
 
   // ── Vista previa interactiva ────────────────────────────────────────────────
   async function updatePreview() {

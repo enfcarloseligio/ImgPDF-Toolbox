@@ -450,20 +450,20 @@ function buildFontPicker(opts) {
   }
 
   if (opts.fontSource === 'system') {
-    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">${iconLabel('loader', 'Cargando fuentes del sistema...', 14)}</p>`;
+    picker.innerHTML = `<p style="font-size:0.78rem;color:var(--text-muted)">${iconLabel('loader', 'Cargando fuentes del sistema...', 14)}</p>`;
 
     const cached = opts.systemFonts?.length ? opts.systemFonts : null;
     (cached ? Promise.resolve(cached) : window.api.getSystemFonts()).then(fonts => {
       if (!cached && opts.onFontsLoaded) opts.onFontsLoaded(fonts);
       if (!fonts.length) {
-        picker.innerHTML = `<p style="font-size:0.78rem;color:var(--muted)">No se encontraron fuentes instaladas.</p>`;
+        picker.innerHTML = `<p style="font-size:0.78rem;color:var(--text-muted)">No se encontraron fuentes instaladas.</p>`;
         return;
       }
       picker.innerHTML = `
         <div style="display:flex;gap:0.5rem;align-items:center">
           <input type="text" id="${opts.pickerId}-search" class="num-input"
             style="width:240px;text-align:left" placeholder="Buscar fuente...">
-          <span style="font-size:0.78rem;color:var(--muted)">${fonts.length} fuentes detectadas</span>
+          <span style="font-size:0.78rem;color:var(--text-muted)">${fonts.length} fuentes detectadas</span>
         </div>
         <select id="${opts.pickerId}-select" size="5"
           style="width:100%;margin-top:0.4rem;border:1px solid var(--border);
@@ -508,7 +508,7 @@ function buildFontPicker(opts) {
         </div>
         <button class="btn-secondary btn-sm" id="${opts.pickerId}-gf-load"
           style="height:36px;padding:0 0.9rem">Cargar fuente</button>
-        <span id="${opts.pickerId}-gf-status" style="font-size:0.76rem;color:var(--muted)"></span>
+        <span id="${opts.pickerId}-gf-status" style="font-size:0.76rem;color:var(--text-muted)"></span>
       </div>`;
 
     const familyInput   = document.getElementById(`${opts.pickerId}-gf-family`);
