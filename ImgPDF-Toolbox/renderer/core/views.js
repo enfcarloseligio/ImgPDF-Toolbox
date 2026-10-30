@@ -153,14 +153,29 @@ function renderCategoryView(categoryKey) {
         notify.warning('Hay una operación en curso. Espera o cancélala antes de cambiar de módulo.');
         return;
       }
-      container.querySelectorAll('.card-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      container.querySelector('.category-view').classList.add('module-active');
-      const modId = btn.dataset.module;
-      setActiveModule(modId);
-      loadModule(modId, { context: categoryKey === 'image-tools' ? 'image' : 'pdf' });
+      openModule(categoryKey, btn.dataset.module);
     });
   });
+}
+
+// Activa un módulo dentro de la vista de categoría ya renderizada. `ctx` permite pasar
+// datos al módulo (p. ej. `files` para precargar su lista de archivos).
+function openModule(categoryKey, modId, ctx = {}) {
+  const container = document.getElementById('view-container');
+  container.querySelectorAll('.card-btn').forEach(b => b.classList.toggle('active', b.dataset.module === modId));
+  container.querySelector('.category-view').classList.add('module-active');
+  setActiveModule(modId);
+  loadModule(modId, { context: categoryKey === 'image-tools' ? 'image' : 'pdf', ...ctx });
+}
+
+// Salta a un módulo de otra categoría (p. ej. de PDF → IMG a IMG → PDF) conservando el flujo de trabajo.
+function goToModule(categoryKey, modId, ctx = {}) {
+  if (state.isProcessing) {
+    notify.warning('Hay una operación en curso. Espera o cancélala antes de cambiar de módulo.');
+    return;
+  }
+  if (state.currentView !== categoryKey) showView(categoryKey);
+  openModule(categoryKey, modId, ctx);
 }
 
 // ── Vista Update ─────────────────────────────────────────────────────────────
