@@ -5,11 +5,12 @@
 //              barra de progreso real.
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function renderPdfToImg() {
+async function renderPdfToImg(ctx = {}) {
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF', jpgQuality: 100 });
   let files = [], density = cfg.density, format = cfg.format, background = cfg.background, jpgQuality = cfg.jpgQuality;
   let currentRunId = 0;
+  let lastOutputs = [];   // Imágenes generadas en la última ejecución (para continuar en IMG → PDF)
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
@@ -32,6 +33,7 @@ async function renderPdfToImg() {
     <div class="btn-row">
       <button class="btn-primary" id="run-p2i" disabled style="width:auto">Extraer imágenes</button>
       <button class="btn-danger"  id="cancel-p2i" style="display:none;width:auto">Cancelar</button>
+      <button class="btn-secondary" id="goto-i2p" style="width:auto">${iconLabel('arrow-right', 'Ir a Imágenes → PDF')}</button>
     </div>
     <div class="progress-panel" id="p2i-progress"></div>
     <div id="p2i-result"></div>
@@ -122,6 +124,11 @@ async function renderPdfToImg() {
   document.getElementById('p2i-pick').addEventListener('click', () => pickOutputDir('p2i-path').then(updateRun));
   bindDragDrop('zone-p2i', FILE_KINDS['pdf'].extensions, addFiles);
 
+  // ── Atajo a Imágenes → PDF: lleva las imágenes recién generadas, si las hay ──
+  document.getElementById('goto-i2p').addEventListener('click', () => {
+    goToModule('image-tools', 'img-to-pdf', { files: lastOutputs });
+  });
+
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
     document.getElementById('run-p2i').disabled = !(files.length && state.outputDir && !state.isProcessing);
@@ -165,6 +172,7 @@ async function renderPdfToImg() {
 
     const ok  = res.filter(r => r.ok);
     const err = res.filter(r => !r.ok);
+    lastOutputs = ok.flatMap(r => r.outputs || []);
     document.getElementById('p2i-result').innerHTML =
       (ok.length  ? resultBox('success', `${ok.length} PDF(s) procesado(s)`, ok.map(r => `${icon('file',14)} ${basename(r.file)} — ${r.pages} páginas`), true) : '') +
       (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => `${basename(r.file)}: ${r.error}`)) : '');
@@ -179,6 +187,8 @@ async function renderPdfToImg() {
     cancel.textContent = 'Cancelar';
     updateRun();
   });
+
+  if (ctx.files?.length) addFiles(ctx.files);
 
   // ── Limpieza al salir del módulo ─────────────────
   const observer = new MutationObserver(() => {

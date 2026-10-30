@@ -4,7 +4,7 @@
 //              páginas y progreso real hacia el renderer).
 // ═════════════════════════════════════════════════════════════════════════════
 
-const { ipcMain } = require('electron');
+const { ipcMain, app } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const {
@@ -15,7 +15,7 @@ const {
   findGhostscript,
   getUniqueFilePath,
 } = require('./process-runner');
-const { countPdfPages, createProgress } = require('./progress');
+const { countPdfPages, createProgress, runGsWithProgress } = require('./progress');
 
 // ── Guard anti re-entrada (evita doble clic / doble invocación) ──────────────
 let imgToPdfBusy = false;
@@ -33,7 +33,48 @@ function pdfQualityArgs(quality) {
     : `-background white -alpha remove -alpha off -compress JPEG -quality ${q}`;
 }
 
-ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }) => {
+// Une todas las imágenes en un único PDF: cada una se convierte a un PDF temporal (avance por
+// imagen) y después Ghostscript los ensambla en el orden de la lista.
+async function convertImagesToSinglePdf(event, { files, quality, outputDir }) {
+  const results  = [];
+  const progress = createProgress(event, 'img-to-pdf', { totalFiles: files.length, totalPages: files.length, unit: 'imágenes' });
+  const tempDir  = path.join(app.getPath('temp'), `imgpdf_i2p_${Date.now()}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+  progress.start();
+
+  try {
+    const parts = [];
+    for (let fi = 0; fi < files.length; fi++) {
+      const file = files[fi];
+      if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); return results; }
+      const part = path.join(tempDir, `${String(fi + 1).padStart(4, '0')}.pdf`);
+      try {
+        await run(`magick "${file}" ${pdfQualityArgs(quality)} "${part}"`);
+        parts.push(part);
+        progress.tick({ currentFile: fi + 1, currentFileName: path.basename(file), currentPage: 1, currentFilePages: 1, stage: `Añadiendo ${path.basename(file)} (${fi + 1}/${files.length})` });
+      } catch (e) {
+        results.push({ file, ok: false, error: String(e) });
+        if (getIsCancelled()) return results;
+      }
+    }
+    if (!parts.length) return results;
+
+    const out = getUniqueFilePath(path.join(outputDir, path.basename(files[0], path.extname(files[0])) + '-combinado.pdf'));
+    progress.stage('Ensamblando el PDF final...', { currentFile: files.length, currentFileName: path.basename(out), currentOut: path.basename(out) });
+    await runGsWithProgress(findGhostscript(), [
+      '-dBATCH', '-dNOPAUSE', '-dSAFER', '-sDEVICE=pdfwrite', '-dAutoRotatePages=/None', `-sOutputFile=${out}`, ...parts,
+    ]);
+    results.unshift({ file: files[0], out, ok: true, merged: parts.length });
+    return results;
+  } catch (e) {
+    return [{ file: files[0], ok: false, error: getIsCancelled() ? 'Cancelado' : String(e) }];
+  } finally {
+    progress.done();
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+  }
+}
+
+ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir, single = false }) => {
   if (imgToPdfBusy) {
     return [{ file: '*', ok: false, error: 'Ya hay una conversión en curso.' }];
   }
@@ -41,6 +82,8 @@ ipcMain.handle('convert-img-to-pdf', async (event, { files, quality, outputDir }
   resetCancelled();
 
   try {
+    if (single) return await convertImagesToSinglePdf(event, { files, quality, outputDir });
+
     const results  = [];
     const progress = createProgress(event, 'img-to-pdf', { totalFiles: files.length, totalPages: files.length, unit: 'archivos' });
     progress.start();
@@ -106,6 +149,7 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
     // 3. Procesar archivo por archivo, página por página
     for (let fi = 0; fi < filePageCounts.length; fi++) {
       const { file, pages, error } = filePageCounts[fi];
+      const outputs = [];
 
       if (error || pages === 0) {
         results.push({ file, ok: false, error: error || 'No se pudieron leer las páginas' });
@@ -138,6 +182,8 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
             `-sDEVICE=${device}`,
             `-r${density}`,
             '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4',
+            // Suaviza las imágenes incrustadas (logos, firmas) en lugar de mostrar sus píxeles
+            '-dInterpolateControl=-1',
             ...(device === 'jpeg' ? [`-dJPEGQ=${jpgQuality}`] : []),
             `-dFirstPage=${p}`,
             `-dLastPage=${p}`,
@@ -185,6 +231,7 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
           }
           // JPG+blanco y PNG+original → nada
 
+          outputs.push(outFile);
           progress.tick({
             currentFile: fi + 1,
             currentFileName: path.basename(file),
@@ -199,7 +246,7 @@ ipcMain.handle('convert-pdf-to-img', async (event, { files, density, format, bac
           break;
         }
 
-        results.push({ file, ok: true, pages });
+        results.push({ file, ok: true, pages, outputs });
       } catch (e) {
         results.push({ file, ok: false, error: String(e) });
         if (getIsCancelled()) break;
