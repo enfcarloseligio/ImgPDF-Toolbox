@@ -8,9 +8,10 @@
 async function renderResizeImages() {
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('resize-images', {
-    mode: 'pixels', width: '', height: '', percent: 50, maxSide: 1920, keepRatio: true, noEnlarge: false, quality: 95,
+    mode: 'pixels', percent: 50, maxSide: 1920, keepRatio: true, noEnlarge: false, quality: 95,
   });
-  let { mode, width, height, percent, maxSide, keepRatio, noEnlarge, quality } = cfg;
+  let { mode, percent, maxSide, keepRatio, noEnlarge, quality } = cfg;
+  let width = '', height = '';   // Se rellenan con el tamaño de la primera imagen cargada
   let info = null;   // Información de la primera imagen (para el resumen)
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
@@ -31,6 +32,7 @@ async function renderResizeImages() {
         <span class="field">Ancho <input type="number" class="num-input" id="rsz-w" min="1" max="30000" placeholder="auto"> px</span>
         <button class="btn-toggle" id="rsz-lock" type="button"></button>
         <span class="field">Alto <input type="number" class="num-input" id="rsz-h" min="1" max="30000" placeholder="auto"> px</span>
+        <button class="btn-secondary btn-sm" id="rsz-reset" type="button" disabled>${iconLabel('rotate', 'Tamaño original')}</button>
       </div>
       <label class="check-row"><input type="checkbox" id="rsz-noenlarge"> No ampliar (solo reducir imágenes más grandes)</label>
       <p class="option-hint" id="rsz-px-hint"></p>
@@ -70,6 +72,27 @@ async function renderResizeImages() {
   const save = patch => saveModuleConfig('resize-images', patch);
   const num = v => Math.max(0, parseInt(v, 10) || 0);
 
+  // Rellena ancho y alto con las dimensiones originales de la primera imagen
+  function fillOriginalSize() {
+    width  = info?.ok ? String(info.width)  : '';
+    height = info?.ok ? String(info.height) : '';
+    $('rsz-w').value = width;
+    $('rsz-h').value = height;
+    $('rsz-reset').disabled = !info?.ok;
+  }
+
+  // Con la proporción bloqueada, al editar un lado se recalcula el otro según la primera imagen
+  function syncRatio(changed) {
+    if (!keepRatio || !info?.ok) return;
+    if (changed === 'w') {
+      height = num(width) ? String(Math.round(num(width) * info.height / info.width)) : '';
+      $('rsz-h').value = height;
+    } else {
+      width = num(height) ? String(Math.round(num(height) * info.width / info.height)) : '';
+      $('rsz-w').value = width;
+    }
+  }
+
   // Tamaño resultante para una imagen (replica la lógica del proceso principal)
   function predictSize(iw, ih) {
     if (mode === 'percent') return { w: Math.round(iw * percent / 100), h: Math.round(ih * percent / 100) };
@@ -97,12 +120,6 @@ async function renderResizeImages() {
     const { w, h } = predictSize(info.width, info.height);
     box.innerHTML = `<strong>Resultado previsto (primera imagen):</strong><br>
       ↳ ${info.width} × ${info.height} px → <strong>${w || '?'} × ${h || '?'} px</strong>`;
-
-    // En modo proporcional se sugiere el valor del campo vacío como marcador
-    if (mode === 'pixels' && keepRatio) {
-      $('rsz-w').placeholder = num(width)  ? 'auto' : (num(height) ? String(w) : 'auto');
-      $('rsz-h').placeholder = num(height) ? 'auto' : (num(width)  ? String(h) : 'auto');
-    }
   }
 
   const isValid = () => {
@@ -126,7 +143,7 @@ async function renderResizeImages() {
     lock.innerHTML = keepRatio ? iconLabel('link', 'Mantener proporción', 16) : iconLabel('unlink', 'Proporción libre', 16);
     lock.title = keepRatio ? 'La proporción se mantiene' : 'Puede deformar la imagen';
     $('rsz-px-hint').textContent = keepRatio
-      ? 'Escribe solo el ancho o solo el alto para escalar proporcionalmente. Si escribes ambos, cada imagen se ajusta dentro de esa caja.'
+      ? 'Los campos muestran el tamaño de la primera imagen. Al cambiar el ancho o el alto, el otro se ajusta para mantener la proporción; con varias imágenes, cada una se ajusta dentro de esa caja.'
       : 'Tamaño exacto: ancho y alto son obligatorios y la imagen puede deformarse.';
     updateSummary();
     batch.sync();
@@ -139,15 +156,19 @@ async function renderResizeImages() {
     { label: 'Lado mayor',      value: 'max'     },
   ], mode, v => { mode = v; updateMode(); }, v => save({ mode: v }));
 
-  $('rsz-w').value   = width;
-  $('rsz-h').value   = height;
   $('rsz-pct').value = percent;
   $('rsz-max').value = maxSide;
   $('rsz-noenlarge').checked = noEnlarge;
 
-  $('rsz-w').addEventListener('input', e => { width = e.target.value; save({ width }); updateSummary(); batch.sync(); });
-  $('rsz-h').addEventListener('input', e => { height = e.target.value; save({ height }); updateSummary(); batch.sync(); });
-  $('rsz-lock').addEventListener('click', () => { keepRatio = !keepRatio; save({ keepRatio }); updateLock(); });
+  $('rsz-w').addEventListener('input', e => { width = e.target.value; syncRatio('w'); updateSummary(); batch.sync(); });
+  $('rsz-h').addEventListener('input', e => { height = e.target.value; syncRatio('h'); updateSummary(); batch.sync(); });
+  $('rsz-reset').addEventListener('click', () => { fillOriginalSize(); updateSummary(); batch.sync(); });
+  $('rsz-lock').addEventListener('click', () => {
+    keepRatio = !keepRatio;
+    save({ keepRatio });
+    if (keepRatio) syncRatio('w');
+    updateLock();
+  });
   $('rsz-noenlarge').addEventListener('change', e => { noEnlarge = e.target.checked; save({ noEnlarge }); updateSummary(); });
 
   // Entradas con valores rápidos (porcentaje y lado mayor)
@@ -178,7 +199,9 @@ async function renderResizeImages() {
     // Al cambiar la lista se consulta el tamaño de la primera imagen para el resumen
     onChange: async files => {
       info = files.length ? await window.api.getImageInfo(files[0]) : null;
+      fillOriginalSize();
       updateSummary();
+      batch.sync();
     },
     run: (files, outputDir) => window.api.resizeImages({
       files, mode, width: num(width), height: num(height), percent, keepRatio, noEnlarge, maxSide, quality, outputDir,
