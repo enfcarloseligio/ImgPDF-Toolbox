@@ -22,6 +22,7 @@ const CATEGORIES = {
       { id: 'rotate',           label: 'Rotar',        desc: 'Gira páginas de PDF',             icon: 'rotate' },
       { id: 'unlock',           label: 'Desbloquear',  desc: 'Elimina restricciones PDF',       icon: 'unlock' },
       { id: 'pdf-standards',    label: 'Estándares',   desc: 'PDF/A, PDF/X, PDF/UA',            icon: 'clipboard-check' },
+      { id: 'redact',           label: 'Testar',       desc: 'Oculta datos con cuadros negros', icon: 'redact' },
     ],
   },
   'image-tools': {
@@ -38,6 +39,7 @@ const CATEGORIES = {
       { id: 'rotate',           label: 'Rotar',        desc: 'Gira imágenes',                   icon: 'rotate' },
       { id: 'watermark',        label: 'Marca texto',  desc: 'Texto diagonal o posicionado',    icon: 'droplet' },
       { id: 'watermark-image',  label: 'Marca imagen', desc: 'Logo o firma sobre imágenes',     icon: 'tag' },
+      { id: 'redact',           label: 'Testar',       desc: 'Oculta datos con cuadros negros', icon: 'redact' },
     ],
   },
 };

@@ -15,6 +15,7 @@ require('./src/ipc-conversions');
 require('./src/ipc-pdf-ops');
 require('./src/ipc-annotations');
 require('./src/ipc-images');
+require('./src/ipc-redact');
 
 // ── Ciclo de vida de la aplicación ─────────────────────────────────────────────
 

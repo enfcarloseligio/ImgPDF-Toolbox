@@ -32,6 +32,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 - **Arrastrar y soltar con posición:** suelta archivos donde quieras insertarlos en la lista; también puedes reordenarla con el asa o las flechas.
 - **Calidad sin pérdida cuando la necesitas:** IMG → PDF puede conservar los píxeles exactos de la imagen, PDF → IMG permite elegir la calidad del JPG y el recorte puede guardarse con la calidad original.
 - **Edición de imágenes:** convierte entre formatos, recorta con un editor visual y proporciones estándar, redimensiona, comprime y quita fondos de color uniforme.
+- **Testar con avance guardado:** oculta datos con cuadros negros sobre un visor; el trabajo se guarda solo para retomarlo tras un cierre inesperado.
 - **Vista previa en vivo** de marcas de agua y foliado.
 - **Tipografías propias:** fuentes del sistema o del catálogo de Google Fonts para marcas de texto y folios.
 - **Configuración recordada** por herramienta y última carpeta de salida.
@@ -52,6 +53,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | **Marca imagen** | Marca de agua con logo o firma: tamaño, opacidad, ángulo, mosaico y márgenes. |
 | **Rotar** | Gira todas las páginas, solo pares o solo impares. |
 | **Desbloquear** | Quita restricciones de propietario o abre PDFs con contraseña conocida. |
+| **Testar** | Oculta datos con cuadros negros sobre un visor de páginas, con deshacer, zoom y copia de un cuadro a todas las páginas. El avance se guarda solo y se puede retomar. Exporta cada página como imagen (PNG o JPG), suelta o dentro de un PDF, por lo que el contenido tapado no se puede recuperar. |
 | **Estándares** | Convierte a PDF/A-1b, 2b, 3b y 4, PDF/X-1a y X-3, PDF/UA-1 y PDF/E-1. |
 
 ### Herramientas de imágenes
@@ -65,6 +67,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | **Comprimir** | Tres niveles de compresión, conversión opcional a WebP o JPG, límite de tamaño y limpieza de metadatos. Omite lo que no se puede reducir más. |
 | **Quitar fondo** | Vuelve transparente un fondo de color uniforme, desde los bordes o en toda la imagen, con tolerancia, gotero y vista previa en vivo. Está pensado para fondos lisos; no recorta siluetas sobre fondos complejos. |
 | **Rotar** | Gira imágenes en lote. |
+| **Testar** | El mismo testado con cuadros negros, aplicado a una imagen; exporta como imagen o como PDF. |
 | **Marca texto / Marca imagen** | Las mismas marcas de agua, aplicadas a imágenes. |
 
 ## Capturas
@@ -124,7 +127,7 @@ ImgPDF-Toolbox/
 │   ├── src/                   # Lógica del proceso principal
 │   │   ├── process-runner.js  #   Ejecución y cancelación de Ghostscript / ImageMagick
 │   │   ├── progress.js        #   Progreso real por página
-│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes)
+│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes, testado)
 │   └── renderer/              # Interfaz (HTML, CSS y JS sin framework)
 │       ├── core/              #   Estado, iconos, layout por pasos, lotes, editor de recorte, utilidades, vistas
 │       ├── modules/           #   Una herramienta por archivo
