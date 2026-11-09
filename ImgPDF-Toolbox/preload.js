@@ -45,6 +45,15 @@ contextBridge.exposeInMainWorld('api', {
   removeBackground:      (opts)       => ipcRenderer.invoke('remove-background', opts),
   removeBackgroundPreview: (opts)     => ipcRenderer.invoke('remove-background-preview', opts),
 
+  // Testar (cuadros negros con avance guardado)
+  redactListSessions:    ()           => ipcRenderer.invoke('redact-list-sessions'),
+  redactFindSession:     (opts)       => ipcRenderer.invoke('redact-find-session', opts),
+  redactLoadSession:     (opts)       => ipcRenderer.invoke('redact-load-session', opts),
+  redactOpen:            (opts)       => ipcRenderer.invoke('redact-open', opts),
+  redactSave:            (opts)       => ipcRenderer.invoke('redact-save', opts),
+  redactDiscard:         (opts)       => ipcRenderer.invoke('redact-discard', opts),
+  redactExport:          (opts)       => ipcRenderer.invoke('redact-export', opts),
+
   // Fuentes tipográficas
   getSystemFonts:        ()           => ipcRenderer.invoke('get-system-fonts'),
   getGoogleFontsCatalog: ()           => ipcRenderer.invoke('get-google-fonts-catalog'),

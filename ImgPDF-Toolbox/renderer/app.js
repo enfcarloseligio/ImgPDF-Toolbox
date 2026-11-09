@@ -178,6 +178,8 @@ const moduleMap = {
   'resize-images':   renderResizeImages,
   'compress-images': renderCompressImages,
   'remove-bg':       renderRemoveBg,
+  // Testado de contenido (PDF e imagen)
+  'redact':          renderRedact,
   // Estándares y sistema
   'pdf-standards':   renderPdfStandards,
   'update':          renderUpdate,

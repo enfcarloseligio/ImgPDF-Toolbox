@@ -860,3 +860,85 @@ input[type="range"]::-webkit-slider-thumb {
 /* ── Indicador de posición al soltar archivos ─────────────────────────────── */
 .file-item.drop-before { box-shadow: inset 0 3px 0 0 var(--primary); }
 .file-item.drop-after  { box-shadow: inset 0 -3px 0 0 var(--primary); }
+
+/* ── Testar: visor y editor de cuadros negros ─────────────────────────────── */
+/* En ventanas anchas la configuración ocupa una columna fija a la izquierda y el visor el
+   resto; en estrechas se apilan en el orden numerado de los pasos. */
+@container (min-width: 860px) {
+  .module-redact .step-split { grid-template-columns: 300px minmax(0, 1fr); }
+}
+
+.redact-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+.redact-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.redact-tools .num-input { width: 60px; }
+.redact-pages, .redact-zoom { font-size: var(--text-sm); color: var(--text-muted); min-width: 2.5rem; text-align: center; }
+.redact-toolbar .btn-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+.redact-toolbar .btn-toggle:disabled:hover { border-color: var(--border); color: inherit; }
+
+.redact-stage {
+  display: grid;
+  min-height: 300px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #E2E8F0;
+}
+.redact-stage.drag-active { border-color: var(--accent); }
+.redact-empty { place-self: center; padding: 2rem 1rem; font-size: var(--text-sm); color: var(--text-muted); text-align: center; }
+.redact-empty[hidden], .redact-scroll[hidden] { display: none; }
+
+/* Área desplazable: con zoom mayor que el ajuste se recorre con las barras */
+.redact-scroll {
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.75rem;
+  outline: none;
+}
+.redact-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+
+.redact-page {
+  position: relative;
+  margin: 0 auto;
+  line-height: 0;
+  background: #FFFFFF;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.25);
+  user-select: none;
+  touch-action: none;
+  cursor: crosshair;
+}
+.redact-img { display: block; width: 100%; height: auto; pointer-events: none; }
+.redact-boxes { position: absolute; inset: 0; }
+
+/* Los cuadros se ven tal como quedarán en el archivo exportado */
+.redact-box {
+  position: absolute;
+  background: #000000;
+  cursor: move;
+}
+.redact-box.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.redact-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #FFFFFF;
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+  touch-action: none;
+}
+.redact-h-nw { left: -7px;  top: -7px;    cursor: nwse-resize; }
+.redact-h-ne { right: -7px; top: -7px;    cursor: nesw-resize; }
+.redact-h-sw { left: -7px;  bottom: -7px; cursor: nesw-resize; }
+.redact-h-se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.redact-h-n  { left: calc(50% - 6px); top: -7px;    cursor: ns-resize; }
+.redact-h-s  { left: calc(50% - 6px); bottom: -7px; cursor: ns-resize; }
+.redact-h-w  { top: calc(50% - 6px);  left: -7px;   cursor: ew-resize; }
+.redact-h-e  { top: calc(50% - 6px);  right: -7px;  cursor: ew-resize; }
+
+/* Trabajo sin terminar: una fila por sesión con sus acciones a la derecha */
+.redact-pending-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.redact-pending-actions { display: flex; gap: 0.4rem; }
