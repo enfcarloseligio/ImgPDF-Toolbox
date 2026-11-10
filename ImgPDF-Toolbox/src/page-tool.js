@@ -120,9 +120,13 @@ function sanitizePages(items, pageCount, cleanItem) {
 //   suffix         sufijo de los archivos exportados (p. ej. '-testado')
 //   emptyMessage   aviso cuando se exporta sin ningún elemento
 //   sanitizeItems  (items, pageCount) → items válidos { índice de página: [elemento] }
-//   composeArgs    (elementos de la página, { width, height }) → argumentos de ImageMagick
-//                  que los dibujan sobre la imagen de la página
-function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sanitizeItems, composeArgs }) {
+//   composeArgs    (elementos de la página, { width, height }, contexto) → argumentos de
+//                  ImageMagick que los dibujan sobre la imagen de la página
+//   beforeExport   (opcional) (elementos validados) → contexto para composeArgs; puede lanzar un
+//                  error para impedir la exportación (p. ej. si faltan recursos)
+//   afterExport    (opcional) (contexto) → libera lo preparado en beforeExport; se ejecuta
+//                  siempre, también si la exportación falla o se cancela
+function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sanitizeItems, composeArgs, beforeExport, afterExport }) {
   // Guardia contra operaciones simultáneas (abrir o exportar)
   let busy = false;
 
@@ -314,6 +318,7 @@ function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sa
 
     const created = [];
     const tempDir = path.join(app.getPath('temp'), `imgpdf_${channel}_${Date.now()}`);
+    let exportContext = null;
 
     try {
       const s = readSession(id);
@@ -322,6 +327,7 @@ function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sa
 
       const clean = sanitizeItems(boxes, s.pages.length);
       if (!Object.keys(clean).length) throw new Error(emptyMessage);
+      if (beforeExport) exportContext = await beforeExport(clean);
 
       const q = Math.min(Math.max(Math.round(Number(quality)) || 90, 1), 100);
       const fmt = imageFormat === 'jpg' ? 'jpg' : 'png';
@@ -352,7 +358,7 @@ function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sa
           out = getUniqueFilePath(path.join(outputDir, name));
           created.push(out);
         }
-        await magick([pageFile(id, page), ...composeArgs(clean[i] || [], page), ...enc, out]);
+        await magick([pageFile(id, page), ...composeArgs(clean[i] || [], page, exportContext), ...enc, out]);
         progress.tick({ currentFile: 1, currentFileName: path.basename(s.source), currentPage: i + 1, currentFilePages: total, currentOut: path.basename(out) });
       }
 
@@ -378,6 +384,7 @@ function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sa
       return fail(getIsCancelled() ? 'Cancelado' : e);
     } finally {
       busy = false;
+      if (afterExport) { try { afterExport(exportContext); } catch (_) { /* la limpieza no debe ocultar el resultado */ } }
       try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
     }
   });

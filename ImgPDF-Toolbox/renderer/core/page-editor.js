@@ -93,9 +93,12 @@ function createPageEditor(stage, {
     const handles = stamps ? PAGE_CORNERS : PAGE_HANDLES;
     layer.innerHTML = list().map(b => {
       const selected = b.id === sel;
+      // Sin imagen (las firmas están bloqueadas) la firma colocada se ve como un marcador
+      const src = stamps ? resolveSrc(b.sig) : '';
+      const content = !stamps ? '' : src ? `<img src="${src}" alt="" draggable="false">` : '<span class="ptool-locked">Firma bloqueada</span>';
       return `<div class="ptool-item${stamps ? ' is-stamp' : ''}${selected ? ' is-selected' : ''}" data-id="${b.id}"
         style="left:${b.x * 100}%;top:${b.y * 100}%;width:${b.w * 100}%;height:${b.h * 100}%">
-        ${stamps ? `<img src="${resolveSrc(b.sig)}" alt="" draggable="false">` : ''}
+        ${content}
         ${selected ? handles.map(h => `<span class="ptool-handle ptool-h-${h}" data-handle="${h}"></span>`).join('') : ''}
       </div>`;
     }).join('');
