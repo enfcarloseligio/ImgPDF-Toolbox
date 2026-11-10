@@ -1,11 +1,11 @@
 # 📜 REGLAS — Reglas de desarrollo
 
 > [!NOTE]
-> Reglas para quien programe en este proyecto (personas o asistentes de IA). Complementan [03_ARQUITECTURA.md](03_ARQUITECTURA.md) y [04_DISEÑO.md](04_DISEÑO.md).
+> Reglas para quien programe en este proyecto (personas o asistentes de IA). Complementan [02_ARQUITECTURA.md](02_ARQUITECTURA.md) y [03_DISEÑO.md](03_DISEÑO.md).
 
 ## 🔄 Bucle de trabajo por tarea
 
-Cada tarea de [09_TAREAS](09_TAREAS.md) sigue estos pasos, sin saltarse ninguno:
+Cada tarea de [08_TAREAS](08_TAREAS.md) sigue estos pasos, sin saltarse ninguno:
 
 ```mermaid
 flowchart LR
@@ -15,7 +15,7 @@ flowchart LR
 ```
 
 > [!TIP]
-> La rigurosidad escala con el tamaño del cambio: un retoque de una línea es *cambiar → probar → confirmar*; una función grande o un cambio de arquitectura exige plan por escrito, decisión en [06_DECISIONES](06_DECISIONES.md) y revisión.
+> La rigurosidad escala con el tamaño del cambio: un retoque de una línea es *cambiar → probar → confirmar*; una función grande o un cambio de arquitectura exige plan por escrito, decisión en [05_DECISIONES](05_DECISIONES.md) y revisión.
 
 ## 🧠 Antes de programar
 
@@ -36,7 +36,7 @@ flowchart LR
 
 ## 🖥️ Interfaz
 
-- Seguir [04_DISEÑO.md](04_DISEÑO.md). Los colores y espacios salen de las variables CSS, no de valores sueltos.
+- Seguir [03_DISEÑO.md](03_DISEÑO.md). Los colores y espacios salen de las variables CSS, no de valores sueltos.
 - Cada herramienta usa la estructura de pasos (`organizeModule`) y **no oculta pasos de forma condicional**.
 - **No escribir cajas de archivos a mano:** usar `fileZoneHtml`, `pickFiles`, `fileCountText` y `FILE_KINDS`.
 - Las herramientas de imagen por lotes se construyen con `batchFilesHtml`, `batchActionsHtml` y `setupBatchTool`.
@@ -62,15 +62,15 @@ flowchart LR
 ## 🔐 Seguridad
 
 - No exponer claves ni rutas internas al renderer.
-- No añadir conexiones de red sin documentarlas en [07_SEGURIDAD.md](07_SEGURIDAD.md) y en el README.
-- Los datos sensibles (firmas, avances de testado) se tratan según [07_SEGURIDAD.md](07_SEGURIDAD.md).
+- No añadir conexiones de red sin documentarlas en [06_SEGURIDAD.md](06_SEGURIDAD.md) y en el README.
+- Los datos sensibles (firmas, avances de testado) se tratan según [06_SEGURIDAD.md](06_SEGURIDAD.md).
 
 ## 🧪 Pruebas
 
-- Antes de dar una función por terminada: revisar la sintaxis de los archivos tocados, probar con archivos reales y recorrer el apartado correspondiente de [08_PLAN_DE_PRUEBAS.md](08_PLAN_DE_PRUEBAS.md).
+- Antes de dar una función por terminada: revisar la sintaxis de los archivos tocados, probar con archivos reales y recorrer el apartado correspondiente de [07_PLAN_DE_PRUEBAS.md](07_PLAN_DE_PRUEBAS.md).
 - La lógica que no depende de Electron se prueba de forma aislada con Node.
 - Cuando algo falla, corregir antes de seguir con la siguiente tarea.
-- **Revisión antes de publicar una versión:** comparar lo hecho con [02_REQUISITOS](02_REQUISITOS.md), [03_ARQUITECTURA](03_ARQUITECTURA.md), [04_DISEÑO](04_DISEÑO.md), estas reglas y [07_SEGURIDAD](07_SEGURIDAD.md). Comprobar corrección, arquitectura, seguridad, manejo de errores, accesibilidad, diseño responsive, rendimiento y código duplicado. **Que funcione no basta**: se informa primero de los problemas (por gravedad) y después se corrigen.
+- **Revisión antes de publicar una versión:** comparar lo hecho con [01_REQUISITOS](01_REQUISITOS.md), [02_ARQUITECTURA](02_ARQUITECTURA.md), [03_DISEÑO](03_DISEÑO.md), estas reglas y [06_SEGURIDAD](06_SEGURIDAD.md). Comprobar corrección, arquitectura, seguridad, manejo de errores, accesibilidad, diseño responsive, rendimiento y código duplicado. **Que funcione no basta**: se informa primero de los problemas (por gravedad) y después se corrigen.
 - Al reportar un error se indica: qué se esperaba, qué ocurre, pasos para reproducirlo y la causa raíz antes de tocar el código.
 
 ## 🌿 Git y versiones
@@ -86,7 +86,7 @@ flowchart LR
 ## 📚 Documentación
 
 - Cada versión actualiza el README y, si cambia algo estructural, los documentos de `docs/`.
-- [10_MEMORIA.md](10_MEMORIA.md) se actualiza al cerrar cada sesión de trabajo importante.
-- Las decisiones técnicas duraderas se registran en [06_DECISIONES.md](06_DECISIONES.md).
+- [09_MEMORIA.md](09_MEMORIA.md) se actualiza al cerrar cada sesión de trabajo importante.
+- Las decisiones técnicas duraderas se registran en [05_DECISIONES.md](05_DECISIONES.md).
 - Los documentos de `docs/` **sí** pueden usar emojis, tablas, avisos y diagramas para facilitar la lectura; la interfaz de la aplicación, no.
-- Toda función nueva se construye con Ghostscript e ImageMagick (excepción: `pdf-lib` para ediciones estructurales; ver ADR-019 en [06_DECISIONES](06_DECISIONES.md)).
+- Toda función nueva se construye con Ghostscript e ImageMagick (excepción: `pdf-lib` para ediciones estructurales; ver ADR-019 en [05_DECISIONES](05_DECISIONES.md)).

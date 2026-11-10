@@ -1,11 +1,11 @@
 # 📋 TAREAS — Plan de trabajo y hoja de ruta
 
 > [!NOTE]
-> Se trabaja **una tarea a la vez**: implementar → probar ([08_PLAN_DE_PRUEBAS](08_PLAN_DE_PRUEBAS.md)) → revisar → marcar → siguiente.
-> Cada versión cierra con: README actualizado, número de versión, etiqueta `vX.Y.Z`, subida a `main` e instalador. Ver [05_REGLAS](05_REGLAS.md).
+> Se trabaja **una tarea a la vez**: implementar → probar ([07_PLAN_DE_PRUEBAS](07_PLAN_DE_PRUEBAS.md)) → revisar → marcar → siguiente.
+> Cada versión cierra con: README actualizado, número de versión, etiqueta `vX.Y.Z`, subida a `main` e instalador. Ver [04_REGLAS](04_REGLAS.md).
 
 > [!IMPORTANT]
-> **Principio de la ruta:** todo lo nuevo se construye con **Ghostscript** e **ImageMagick**, sin dependencias nuevas. La única excepción es `pdf-lib` (ya incluida desde 1.8.0), solo para ediciones estructurales que **no deben reprocesar** el contenido del PDF (giro de páginas y metadatos). Ver [06_DECISIONES](06_DECISIONES.md) ADR-019.
+> **Principio de la ruta:** todo lo nuevo se construye con **Ghostscript** e **ImageMagick**, sin dependencias nuevas. La única excepción es `pdf-lib` (ya incluida desde 1.8.0), solo para ediciones estructurales que **no deben reprocesar** el contenido del PDF (giro de páginas y metadatos). Ver [05_DECISIONES](05_DECISIONES.md) ADR-019.
 
 **Leyenda:** ✅ hecho · ⏳ en curso · 🔜 pendiente · **Esfuerzo:** `S` pequeño · `M` medio · `L` grande
 
@@ -125,7 +125,7 @@ flowchart LR
 
 La versión mayor cierra la ruta: ninguna función nueva grande, sino **solidez**.
 
-**🔐 Seguridad** (los 9 riesgos de [07_SEGURIDAD](07_SEGURIDAD.md))
+**🔐 Seguridad** (los 9 riesgos de [06_SEGURIDAD](06_SEGURIDAD.md))
 - [ ] **T-200-1** Migrar todas las llamadas a `run()` con cadenas de shell a listas de argumentos `M`
 - [ ] **T-200-2** Restringir `open-url` a dominios permitidos y `https` `S`
 - [ ] **T-200-3** Añadir una política de contenido (CSP) a `index.html` `S`

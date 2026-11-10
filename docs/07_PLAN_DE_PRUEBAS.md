@@ -7,7 +7,7 @@
 
 1. Preparar una carpeta de pruebas con: PDFs de 1, 3 y 10 páginas (uno con texto, uno escaneado, uno protegido), imágenes PNG, JPG (con y sin EXIF), WebP, HEIC y SVG, y una imagen vertical entre varias horizontales.
 2. Probar siempre con una carpeta de salida nueva para detectar archivos a medias.
-3. Marcar cada punto; lo que falle se registra en [10_MEMORIA.md](10_MEMORIA.md) y se corrige antes de publicar.
+3. Marcar cada punto; lo que falle se registra en [09_MEMORIA.md](09_MEMORIA.md) y se corrige antes de publicar.
 
 ---
 
@@ -123,14 +123,14 @@ Se recorre **una vez por versión**, después de las pruebas anteriores y antes 
 **Seguridad**
 - [ ] Sin archivos privados ni de contexto del asistente en lo que se sube (`git diff --cached --name-only`).
 - [ ] Entradas nuevas validadas en el proceso principal.
-- [ ] Riesgos nuevos anotados en [07_SEGURIDAD](07_SEGURIDAD.md).
+- [ ] Riesgos nuevos anotados en [06_SEGURIDAD](06_SEGURIDAD.md).
 
 **Código**
 - [ ] La sintaxis de todos los archivos pasa la revisión.
 - [ ] `npm run build` termina sin errores.
 
 **Entrega**
-- [ ] Número de versión subido en `package.json`; README y `docs/` actualizados ([10_MEMORIA](10_MEMORIA.md) incluida).
+- [ ] Número de versión subido en `package.json`; README y `docs/` actualizados ([09_MEMORIA](09_MEMORIA.md) incluida).
 - [ ] Commit directo a `main`, etiqueta `vX.Y.Z` creada y subida.
 - [ ] Instalador generado e **instalado desde cero** en un equipo limpio, y probado.
 - [ ] Notas de la versión escritas y Release publicado (decisión del autor).

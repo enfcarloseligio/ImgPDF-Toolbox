@@ -1,7 +1,7 @@
 # 🧠 MEMORIA — Estado actual del proyecto
 
 > [!NOTE]
-> Foto del momento: qué está hecho, qué falta y qué sigue. Se **actualiza al cerrar cada sesión de trabajo importante**. El plan completo está en [09_TAREAS](09_TAREAS.md) y las decisiones permanentes en [06_DECISIONES](06_DECISIONES.md).
+> Foto del momento: qué está hecho, qué falta y qué sigue. Se **actualiza al cerrar cada sesión de trabajo importante**. El plan completo está en [08_TAREAS](08_TAREAS.md) y las decisiones permanentes en [05_DECISIONES](05_DECISIONES.md).
 
 **📅 Última actualización:** 10 de noviembre de 2026
 
@@ -17,7 +17,7 @@
 
 ## 🗺️ Hoja de ruta
 
-El detalle por tarea está en [09_TAREAS](09_TAREAS.md). Resumen:
+El detalle por tarea está en [08_TAREAS](08_TAREAS.md). Resumen:
 
 `1.8.1` 🩹 estabilización → `1.9.0` 📄 PDF esencial → `1.10.0` 🔎 OCR → `1.11.0` 🎨 ajustes de imagen → `1.12.0` 🔒 privacidad y metadatos → `1.13.0` 📐 maquetación de PDF → `1.14.0` 🧩 composición de imágenes → `1.15.0` 🧰 extracción y utilidades → `2.0.0` 🏁 consolidación.
 
@@ -39,7 +39,7 @@ El detalle por tarea está en [09_TAREAS](09_TAREAS.md). Resumen:
 
 ## 🎯 Tarea actual
 
-Ninguna en curso. Pendiente de iniciar **T-181-1** (pruebas reales de 1.8.0), la primera de [09_TAREAS](09_TAREAS.md).
+Ninguna en curso. Pendiente de iniciar **T-181-1** (pruebas reales de 1.8.0), la primera de [08_TAREAS](08_TAREAS.md).
 
 ## ⚠️ Problemas y límites conocidos
 
@@ -49,7 +49,7 @@ Ninguna en curso. Pendiente de iniciar **T-181-1** (pruebas reales de 1.8.0), la
 - 🔁 Un JPG con EXIF sin orientación pierde ese EXIF al girarse (se sustituye por uno mínimo).
 - 🔐 Los PDF protegidos deben desbloquearse antes de girarlos.
 - 🖱️ Sin probar con mouse real ni con archivos del Explorador: arrastre del pincel, reordenar miniaturas y soltar archivos.
-- 🛡️ Riesgos de seguridad abiertos: ver [07_SEGURIDAD](07_SEGURIDAD.md) (se cierran en la 2.0.0).
+- 🛡️ Riesgos de seguridad abiertos: ver [06_SEGURIDAD](06_SEGURIDAD.md) (se cierran en la 2.0.0).
 - ✍️ El instalador no está firmado (aviso de SmartScreen).
 
 ## 📎 Archivos de apoyo

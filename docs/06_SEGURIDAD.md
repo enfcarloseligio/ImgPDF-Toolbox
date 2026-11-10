@@ -42,7 +42,7 @@ Todo el procesamiento ocurre **en el equipo del usuario**. La aplicación no usa
 ## ⚠️ Riesgos conocidos (pendientes)
 
 > [!WARNING]
-> Estos riesgos están planificados para cerrarse en la versión **2.0.0** (ver [09_TAREAS](09_TAREAS.md)). Hasta entonces, todo código nuevo debe evitarlos.
+> Estos riesgos están planificados para cerrarse en la versión **2.0.0** (ver [08_TAREAS](08_TAREAS.md)). Hasta entonces, todo código nuevo debe evitarlos.
 
 | # | Riesgo | Mitigación prevista |
 |---|---|---|

@@ -1,7 +1,7 @@
 # 📘 REQUISITOS — Documento de requisitos del producto (PRD)
 
 > [!NOTE]
-> Define **qué** construimos y **por qué**. El **cómo** está en [03_ARQUITECTURA.md](03_ARQUITECTURA.md).
+> Define **qué** construimos y **por qué**. El **cómo** está en [02_ARQUITECTURA.md](02_ARQUITECTURA.md).
 
 ## 🧭 Producto
 
@@ -57,7 +57,7 @@ IMG → PDF · Convertir · Recortar · Redimensionar · Comprimir · Quitar fon
 3. **Uniformidad:** misma estructura, mismos textos, mismos controles en todas las herramientas.
 4. **Transparencia:** el usuario ve lo que va a obtener (vista previa real) y lo que ocurre (progreso real).
 5. **Español claro:** interfaz, mensajes y documentación en español profesional.
-6. **Solo Ghostscript e ImageMagick:** toda función nueva se construye con estos dos motores, sin dependencias adicionales (ver [06_DECISIONES](06_DECISIONES.md) ADR-019).
+6. **Solo Ghostscript e ImageMagick:** toda función nueva se construye con estos dos motores, sin dependencias adicionales (ver [05_DECISIONES](05_DECISIONES.md) ADR-019).
 
 ## 🚫 Fuera de alcance
 
@@ -69,7 +69,7 @@ IMG → PDF · Convertir · Recortar · Redimensionar · Comprimir · Quitar fon
 
 ## 🗺️ Hoja de ruta
 
-Resumida aquí y detallada en [09_TAREAS](09_TAREAS.md).
+Resumida aquí y detallada en [08_TAREAS](08_TAREAS.md).
 
 | Versión | Tema | Estado |
 |---|---|---|
@@ -99,4 +99,4 @@ Una persona sin conocimientos técnicos debe poder, sin ayuda:
 
 - Cero pérdida de calidad innecesaria en las operaciones que no lo requieren.
 - Cada herramienta nueva sigue la estructura de pasos y reutiliza los componentes comunes.
-- Las pruebas manuales de [08_PLAN_DE_PRUEBAS.md](08_PLAN_DE_PRUEBAS.md) pasan antes de publicar cada versión.
+- Las pruebas manuales de [07_PLAN_DE_PRUEBAS.md](07_PLAN_DE_PRUEBAS.md) pasan antes de publicar cada versión.

@@ -21,16 +21,16 @@
 
 | N.º | Documento | ❓ Responde a | 🕒 Cuándo consultarlo |
 |:---:|---|---|---|
-| 01 | 📚 [LEEME](01_LEEME.md) | Dónde está cada cosa | Al llegar al proyecto |
-| 02 | 📘 [REQUISITOS](02_REQUISITOS.md) | **Qué** construimos y **por qué** | Antes de proponer o priorizar una función |
-| 03 | 🏗️ [ARQUITECTURA](03_ARQUITECTURA.md) | **Cómo** funciona por dentro | Antes de tocar código o añadir una herramienta |
-| 04 | 🎨 [DISEÑO](04_DISEÑO.md) | Cómo debe **verse y sentirse** | Antes de crear o cambiar interfaz |
-| 05 | 📜 [REGLAS](05_REGLAS.md) | Las **reglas** de desarrollo | Siempre, antes de programar |
-| 06 | ⚖️ [DECISIONES](06_DECISIONES.md) | Decisiones **permanentes** y su razón | Antes de cambiar algo estructural |
-| 07 | 🔐 [SEGURIDAD](07_SEGURIDAD.md) | Requisitos y **riesgos** de seguridad | Antes de tocar datos, archivos o procesos |
-| 08 | 🧪 [PLAN DE PRUEBAS](08_PLAN_DE_PRUEBAS.md) | Qué significa que algo **funciona** | Antes de publicar cada versión |
-| 09 | 📋 [TAREAS](09_TAREAS.md) | El **plan**: versiones, tareas y orden | Para elegir la siguiente tarea |
-| 10 | 🧠 [MEMORIA](10_MEMORIA.md) | El **estado de hoy** y el siguiente paso | Al empezar y al cerrar una sesión |
+| 00 | 📚 [LEEME](00_LEEME.md) | Dónde está cada cosa | Al llegar al proyecto |
+| 01 | 📘 [REQUISITOS](01_REQUISITOS.md) | **Qué** construimos y **por qué** | Antes de proponer o priorizar una función |
+| 02 | 🏗️ [ARQUITECTURA](02_ARQUITECTURA.md) | **Cómo** funciona por dentro | Antes de tocar código o añadir una herramienta |
+| 03 | 🎨 [DISEÑO](03_DISEÑO.md) | Cómo debe **verse y sentirse** | Antes de crear o cambiar interfaz |
+| 04 | 📜 [REGLAS](04_REGLAS.md) | Las **reglas** de desarrollo | Siempre, antes de programar |
+| 05 | ⚖️ [DECISIONES](05_DECISIONES.md) | Decisiones **permanentes** y su razón | Antes de cambiar algo estructural |
+| 06 | 🔐 [SEGURIDAD](06_SEGURIDAD.md) | Requisitos y **riesgos** de seguridad | Antes de tocar datos, archivos o procesos |
+| 07 | 🧪 [PLAN DE PRUEBAS](07_PLAN_DE_PRUEBAS.md) | Qué significa que algo **funciona** | Antes de publicar cada versión |
+| 08 | 📋 [TAREAS](08_TAREAS.md) | El **plan**: versiones, tareas y orden | Para elegir la siguiente tarea |
+| 09 | 🧠 [MEMORIA](09_MEMORIA.md) | El **estado de hoy** y el siguiente paso | Al empezar y al cerrar una sesión |
 
 ## 🔀 Cómo se relacionan
 
@@ -51,10 +51,10 @@ flowchart TD
 
 | Si quieres… | Mira en |
 |---|---|
-| 🗺️ La **planificación de versiones** y sus tareas | [09 TAREAS](09_TAREAS.md) (detalle) · [02 REQUISITOS](02_REQUISITOS.md) (solo un resumen) |
-| 📍 En qué punto estamos **hoy** | [10 MEMORIA](10_MEMORIA.md) (no lleva el plan: enlaza a TAREAS) |
-| 🧱 Lo que **no debe cambiar** sin pensarlo | [06 DECISIONES](06_DECISIONES.md) |
-| ✅ Saber si una tarea **quedó bien** | [08 PLAN DE PRUEBAS](08_PLAN_DE_PRUEBAS.md) |
+| 🗺️ La **planificación de versiones** y sus tareas | [09 TAREAS](08_TAREAS.md) (detalle) · [02 REQUISITOS](01_REQUISITOS.md) (solo un resumen) |
+| 📍 En qué punto estamos **hoy** | [10 MEMORIA](09_MEMORIA.md) (no lleva el plan: enlaza a TAREAS) |
+| 🧱 Lo que **no debe cambiar** sin pensarlo | [06 DECISIONES](05_DECISIONES.md) |
+| ✅ Saber si una tarea **quedó bien** | [08 PLAN DE PRUEBAS](07_PLAN_DE_PRUEBAS.md) |
 
 ## 🚀 Empezar rápido
 

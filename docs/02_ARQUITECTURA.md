@@ -1,7 +1,7 @@
 # 🏗️ ARQUITECTURA
 
 > [!NOTE]
-> Define **cómo** funciona la aplicación. El **qué y por qué** está en [02_REQUISITOS.md](02_REQUISITOS.md).
+> Define **cómo** funciona la aplicación. El **qué y por qué** está en [01_REQUISITOS.md](01_REQUISITOS.md).
 
 ## 🔭 Resumen
 
@@ -123,7 +123,7 @@ Cada plantilla es una lista plana de bloques dentro de `<div class="module">`, s
 
 ## 🌐 Red
 
-Solo conexiones opcionales y puntuales: consulta de la última versión de ImageMagick y Ghostscript (API de GitHub) y descarga de una tipografía de Google Fonts elegida por el usuario. Ver [07_SEGURIDAD.md](07_SEGURIDAD.md).
+Solo conexiones opcionales y puntuales: consulta de la última versión de ImageMagick y Ghostscript (API de GitHub) y descarga de una tipografía de Google Fonts elegida por el usuario. Ver [06_SEGURIDAD.md](06_SEGURIDAD.md).
 
 ## 📦 Empaquetado
 

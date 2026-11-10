@@ -103,20 +103,89 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 
 ## Desarrollo
 
-**Requisitos:** [Node.js](https://nodejs.org/) 18 o superior, ImageMagick y Ghostscript.
+### Requisitos
 
-```bash
+- **[Node.js](https://nodejs.org/) 18 o superior** (se recomienda la versión LTS). Incluye `npm`.
+- **[Git](https://git-scm.com/downloads)**.
+- **[ImageMagick](https://imagemagick.org)** y **[Ghostscript](https://www.ghostscript.com)**. Si no los tienes, la aplicación lo detecta al arrancar y te guía para instalarlos.
+
+Comprueba las versiones:
+
+```powershell
+node --version
+```
+
+```powershell
+npm --version
+```
+
+```powershell
+git --version
+```
+
+### Primera vez en un equipo nuevo
+
+> El proyecto Electron está en una carpeta **anidada**: el repositorio contiene una carpeta llamada igual (`ImgPDF-Toolbox/ImgPDF-Toolbox`). Los comandos de `npm` se ejecutan dentro de la segunda.
+
+**Paso 1 — Clona el repositorio:**
+
+```powershell
 git clone https://github.com/enfcarloseligio/ImgPDF-Toolbox.git
-cd ImgPDF-Toolbox/ImgPDF-Toolbox   # el proyecto Electron está en la carpeta anidada
+```
+
+**Paso 2 — Entra a la carpeta del repositorio:**
+
+```powershell
+cd ImgPDF-Toolbox
+```
+
+**Paso 3 — Entra a la carpeta del proyecto Electron:**
+
+```powershell
+cd ImgPDF-Toolbox
+```
+
+**Paso 4 — Instala las dependencias:**
+
+```powershell
 npm install
+```
+
+**Paso 5 — Inicia la aplicación:**
+
+```powershell
 npm start
 ```
 
-Para generar el instalador de Windows (se crea en `dist/`):
+Al abrirse, la aplicación comprueba si **ImageMagick** y **Ghostscript** están instalados y, si falta alguno, ofrece instalarlo.
 
-```bash
+### Día a día
+
+Desde la carpeta del proyecto Electron (`ImgPDF-Toolbox/ImgPDF-Toolbox`):
+
+```powershell
+git pull
+```
+
+```powershell
+npm install
+```
+
+```powershell
+npm start
+```
+
+> `npm install` solo hace falta si cambiaron las dependencias; es seguro ejecutarlo siempre.
+
+### Generar el instalador de Windows
+
+Desde la carpeta del proyecto Electron:
+
+```powershell
 npm run build
 ```
+
+El instalador (`ImgPDF Toolbox Setup X.Y.Z.exe`) se crea en la carpeta `dist/`.
 
 ### Instaladores incluidos (opcional)
 
@@ -163,7 +232,7 @@ ImgPDF Toolbox no usa servidores propios, no recopila datos ni requiere cuenta. 
 
 ## Documentación
 
-La documentación del proyecto (requisitos, arquitectura, diseño, reglas, tareas, decisiones, pruebas y seguridad) está en la carpeta [`docs/`](docs/01_LEEME.md).
+La documentación del proyecto (requisitos, arquitectura, diseño, reglas, tareas, decisiones, pruebas y seguridad) está en la carpeta [`docs/`](docs/00_LEEME.md).
 
 ## Autor
 

@@ -1,7 +1,7 @@
 # ⚖️ DECISIONES — Decisiones de arquitectura
 
 > [!NOTE]
-> Decisiones **permanentes** y su razón. Antes de cambiar una de ellas, revisar el motivo. Para el estado actual del proyecto, ver [10_MEMORIA.md](10_MEMORIA.md).
+> Decisiones **permanentes** y su razón. Antes de cambiar una de ellas, revisar el motivo. Para el estado actual del proyecto, ver [09_MEMORIA.md](09_MEMORIA.md).
 
 Formato: **Decisión** · **Razón** · **Consecuencias**. Las decisiones sustituidas no se borran: se marcan como *Reemplazada*.
 
@@ -50,7 +50,7 @@ Formato: **Decisión** · **Razón** · **Consecuencias**. Las decisiones sustit
 ## 💾 ADR-009 — Sesiones con avance guardado (Testar y Firmar)
 **Decisión:** un motor común (`src/page-tool.js`) guarda cada sesión en `userData` de forma atómica y la autoguarda.
 **Razón:** recuperar el trabajo tras un cierre accidental o un corte de luz.
-**Consecuencias:** quedan páginas rasterizadas del documento original en `userData` hasta que la sesión se descarta (ver [07_SEGURIDAD.md](07_SEGURIDAD.md)).
+**Consecuencias:** quedan páginas rasterizadas del documento original en `userData` hasta que la sesión se descarta (ver [06_SEGURIDAD.md](06_SEGURIDAD.md)).
 
 ## 🔑 ADR-010 — Firmas cifradas con contraseña
 **Decisión:** las firmas se guardan en una bóveda cifrada con AES-256-GCM, clave derivada con scrypt, y se eliminan tras 5 contraseñas erróneas en 10 minutos.
