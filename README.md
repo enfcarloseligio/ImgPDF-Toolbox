@@ -33,7 +33,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 - **Calidad sin pérdida cuando la necesitas:** IMG → PDF puede conservar los píxeles exactos de la imagen, PDF → IMG permite elegir la calidad del JPG y el recorte puede guardarse con la calidad original.
 - **Edición de imágenes:** convierte entre formatos, recorta con un editor visual y proporciones estándar, redimensiona, comprime y quita fondos de color uniforme.
 - **Flujo de firma en un paso:** convierte un PDF a imágenes y lo vuelve a armar en PDF —junto, por página o por rangos— con el formato y la resolución que elijas.
-- **Firmar:** dibuja tu firma, guárdala en tu biblioteca y colócala con un clic sobre el PDF, con visor y avance guardado.
+- **Firmar con firmas protegidas:** dibuja o carga tu firma, guárdala cifrada con contraseña y colócala con un clic sobre el PDF, con visor y avance guardado.
 - **Opciones que aprovechan el ancho:** los grupos de opciones se acomodan en la misma fila y se reacomodan al achicar la ventana.
 - **Testar con avance guardado:** oculta datos con cuadros negros sobre un visor; el trabajo se guarda solo para retomarlo tras un cierre inesperado.
 - **Vista previa en vivo** de marcas de agua y foliado.
@@ -58,7 +58,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | **Desbloquear** | Quita restricciones de propietario o abre PDFs con contraseña conocida. |
 | **Testar** | Oculta datos con cuadros negros sobre un visor de páginas, con deshacer, zoom y copia de un cuadro a todas las páginas. El avance se guarda solo y se puede retomar. Exporta cada página como imagen (PNG o JPG), suelta o dentro de un PDF, por lo que el contenido tapado no se puede recuperar. |
 | **Flujo de firma** | Convierte el PDF a imágenes (PNG o JPG, DPI y fondo a elegir) y lo vuelve a armar en PDF en un solo paso: un solo PDF, uno por página o uno por cada N páginas. Cada PDF lleva el número de su primera página (`pp-001`, `pp-003`…), de modo que una hoja fuera de orden se nota al instante. |
-| **Firmar** | Dibuja tu firma a mano (color y grosor), guárdala en «Mis firmas» y colócala con un clic sobre las páginas: se mueve, se redimensiona manteniendo su proporción y se copia a todas las páginas. El avance se guarda solo. Exporta como PDF o imágenes. |
+| **Firmar** | Dibuja tu firma a mano (color y grosor) o carga un PNG con transparencia, guárdala con un nombre y colócala con un clic sobre las páginas: se mueve, se redimensiona manteniendo su proporción y se copia a todas las páginas. Las firmas se guardan cifradas con contraseña y solo se ven por su nombre hasta que las colocas; con 5 contraseñas erróneas en 10 minutos se eliminan. El avance del documento se guarda solo. Exporta como PDF o imágenes. |
 | **Estándares** | Convierte a PDF/A-1b, 2b, 3b y 4, PDF/X-1a y X-3, PDF/UA-1 y PDF/E-1. |
 
 ### Herramientas de imágenes

@@ -999,32 +999,77 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .sigpad-hint[hidden] { display: none; }
 
-/* Biblioteca de firmas guardadas */
-.sig-lib { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.sig-thumb {
-  position: relative;
-  width: 120px;
-  height: 48px;
+/* Bóveda de firmas: solo nombres, nunca miniaturas */
+.sig-save { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.sig-name { flex: 1 1 160px; min-width: 0; width: auto; }
+
+.sig-vault-form { display: flex; flex-direction: column; gap: 0.5rem; }
+.sig-vault-form .num-input { width: 100%; }
+.sig-vault-form .sig-save .num-input { flex: 1 1 160px; width: auto; }
+.sig-vault-text { font-size: var(--text-xs); color: var(--text); line-height: 1.5; }
+
+.btn-link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.btn-link:hover { color: var(--primary-dark); }
+
+.sig-names { display: flex; flex-direction: column; gap: 0.35rem; }
+.sig-row {
+  display: flex;
+  align-items: stretch;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: #FFFFFF;
 }
-.sig-thumb.is-active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.sig-pick { display: grid; place-items: center; width: 100%; height: 100%; padding: 4px; border: 0; background: none; cursor: pointer; }
-.sig-pick img { max-width: 100%; max-height: 100%; }
+.sig-row.is-active { border-color: var(--primary); background: var(--primary-soft); }
+.sig-use {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.4rem 0.7rem;
+  border: 0;
+  background: none;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.sig-row.is-active .sig-use { color: var(--primary); font-weight: 600; }
+.sig-use > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sig-del {
-  position: absolute;
-  top: -7px;
-  right: -7px;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 30px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: #FFFFFF;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: none;
   color: var(--text-muted);
   cursor: pointer;
 }
-.sig-del:hover { color: var(--error); border-color: var(--error); }
+.sig-del:hover { color: var(--error); }
+.sig-del.is-armed { background: var(--error-bg); color: var(--error); }
+
+/* Firma colocada mientras las firmas están bloqueadas: solo se ve su recuadro */
+.ptool-locked {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  background: repeating-linear-gradient(45deg, #F1F5F9, #F1F5F9 6px, #E2E8F0 6px, #E2E8F0 12px);
+  text-align: center;
+}

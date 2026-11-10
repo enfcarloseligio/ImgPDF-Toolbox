@@ -62,8 +62,15 @@ contextBridge.exposeInMainWorld('api', {
   signerSave:            (opts)       => ipcRenderer.invoke('signer-save', opts),
   signerDiscard:         (opts)       => ipcRenderer.invoke('signer-discard', opts),
   signerExport:          (opts)       => ipcRenderer.invoke('signer-export', opts),
+  signerVaultStatus:     ()           => ipcRenderer.invoke('signer-vault-status'),
+  signerVaultCreate:     (opts)       => ipcRenderer.invoke('signer-vault-create', opts),
+  signerVaultUnlock:     (opts)       => ipcRenderer.invoke('signer-vault-unlock', opts),
+  signerVaultLock:       ()           => ipcRenderer.invoke('signer-vault-lock'),
+  signerVaultReset:      ()           => ipcRenderer.invoke('signer-vault-reset'),
   signerSignaturesList:  ()           => ipcRenderer.invoke('signer-signatures-list'),
+  signerSignaturesImages: ()          => ipcRenderer.invoke('signer-signatures-images'),
   signerSignaturesSave:  (opts)       => ipcRenderer.invoke('signer-signatures-save', opts),
+  signerSignaturesImport: (opts)      => ipcRenderer.invoke('signer-signatures-import', opts),
   signerSignaturesDelete: (opts)      => ipcRenderer.invoke('signer-signatures-delete', opts),
 
   // Fuentes tipográficas
