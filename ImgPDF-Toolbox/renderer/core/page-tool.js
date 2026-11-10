@@ -47,8 +47,9 @@ async function renderPageTool(ctx, def) {
   const api   = name => window.api[def.api + name];
 
   // ── Estado y configuración del módulo ────────────────────────────────────────
-  const cfg = await loadModuleConfig(P, { dpi: 150, mode: 'pdf', imageFormat: 'png', quality: 90, discard: true });
-  let { dpi, mode, imageFormat, quality, discard } = cfg;
+  const cfg = await loadModuleConfig(P, { dpi: 300, mode: 'pdf', imageFormat: 'png', quality: 100, discard: true, fillColor: '#000000' });
+  let { mode, imageFormat, discard, fillColor } = cfg;
+  let dpi = snapDpi(cfg.dpi), quality = snapQuality(cfg.quality);
 
   let session = null;       // Sesión abierta: { id, source, pages, boxes, ... }
   let currentPage = 0;
@@ -72,10 +73,18 @@ async function renderPageTool(ctx, def) {
     ${fileZoneHtml({ zone: `zone-${P}`, pick: `pick-${P}`, clear: `clear-${P}`, badge: `${P}-badge`, list: `${P}-list`, kind, multiple: false })}
     ${outputDirRow(P)}
 
+    ${def.fillColor ? `<div class="option-group wide">
+      <label>Color de los cuadros</label>
+      <div class="ptool-fill-row">
+        <div id="${P}-fill"></div>
+        <button class="btn-secondary btn-sm" id="${P}-fill-reset" type="button" title="Vuelve al negro puro (#000000)">Negro (predeterminado)</button>
+      </div>
+      <p class="option-hint">Por defecto los cuadros son negro puro (#000000). Cambia el tono si lo necesitas; se aplica al visor y al archivo exportado.</p>
+    </div>` : ''}
     ${isPdf ? `<div class="option-group">
       <label>Resolución de trabajo</label>
       <div class="option-row" id="${P}-dpi"></div>
-      <p class="option-hint">Se aplica al abrir el archivo. Más resolución da más nitidez y más peso.</p>
+      <p class="option-hint">Se aplica al abrir el archivo. Es la nitidez con la que se rasteriza cada página: más resolución conserva más detalle y pesa más. Con PNG no hay pérdida adicional; 300 DPI o más equivale a calidad de impresión.</p>
     </div>` : ''}
     <div class="option-group">
       <label>Guardar como</label>
@@ -116,7 +125,7 @@ async function renderPageTool(ctx, def) {
           <button class="btn-toggle" id="rd-zout" type="button" title="Alejar">−</button>
           <span class="ptool-zoom" id="rd-zoom">100%</span>
           <button class="btn-toggle" id="rd-zin" type="button" title="Acercar">+</button>
-          <button class="btn-toggle" id="rd-zfit" type="button" title="Ajustar al ancho">Ajustar</button>
+          <button class="btn-toggle" id="rd-zfit" type="button" title="Restablecer zoom (ajustar al ancho)">Restablecer</button>
         </div>
       </div>
       <div class="ptool-stage" id="${P}-stage"></div>
@@ -228,7 +237,7 @@ async function renderPageTool(ctx, def) {
   };
 
   if (isPdf) {
-    optButtons($(`${P}-dpi`), [100, 150, 200, 300].map(v => ({ label: `${v} DPI`, value: v })),
+    profilePicker($(`${P}-dpi`), dpiOptions(),
       dpi, v => { dpi = v; }, v => save({ dpi: v }));
   }
 
@@ -242,11 +251,23 @@ async function renderPageTool(ctx, def) {
     { label: 'JPG (más ligero)',   value: 'jpg' },
   ], imageFormat, v => { imageFormat = v; updateOptions(); }, v => save({ imageFormat: v }));
 
-  optButtons($(`${P}-quality`), [
-    { label: 'Alta',        value: 95 },
-    { label: 'Equilibrada', value: 85 },
-    { label: 'Reducida',    value: 70 },
-  ], quality, v => { quality = v; }, v => save({ quality: v }));
+  profilePicker($(`${P}-quality`), qualityOptions(), quality, v => { quality = v; }, v => save({ quality: v }));
+
+  // ── Color de los cuadros ─────────────────────────────────────────────────────
+  if (def.fillColor) {
+    const applyFill = () => $(`${P}-stage`).style.setProperty('--ptool-fill', fillColor);
+    const fillField = createColorField($(`${P}-fill`), {
+      value: fillColor,
+      onChange: v => { fillColor = v; save({ fillColor }); applyFill(); },
+    });
+    $(`${P}-fill-reset`).addEventListener('click', () => {
+      fillColor = '#000000';
+      fillField.setValue(fillColor);
+      save({ fillColor });
+      applyFill();
+    });
+    applyFill();
+  }
 
   $(`${P}-discard`).checked = discard;
   $(`${P}-discard`).addEventListener('change', e => { discard = e.target.checked; save({ discard }); });
@@ -413,6 +434,7 @@ async function renderPageTool(ctx, def) {
 
     const res = await runWithProgress(def.progress, `${P}-progress`, () => api('Export')({
       id: session.id, boxes: editor.getAll(), mode, imageFormat, quality, discard, outputDir: state.outputDir,
+      ...(def.fillColor ? { color: fillColor } : {}),
     }));
     window.api.playBeep();
 

@@ -68,7 +68,7 @@ async function renderCropImage() {
       <label class="check-row"><input type="checkbox" id="crop-strip"> Quitar metadatos (EXIF, ubicación GPS)</label>
     </div>
 
-    <div class="option-group" data-step="preview" data-step-title="Recorte">
+    <div class="option-group" data-step="preview" data-step-title="Área de trabajo">
       <label>Recorte</label>
       <div class="crop-stage" id="crop-stage"></div>
       <p class="option-hint" id="crop-info">Arrastra sobre la imagen para dibujar un recuadro nuevo.</p>
@@ -96,6 +96,7 @@ async function renderCropImage() {
       ? `Imagen: ${size.width} × ${size.height} px · Recorte: ${r.w} × ${r.h} px${ratio ? ` · proporción ${ratioLabel(ratio)}` : ''}`
       : 'Arrastra sobre la imagen para dibujar un recuadro nuevo.';
   });
+  attachImageZoom($('crop-stage'), $('crop-stage').querySelector('.crop-img'));
 
   // Texto de una proporción: «16:9» si coincide con una estándar, o decimal en caso contrario
   function ratioLabel(r) {
@@ -170,11 +171,7 @@ async function renderCropImage() {
     { label: 'Comprimir',              value: 'compress' },
   ], quality, v => { quality = v; updateQuality(); }, v => save({ quality: v }));
 
-  optButtons($('crop-level'), [
-    { label: 'Alta calidad',      value: 'high'     },
-    { label: 'Equilibrada',       value: 'balanced' },
-    { label: 'Máxima compresión', value: 'max'      },
-  ], level, v => { level = v; }, v => save({ level: v }));
+  profilePicker($('crop-level'), IMAGE_LEVELS, level, v => { level = v; }, v => save({ level: v }));
 
   optButtons($('crop-format'), [
     { label: 'Igual que el original', value: 'same' },

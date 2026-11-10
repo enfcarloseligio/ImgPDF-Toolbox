@@ -1,7 +1,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 // Archivo:     src/ipc-preview.js
-// Descripción: Vista previa real de las anotaciones (marca de texto, foliado y marca de
-//              imagen): aplica la anotación sobre la página elegida del archivo con las
+// Descripción: Vista previa real de las anotaciones (marca de texto, foliado, marca de
+//              imagen) y de la rotación: aplica la anotación sobre la página elegida del archivo con las
 //              mismas funciones que el procesamiento final (src/ipc-annotations.js) y
 //              devuelve una imagen reducida para mostrarla. Sin archivo usa una hoja A4 en
 //              blanco. Los comandos de la vista previa no se registran como proceso actual,
@@ -102,7 +102,7 @@ async function pageBase(file, requestedPage) {
 let lastView = null;
 let counter = 0;
 
-// tool: 'watermark' | 'folio' | 'watermark-image'. params son los mismos que recibe el
+// tool: 'watermark' | 'folio' | 'watermark-image' | 'rotate'. params son los mismos que recibe el
 // procesamiento final de cada herramienta (sin la lista de archivos ni la carpeta de salida).
 ipcMain.handle('preview-annotation', (_, { tool, file = null, page = 1, params = {} }) => serialize(async () => {
   try {
@@ -122,6 +122,14 @@ ipcMain.handle('preview-annotation', (_, { tool, file = null, page = 1, params =
     } else if (tool === 'watermark-image') {
       if (!params.markFile) return { ok: false, needsMark: true, error: 'Selecciona la imagen de la marca para ver cómo queda.' };
       await applyImageMark(previewExec, base.path, full, base.width, base.height, params);
+    } else if (tool === 'rotate') {
+      // Misma regla que la rotación real: en PDF puede limitarse a páginas pares o impares
+      const angle = [90, 180, 270].includes(Number(params.angle)) ? Number(params.angle) : 90;
+      const isPdf = !!file && path.extname(file).toLowerCase() === '.pdf';
+      const applies = !isPdf || params.target === 'all' || !params.target
+        || (params.target === 'even' && base.page % 2 === 0) || (params.target === 'odd' && base.page % 2 !== 0);
+      // En imágenes se respeta la orientación EXIF, porque el giro real solo la modifica
+      await previewExec(`magick "${base.path}" ${isPdf ? '' : '-auto-orient'} ${applies ? `-rotate ${angle}` : ''} "${full}"`);
     } else {
       throw new Error('Herramienta de vista previa desconocida.');
     }

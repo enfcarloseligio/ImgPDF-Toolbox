@@ -146,11 +146,13 @@ async function renderWatermark(ctx = {}) {
     <div class="btn-row">
       <button class="btn-primary" id="run-wm" disabled style="width:auto">Aplicar marca de agua</button>
       <button class="btn-danger"  id="cancel-wm" style="display:none;width:auto">Cancelar</button>
+      ${counterpartButtonHtml('wm', kind, 'Marca texto')}
     </div>
     <div class="progress-panel" id="wm-progress"></div>
     <div id="wm-result"></div>
   </div>`;
   organizeModule(ws);
+  bindCounterpart('wm', kind, 'watermark');
 
   // ── Vista previa real ───────────────────────────────────────────────────────
   // Se genera con el mismo proceso que el archivo final, sobre la primera página del primer archivo

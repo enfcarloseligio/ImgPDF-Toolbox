@@ -8,7 +8,7 @@
 async function renderConvertImages() {
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('convert-images', {
-    format: 'webp', quality: 90, lossless: false, background: '#FFFFFF', strip: false, ico: '256,128,64,48,32,16',
+    format: 'webp', quality: 100, lossless: false, background: '#FFFFFF', strip: false, ico: '256,128,64,48,32,16',
   });
 
   // Catálogo de formatos de salida. alpha: admite transparencia; quality: calidad con pérdida;
@@ -27,7 +27,8 @@ async function renderConvertImages() {
   const writable = new Set((await window.api.listImageFormats()).write);
   const FORMATS  = CATALOG.filter(f => !writable.size || writable.has(f.value));
 
-  let { format, quality, lossless, background, strip, ico } = cfg;
+  let { format, lossless, background, strip, ico } = cfg;
+  let quality = snapQuality(cfg.quality);
   if (!FORMATS.some(f => f.value === format)) format = FORMATS[0].value;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
@@ -63,6 +64,11 @@ async function renderConvertImages() {
       <label class="check-row"><input type="checkbox" id="cvt-strip"> Quitar metadatos (EXIF, ubicación GPS, perfil de cámara)</label>
     </div>
 
+    <div class="option-group" data-step="preview">
+      <label>Vista previa del resultado</label>
+      <div id="cvt-preview"></div>
+    </div>
+
     ${batchActionsHtml('cvt', 'Convertir imágenes')}
   </div>`;
   organizeModule(ws);
@@ -84,12 +90,7 @@ async function renderConvertImages() {
   optButtons(document.getElementById('cvt-fmt'), FORMATS.map(f => ({ label: f.label, value: f.value })),
     format, v => { format = v; updateVisibility(); }, v => save({ format: v }));
 
-  optButtons(document.getElementById('cvt-q'), [
-    { label: '100 — Máxima',  value: 100 },
-    { label: '95 — Alta',     value: 95  },
-    { label: '85 — Estándar', value: 85  },
-    { label: '70 — Baja',     value: 70  },
-  ], quality, v => { quality = v; }, v => save({ quality: v }));
+  profilePicker(document.getElementById('cvt-q'), qualityOptions(), quality, v => { quality = v; }, v => save({ quality: v }));
 
   optButtons(document.getElementById('cvt-bg'), [
     { label: 'Blanco (#FFFFFF)', value: '#FFFFFF' },
@@ -112,11 +113,20 @@ async function renderConvertImages() {
   updateVisibility();
 
   // ── Lista de archivos, ejecución y resultados ────────────────────────────────
-  setupBatchTool('cvt', {
+  const batch = setupBatchTool('cvt', {
+    onChange: () => preview.refresh(),
     moduleId: 'convert-images',
     runLabel: 'Convertir imágenes',
     busyLabel: 'Convirtiendo...',
     doneVerb: 'convertida(s)',
     run: (files, outputDir) => window.api.convertImages({ files, format, quality, lossless, background, strip, icoSizes: ico, outputDir }),
   });
+
+  // ── Vista previa del resultado ───────────────────────────────────────────────
+  const preview = createOutputPreview(document.getElementById('cvt-preview'), {
+    tool: 'convert',
+    getFile: () => batch.getFiles()[0],
+    getParams: () => ({ format, quality, lossless, background, strip, icoSizes: ico }),
+  });
+  refreshOnChange(ws, preview);
 }

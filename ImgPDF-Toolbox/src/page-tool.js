@@ -25,7 +25,7 @@ const { countPdfPages, createProgress, runGsWithProgress } = require('./progress
 // ── Constantes ───────────────────────────────────────────────────────────────
 
 const SESSION_VERSION = 1;
-const DEFAULT_DPI     = 150;
+const DEFAULT_DPI     = 300;
 
 // ── Utilidades compartidas ───────────────────────────────────────────────────
 
@@ -89,6 +89,9 @@ async function mergePdfs(parts, out, imageFormat) {
   ]);
 }
 
+// Color de relleno de los elementos (#rrggbb); negro puro si no es válido.
+const cleanColor = c => (/^#[0-9a-fA-F]{6}$/.test(c) ? c.toLowerCase() : '#000000');
+
 // Valida una fracción de página { x, y, w, h } y la recorta a los límites. Devuelve null si
 // es demasiado pequeña para ser un elemento real.
 const MIN_FRACTION = 0.001;
@@ -120,7 +123,7 @@ function sanitizePages(items, pageCount, cleanItem) {
 //   suffix         sufijo de los archivos exportados (p. ej. '-testado')
 //   emptyMessage   aviso cuando se exporta sin ningún elemento
 //   sanitizeItems  (items, pageCount) → items válidos { índice de página: [elemento] }
-//   composeArgs    (elementos de la página, { width, height }, contexto) → argumentos de
+//   composeArgs    (elementos de la página, { width, height }, contexto, { color }) → argumentos de
 //                  ImageMagick que los dibujan sobre la imagen de la página
 //   beforeExport   (opcional) (elementos validados) → contexto para composeArgs; puede lanzar un
 //                  error para impedir la exportación (p. ej. si faltan recursos)
@@ -311,7 +314,7 @@ function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sa
 
   // ── Exportación ────────────────────────────────────────────────────────────
 
-  ipcMain.handle(`${channel}-export`, async (event, { id, boxes, mode = 'pdf', imageFormat = 'png', quality = 90, outputDir, discard = false }) => {
+  ipcMain.handle(`${channel}-export`, async (event, { id, boxes, mode = 'pdf', imageFormat = 'png', quality = 90, color, outputDir, discard = false }) => {
     if (busy) return { ok: false, error: 'Ya hay una operación en curso.' };
     busy = true;
     resetCancelled();
@@ -358,7 +361,7 @@ function registerPageTool({ channel, moduleId, dirName, suffix, emptyMessage, sa
           out = getUniqueFilePath(path.join(outputDir, name));
           created.push(out);
         }
-        await magick([pageFile(id, page), ...composeArgs(clean[i] || [], page, exportContext), ...enc, out]);
+        await magick([pageFile(id, page), ...composeArgs(clean[i] || [], page, exportContext, { color: cleanColor(color) }), ...enc, out]);
         progress.tick({ currentFile: 1, currentFileName: path.basename(s.source), currentPage: i + 1, currentFilePages: total, currentOut: path.basename(out) });
       }
 

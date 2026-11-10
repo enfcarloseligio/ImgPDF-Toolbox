@@ -9,6 +9,7 @@
 const { ipcMain, app } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const crypto = require('crypto');
 const {
   runSpawn,
   magickBin,
@@ -17,6 +18,7 @@ const {
   getUniqueFilePath,
 } = require('./process-runner');
 const { createProgress } = require('./progress');
+const { cleanColors, cleanStrokes, buildRemoveBackgroundArgs } = require('./background-removal');
 
 // ── Utilidades compartidas ───────────────────────────────────────────────────
 
@@ -80,9 +82,10 @@ function qualityArgs(outFormat, { quality = 100, lossless = false } = {}) {
 
 // Niveles de compresión con pérdida compartidos por Comprimir y Recortar.
 const COMPRESS_LEVELS = {
-  high:     { quality: 85, colors: 0   },
+  high:     { quality: 95, colors: 0   },
   balanced: { quality: 75, colors: 256 },
-  max:      { quality: 60, colors: 128 },
+  medium:   { quality: 50, colors: 128 },
+  max:      { quality: 25, colors: 64  },
 };
 
 // Argumentos adicionales cuando el formato es PNG: sin pérdida o reduciendo colores.
@@ -106,8 +109,8 @@ async function imageSize(file) {
   return { width, height };
 }
 
-// Itera los archivos con progreso real y cancelación. worker(file) devuelve el resultado
-// de cada archivo; los errores se registran sin detener el lote.
+// Itera los archivos con progreso real y cancelación. worker(file, índice) devuelve el resultado
+// de cada archivo (recibe también su posición en la lista); los errores se registran sin detener el lote.
 async function processFiles(event, moduleId, files, worker) {
   resetCancelled();
   const results  = [];
@@ -118,7 +121,7 @@ async function processFiles(event, moduleId, files, worker) {
     const file = files[i];
     if (getIsCancelled()) { results.push({ file, ok: false, error: 'Cancelado' }); break; }
     try {
-      const result = await worker(file);
+      const result = await worker(file, i);
       results.push({ file, ok: true, ...result });
       progress.tick({ currentFile: i + 1, currentFileName: path.basename(file), currentPage: 1, currentFilePages: 1, currentOut: result.out ? path.basename(result.out) : '' });
     } catch (e) {
@@ -158,6 +161,31 @@ ipcMain.handle('get-image-preview', async (_, file) => {
   }
 });
 
+// Miniatura para las listas de imágenes: PNG reducido en una carpeta temporal, junto con el
+// tamaño real (ya orientado) y el peso. Se reutiliza mientras el archivo no cambie.
+const THUMB_SIZE = '320x320>';
+ipcMain.handle('image-thumbnail', async (_, file) => {
+  try {
+    const stat = fs.statSync(file);
+    const key  = crypto.createHash('sha1').update(`${file}|${stat.size}|${stat.mtimeMs}`).digest('hex');
+    const dir  = path.join(app.getPath('temp'), 'imgpdf_thumbs');
+    const out  = path.join(dir, `${key}.png`);
+    const meta = `${out}.json`;
+    fs.mkdirSync(dir, { recursive: true });
+
+    if (fs.existsSync(out) && fs.existsSync(meta)) {
+      try { return { ok: true, path: out, bytes: stat.size, ...JSON.parse(fs.readFileSync(meta, 'utf8')) }; } catch (_) { /* miniatura dañada: se regenera */ }
+    }
+    const printed = await magick([...inputArgs(file, 'png'), '-auto-orient', '-print', '%w %h\n', '-thumbnail', THUMB_SIZE,
+      '-define', 'png:compression-level=1', out]);
+    const [width, height] = printed.trim().split(/\s+/).map(Number);
+    fs.writeFileSync(meta, JSON.stringify({ width, height }));
+    return { ok: true, path: out, width, height, bytes: stat.size };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
 // Formatos que esta instalación de ImageMagick puede leer y escribir.
 let formatsCache = null;
 ipcMain.handle('list-image-formats', async () => {
@@ -181,20 +209,26 @@ ipcMain.handle('list-image-formats', async () => {
 
 // ── Convertir formato ────────────────────────────────────────────────────────
 
-ipcMain.handle('convert-images', async (event, { files, format, quality = 100, lossless = false, background = '#FFFFFF', strip = false, icoSizes = '256,128,64,48,32,16', outputDir }) => {
+// Argumentos de la conversión de una imagen (los usan el proceso real y la vista previa).
+function convertArgs(file, out, { format, quality = 100, lossless = false, background = '#FFFFFF', strip = false, icoSizes = '256,128,64,48,32,16' }) {
   const outFormat = normalizeFormat(format);
+  return [
+    ...inputArgs(file, outFormat), '-auto-orient',
+    ...flattenArgs(outFormat, background),
+    ...(strip ? ['-strip'] : []),
+    ...qualityArgs(outFormat, { quality, lossless }),
+    ...(outFormat === 'ico' ? ['-define', `icon:auto-resize=${icoSizes}`] : []),
+    out,
+  ];
+}
+
+ipcMain.handle('convert-images', async (event, { files, outputDir, ...opts }) => {
+  const outFormat = normalizeFormat(opts.format);
 
   return processFiles(event, 'convert-images', files, async file => {
     const out = outPath(outputDir, file, '', outFormat);
     const sizeBefore = sizeOf(file);
-    await magick([
-      ...inputArgs(file, outFormat), '-auto-orient',
-      ...flattenArgs(outFormat, background),
-      ...(strip ? ['-strip'] : []),
-      ...qualityArgs(outFormat, { quality, lossless }),
-      ...(outFormat === 'ico' ? ['-define', `icon:auto-resize=${icoSizes}`] : []),
-      out,
-    ]);
+    await magick(convertArgs(file, out, opts));
     return { out, sizeBefore, sizeAfter: sizeOf(out) };
   });
 });
@@ -214,19 +248,27 @@ function resizeGeometry({ mode, width, height, percent, keepRatio, noEnlarge, ma
   return `${w}x${h}!${noEnlarge ? '>' : ''}`;
 }
 
-ipcMain.handle('resize-images', async (event, { files, mode, width, height, percent, keepRatio = true, noEnlarge = false, maxSide, quality = 100, outputDir }) => {
-  const geometry = resizeGeometry({ mode, width, height, percent, keepRatio, noEnlarge, maxSide });
-
-  return processFiles(event, 'resize-images', files, async file => {
-    const outFormat = extOf(file) === 'svg' ? 'png' : extOf(file);
-    const out = outPath(outputDir, file, '-redim', outFormat);
-    await magick([
+// Argumentos del redimensionado de una imagen y formato de salida.
+function resizeArgs(file, out, { mode, width, height, percent, keepRatio = true, noEnlarge = false, maxSide, quality = 100 }) {
+  const geometry  = resizeGeometry({ mode, width, height, percent, keepRatio, noEnlarge, maxSide });
+  const outFormat = extOf(file) === 'svg' ? 'png' : extOf(file);
+  return {
+    outFormat,
+    args: [
       ...inputArgs(file, outFormat), '-auto-orient',
       '-filter', 'Lanczos', '-resize', geometry,
       ...flattenArgs(outFormat),
       ...qualityArgs(outFormat, { quality, lossless: quality >= 100 }),
       out,
-    ]);
+    ],
+  };
+}
+
+ipcMain.handle('resize-images', async (event, { files, outputDir, ...opts }) => {
+  return processFiles(event, 'resize-images', files, async file => {
+    const outFormat = extOf(file) === 'svg' ? 'png' : extOf(file);
+    const out = outPath(outputDir, file, '-redim', outFormat);
+    await magick(resizeArgs(file, out, opts).args);
     const { width: w, height: h } = await imageSize(out);
     return { out, width: w, height: h, sizeBefore: sizeOf(file), sizeAfter: sizeOf(out) };
   });
@@ -234,16 +276,14 @@ ipcMain.handle('resize-images', async (event, { files, mode, width, height, perc
 
 // ── Comprimir imágenes ───────────────────────────────────────────────────────
 
-ipcMain.handle('compress-images', async (event, { files, level = 'balanced', format = 'same', maxSide = 0, strip = true, outputDir }) => {
-  const lvl = COMPRESS_LEVELS[level] || COMPRESS_LEVELS.balanced;
-
-  return processFiles(event, 'compress-images', files, async file => {
-    const sourceFormat = extOf(file) === 'svg' ? 'png' : extOf(file);
-    const outFormat    = format === 'same' ? sourceFormat : normalizeFormat(format);
-    const sizeBefore   = sizeOf(file);
-    const out          = outPath(outputDir, file, '-comprimido', outFormat);
-
-    await magick([
+// Argumentos de la compresión de una imagen y formatos de origen y salida.
+function compressArgs(file, out, { level = 'balanced', format = 'same', maxSide = 0, strip = true }) {
+  const lvl          = COMPRESS_LEVELS[level] || COMPRESS_LEVELS.balanced;
+  const sourceFormat = extOf(file) === 'svg' ? 'png' : extOf(file);
+  const outFormat    = format === 'same' ? sourceFormat : normalizeFormat(format);
+  return {
+    sourceFormat, outFormat,
+    args: [
       ...inputArgs(file, outFormat), '-auto-orient',
       ...(maxSide ? ['-resize', `${maxSide}x${maxSide}>`] : []),
       ...flattenArgs(outFormat),
@@ -251,16 +291,61 @@ ipcMain.handle('compress-images', async (event, { files, level = 'balanced', for
       ...pngColorArgs(outFormat, level),
       ...qualityArgs(outFormat, { quality: lvl.quality }),
       out,
-    ]);
+    ],
+  };
+}
+
+ipcMain.handle('compress-images', async (event, { files, outputDir, ...opts }) => {
+  return processFiles(event, 'compress-images', files, async file => {
+    const { sourceFormat, outFormat } = compressArgs(file, '', opts);
+    const sizeBefore = sizeOf(file);
+    const out        = outPath(outputDir, file, '-comprimido', outFormat);
+
+    await magick(compressArgs(file, out, opts).args);
 
     const sizeAfter = sizeOf(out);
     // Si no hay ganancia y no cambió el formato ni el tamaño, se descarta el resultado
-    if (sizeAfter >= sizeBefore && outFormat === sourceFormat && !maxSide) {
+    if (sizeAfter >= sizeBefore && outFormat === sourceFormat && !opts.maxSide) {
       try { fs.unlinkSync(out); } catch (_) {}
       return { skipped: true, sizeBefore, sizeAfter: sizeBefore };
     }
     return { out, sizeBefore, sizeAfter };
   });
+});
+
+// ── Vista previa del resultado de Convertir, Redimensionar y Comprimir ───────
+
+// Aplica a la primera imagen el mismo proceso que el lote y devuelve el resultado real para
+// verlo (con su compresión) junto con su tamaño y peso. tool: 'convert' | 'resize' | 'compress'.
+let outputPreviewCounter = 0;
+ipcMain.handle('image-output-preview', async (_, { tool, file, params = {} }) => {
+  try {
+    const dir = path.join(app.getPath('temp'), 'imgpdf_preview');
+    fs.mkdirSync(dir, { recursive: true });
+    const id = `${Date.now()}_${outputPreviewCounter++}`;
+
+    let outFormat;
+    if (tool === 'convert')       outFormat = normalizeFormat(params.format);
+    else if (tool === 'resize')   outFormat = resizeArgs(file, '', params).outFormat;
+    else if (tool === 'compress') outFormat = compressArgs(file, '', params).outFormat;
+    else throw new Error('Herramienta de vista previa desconocida.');
+
+    const out = path.join(dir, `out_${id}.${outFormat}`);
+    if (tool === 'convert')  await magick(convertArgs(file, out, params));
+    if (tool === 'resize')   await magick(resizeArgs(file, out, params).args);
+    if (tool === 'compress') await magick(compressArgs(file, out, params).args);
+
+    // Los formatos que Chromium no muestra se decodifican a PNG: se ve lo que quedó en el archivo
+    let view = out;
+    if (!BROWSER_FORMATS.has(outFormat)) {
+      view = path.join(dir, `view_${id}.png`);
+      await magick([`${out}[0]`, view]);
+    }
+    const { width, height } = await imageSize(view);
+    return { ok: true, path: view, width, height, format: outFormat, bytes: sizeOf(out), sizeBefore: sizeOf(file) };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
 });
 
 // ── Recortar ─────────────────────────────────────────────────────────────────
@@ -297,52 +382,75 @@ ipcMain.handle('crop-image', async (event, { file, x, y, width, height, format =
 
 // ── Quitar fondo (por color) ─────────────────────────────────────────────────
 
-// Color de un píxel de la imagen (esquina superior izquierda por defecto).
-async function cornerColor(file) {
-  const out = await magick([`${file}[0]`, '-auto-orient', '-format', '%[pixel:p{0,0}]', 'info:']);
-  return out.trim();
+const PREVIEW_MAX = '900x900>';   // Tamaño máximo de la vista previa
+
+// Convierte un valor 0–255 a dos dígitos hexadecimales.
+const hex2 = n => Math.min(Math.max(Math.round(n), 0), 255).toString(16).padStart(2, '0');
+
+// Color (#rrggbb) de un píxel de la imagen orientada.
+async function pixelColor(file, x, y) {
+  const p = `p{${Math.round(x)},${Math.round(y)}}`;
+  const out = await magick([`${file}[0]`, '-auto-orient', '-colorspace', 'sRGB', '-format',
+    `%[fx:int(255*${p}.r+0.5)],%[fx:int(255*${p}.g+0.5)],%[fx:int(255*${p}.b+0.5)]`, 'info:']);
+  const [r, g, b] = out.trim().split(',').map(Number);
+  return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
 }
 
-// Argumentos que vuelven transparente el fondo: «edges» rellena desde el borde (solo el
-// fondo conectado) y «global» elimina ese color en toda la imagen.
-function removeBackgroundArgs({ color, fuzz, method, feather }) {
-  const fz = `${Math.max(0, Math.min(Number(fuzz) || 0, 100))}%`;
-  const core = method === 'global'
-    ? ['-alpha', 'set', '-fuzz', fz, '-transparent', color]
-    : ['-alpha', 'set', '-bordercolor', color, '-border', '1x1', '-fuzz', fz, '-fill', 'none', '-draw', 'color 0,0 floodfill', '-shave', '1x1'];
-  // Suavizado leve del borde de la transparencia para evitar contornos duros
-  const smooth = feather ? ['-channel', 'A', '-blur', '0x0.8', '-level', '45%,100%', '+channel'] : [];
-  return [...core, ...smooth];
+// Tamaño de la imagen tras orientarla (y reducirla, si se pide) para ubicar el retoque.
+async function orientedSize(file, resize) {
+  const out = await magick([...inputArgs(file, 'png'), '-auto-orient', ...(resize ? ['-resize', resize] : []), '-format', '%w %h', 'info:']);
+  const [width, height] = out.trim().split(/\s+/).map(Number);
+  return { width, height };
 }
 
-ipcMain.handle('remove-background', async (event, { files, color = 'auto', fuzz = 12, method = 'edges', feather = true, outputDir }) => {
-  return processFiles(event, 'remove-background', files, async file => {
-    const bg  = color === 'auto' ? await cornerColor(file) : color;
+// Colores a quitar: los elegidos o, si no hay ninguno, el de la esquina superior izquierda.
+async function backgroundColors(file, colors) {
+  const list = cleanColors(colors);
+  return list.length ? list : [await pixelColor(file, 0, 0)];
+}
+
+// Quita el fondo de una imagen y la guarda en out. resize reduce la imagen (vista previa).
+async function removeBackgroundTo(file, out, { colors, fuzz, method, feather, strokes, resize, outArgs = [] }) {
+  const { width, height } = await orientedSize(file, resize);
+  const args = buildRemoveBackgroundArgs({
+    inputArgs: [...inputArgs(file, 'png'), '-auto-orient', ...(resize ? ['-resize', resize] : [])],
+    width, height, colors, fuzz, method, feather,
+    strokes: cleanStrokes(strokes),
+    outArgs: [...outArgs, out],
+  });
+  await magick(args);
+}
+
+ipcMain.handle('remove-background', async (event, { files, colors = [], fuzz = 12, method = 'edges', feather = true, strokes = [], outputDir }) => {
+  return processFiles(event, 'remove-background', files, async (file, index) => {
     const out = outPath(outputDir, file, '-sinfondo', 'png');
-    await magick([...inputArgs(file, 'png'), '-auto-orient', ...removeBackgroundArgs({ color: bg, fuzz, method, feather }), '-define', 'png:compression-level=9', out]);
+    // El retoque a mano se hizo sobre la primera imagen: solo se aplica a ella
+    await removeBackgroundTo(file, out, {
+      colors: await backgroundColors(file, colors), fuzz, method, feather,
+      strokes: index === 0 ? strokes : [], outArgs: ['-define', 'png:compression-level=9'],
+    });
     return { out, sizeBefore: sizeOf(file), sizeAfter: sizeOf(out) };
   });
 });
 
 // Vista previa reducida del resultado (PNG temporal) para ajustar la tolerancia en vivo.
-ipcMain.handle('remove-background-preview', async (_, { file, color = 'auto', fuzz = 12, method = 'edges', feather = true }) => {
+ipcMain.handle('remove-background-preview', async (_, { file, colors = [], fuzz = 12, method = 'edges', feather = true, strokes = [] }) => {
   try {
     const dir = path.join(app.getPath('temp'), 'imgpdf_preview');
     fs.mkdirSync(dir, { recursive: true });
-    const bg  = color === 'auto' ? await cornerColor(file) : color;
-    const out = path.join(dir, `bg_${Date.now()}.png`);
-    await magick([...inputArgs(file, 'png'), '-auto-orient', '-resize', '900x900>', ...removeBackgroundArgs({ color: bg, fuzz, method, feather }), out]);
-    return { ok: true, path: out, color: bg };
+    const used = await backgroundColors(file, colors);
+    const out  = path.join(dir, `bg_${Date.now()}.png`);
+    await removeBackgroundTo(file, out, { colors: used, fuzz, method, feather, strokes, resize: PREVIEW_MAX });
+    return { ok: true, path: out, colors: used };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
   }
 });
 
-// Color de un píxel concreto (selector de gotero), en coordenadas de la imagen orientada.
+// Color de un píxel concreto (gotero), en coordenadas de la imagen orientada.
 ipcMain.handle('get-image-pixel', async (_, { file, x, y }) => {
   try {
-    const out = await magick([`${file}[0]`, '-auto-orient', '-format', `%[pixel:p{${Math.round(x)},${Math.round(y)}}]`, 'info:']);
-    return { ok: true, color: out.trim() };
+    return { ok: true, color: await pixelColor(file, x, y) };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
   }

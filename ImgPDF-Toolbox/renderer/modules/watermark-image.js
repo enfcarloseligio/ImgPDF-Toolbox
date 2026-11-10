@@ -24,7 +24,7 @@ async function renderWatermarkImage(ctx = {}) {
   let files       = [];
   let markFile    = null;
 
-  let sizePercent = cfg.sizePercent;
+  let sizePercent = snapTo(cfg.sizePercent, [10, 25, 50, 75], 25);   // Los tamaños guardados de versiones anteriores (20, 30) se ajustan al más cercano
   let opacity     = cfg.opacity;
   let position    = cfg.position;
   let angle       = cfg.angle;
@@ -122,11 +122,13 @@ async function renderWatermarkImage(ctx = {}) {
     <div class="btn-row">
       <button class="btn-primary" id="run-wmi" disabled style="width:auto">Aplicar marca de imagen</button>
       <button class="btn-danger"  id="cancel-wmi" style="display:none;width:auto">Cancelar</button>
+      ${counterpartButtonHtml('wmi', kind, 'Marca imagen')}
     </div>
     <div class="progress-panel" id="wmi-progress"></div>
     <div id="wmi-result"></div>
   </div>`;
   organizeModule(ws);
+  bindCounterpart('wmi', kind, 'watermark-image');
 
   // ── Imagen de marca: selección, arrastre y limpieza ─────────────────────────
   const MARK_EXTENSIONS = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
@@ -166,9 +168,8 @@ async function renderWatermarkImage(ctx = {}) {
   // ── Tamaño relativo ─────────────────────────────────────────────────────────
   optButtons(document.getElementById('size-row'), [
     { label: '10% — Pequeño',  value: 10 },
-    { label: '20% — Mediano',  value: 20 },
-    { label: '30% — Grande',   value: 30 },
-    { label: '50% — Muy grande',value: 50 },
+    { label: '25% — Mediano',  value: 25 },
+    { label: '50% — Grande',   value: 50 },
     { label: '75% — Portada',  value: 75 },
   ], sizePercent, val => {
     sizePercent = val;

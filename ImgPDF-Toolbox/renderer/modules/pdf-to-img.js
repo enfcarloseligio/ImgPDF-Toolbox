@@ -8,7 +8,7 @@
 async function renderPdfToImg(ctx = {}) {
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('pdf-to-img', { density: 300, format: 'png', background: '#FFFFFF', jpgQuality: 100 });
-  let files = [], density = cfg.density, format = cfg.format, background = cfg.background, jpgQuality = cfg.jpgQuality;
+  let files = [], density = snapDpi(cfg.density), format = cfg.format, background = cfg.background, jpgQuality = snapQuality(cfg.jpgQuality);
   let currentRunId = 0;
   let lastOutputs = [];   // Imágenes generadas en la última ejecución (para continuar en IMG → PDF)
 
@@ -25,7 +25,7 @@ async function renderPdfToImg(ctx = {}) {
     <div class="option-group">
       <label>Resolución (DPI)</label>
       <div class="option-row" id="dpi-row"></div>
-      <p class="option-hint">Los DPI definen el tamaño en píxeles, no comprimen. PNG siempre es sin pérdida.</p>
+      <p class="option-hint">Los DPI definen el tamaño en píxeles, no comprimen. PNG siempre es sin pérdida. Predeterminado: 300 DPI.</p>
     </div>
     <div class="option-group"><label>Fondo</label><div class="option-row" id="bg-row"></div></div>
     ${fileZoneHtml({ zone: 'zone-p2i', pick: 'pick-pdfs2', clear: 'clear-p2i', badge: 'p2i-badge', list: 'pdf2-list', kind: 'pdf', multiple: true })}
@@ -48,11 +48,7 @@ async function renderPdfToImg(ctx = {}) {
   v => saveModuleConfig('pdf-to-img', { format: v }));
 
   // Calidad JPG: solo aplica al formato JPG (PNG es siempre sin pérdida)
-  optButtons(document.getElementById('jpgq-row'), [
-    { label: '100 — Máxima',   value: 100 },
-    { label: '95 — Alta',      value: 95  },
-    { label: '85 — Estándar',  value: 85  },
-  ], jpgQuality, v => { jpgQuality = v; },
+  profilePicker(document.getElementById('jpgq-row'), qualityOptions(), jpgQuality, v => { jpgQuality = v; },
   v => saveModuleConfig('pdf-to-img', { jpgQuality: v }));
 
   function updateJpgQuality() {
@@ -60,12 +56,7 @@ async function renderPdfToImg(ctx = {}) {
   }
   updateJpgQuality();
 
-  optButtons(document.getElementById('dpi-row'), [
-    { label: '300 DPI — Máxima', value: 300 },
-    { label: '200 DPI — Alta',   value: 200 },
-    { label: '150 DPI — Media',  value: 150 },
-    { label: '72 DPI — Baja',    value: 72  },
-  ], density, v => { density = v; },
+  profilePicker(document.getElementById('dpi-row'), dpiOptions(), density, v => { density = v; },
   v => saveModuleConfig('pdf-to-img', { density: v }));
 
   function updateBg() {

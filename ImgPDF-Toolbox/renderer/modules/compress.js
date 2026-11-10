@@ -6,14 +6,14 @@
 
 async function renderCompress() {
   // ── Estado y configuración del módulo ────────────────────────────────────────
-  const cfg = await loadModuleConfig('compress', { profile: 'ebook' });
+  const cfg = await loadModuleConfig('compress', { profile: 'printer' });
   let files = [], profile = cfg.profile;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
   ws.innerHTML = `<div class="module">
     <div class="module-title">${icon('compress',22)} Comprimir PDFs</div>
-    <p class="module-desc">Reduce el peso de tus PDFs usando perfiles de Ghostscript. El archivo original no se modifica.</p>
+    <p class="module-desc">Reduce el peso de tus PDFs usando perfiles de Ghostscript. Las imágenes del PDF se reducen a la resolución del perfil; nunca se amplían. El archivo original no se modifica.</p>
     <div class="option-group">
       <label>Perfil de compresión</label>
       <div class="option-row" id="profile-row"></div>
@@ -24,19 +24,17 @@ async function renderCompress() {
     <div class="btn-row">
       <button class="btn-primary" id="run-compress" disabled style="width:auto">Comprimir PDFs</button>
       <button class="btn-danger"  id="cancel-compress" style="display:none;width:auto">Cancelar</button>
+      ${counterpartButtonHtml('compress', 'pdf', 'Comprimir')}
     </div>
     <div class="progress-panel" id="compress-progress"></div>
     <div id="compress-result"></div>
   </div>`;
   organizeModule(ws);
+  bindCounterpart('compress', 'pdf', 'compress-images');
 
   // ── Opciones de configuración ────────────────────────────────────────────────
-  const profiles = [
-    { icon: 'monitor', label: 'Pantalla',        value: 'screen',   hint: '72 DPI — Mínimo peso. Ideal para envío por correo o mensajería.' },
-    { icon: 'book', label: 'Digital',         value: 'ebook',    hint: '150 DPI — Balance óptimo entre peso y calidad. Recomendado.' },
-    { icon: 'printer', label: 'Impresión',       value: 'printer',  hint: '300 DPI — Alta calidad. Para documentos que se imprimirán.' },
-    { icon: 'award', label: 'Alta definición', value: 'prepress', hint: '300+ DPI — Máxima fidelidad. Para archivos institucionales.' },
-  ];
+  // Mismos perfiles de resolución que el resto de herramientas (core/ui-utils.js)
+  const profiles = DPI_PROFILES.map(p => ({ icon: p.icon, label: p.label, value: p.profile, hint: `${p.dpi} DPI — ${p.hint}` }));
 
   const hintEl = document.getElementById('profile-hint');
   function updateHint(val) {
