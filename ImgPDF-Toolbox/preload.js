@@ -53,6 +53,18 @@ contextBridge.exposeInMainWorld('api', {
   redactSave:            (opts)       => ipcRenderer.invoke('redact-save', opts),
   redactDiscard:         (opts)       => ipcRenderer.invoke('redact-discard', opts),
   redactExport:          (opts)       => ipcRenderer.invoke('redact-export', opts),
+  signFlow:              (opts)       => ipcRenderer.invoke('sign-flow', opts),
+  // Firmar (firmas dibujadas sobre un PDF, con avance guardado)
+  signerListSessions:    ()           => ipcRenderer.invoke('signer-list-sessions'),
+  signerFindSession:     (opts)       => ipcRenderer.invoke('signer-find-session', opts),
+  signerLoadSession:     (opts)       => ipcRenderer.invoke('signer-load-session', opts),
+  signerOpen:            (opts)       => ipcRenderer.invoke('signer-open', opts),
+  signerSave:            (opts)       => ipcRenderer.invoke('signer-save', opts),
+  signerDiscard:         (opts)       => ipcRenderer.invoke('signer-discard', opts),
+  signerExport:          (opts)       => ipcRenderer.invoke('signer-export', opts),
+  signerSignaturesList:  ()           => ipcRenderer.invoke('signer-signatures-list'),
+  signerSignaturesSave:  (opts)       => ipcRenderer.invoke('signer-signatures-save', opts),
+  signerSignaturesDelete: (opts)      => ipcRenderer.invoke('signer-signatures-delete', opts),
 
   // Fuentes tipográficas
   getSystemFonts:        ()           => ipcRenderer.invoke('get-system-fonts'),

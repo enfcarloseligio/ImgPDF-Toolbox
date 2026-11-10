@@ -51,21 +51,25 @@
 
 .step-body { display: flex; flex-direction: column; gap: 1rem; }
 
-/* Configuración: las opciones se reparten en columnas según el ancho disponible.
-   Los bloques con muchas opciones (4 o más botones) y los que no son grupos de
-   opciones ocupan la fila completa. */
+/* Configuración: cada grupo de opciones ocupa el ancho de su contenido y los grupos se
+   acomodan uno junto a otro, aprovechando todo el ancho. Al achicar la ventana los que ya no
+   caben pasan a la línea siguiente y, si un grupo es más ancho que la fila, sus botones se
+   reparten en varias líneas. Los bloques que no son grupos de opciones y los marcados con
+   .wide ocupan la fila completa. */
 .step-body-config {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
-  grid-auto-flow: dense;
-  gap: 1rem 1.75rem;
-  align-items: start;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: flex-start;
 }
+.step-body-config > .option-group { flex: 0 1 auto; max-width: 100%; min-width: 0; }
+/* Con texto de ayuda se pide un ancho mínimo, para que no quede demasiado estrecho */
+.step-body-config > .option-group:has(> .option-hint) { min-width: min(100%, 260px); }
 .step-body-config > :not(.option-group),
-.step-body-config > .option-group.wide,
-.step-body-config > .option-group:has(.option-row > .opt-btn:nth-child(4)) {
-  grid-column: 1 / -1;
-}
+.step-body-config > .option-group.wide { flex: 1 0 100%; }
+/* El texto de ayuda se ajusta al ancho que le da el grupo en vez de ensancharlo */
+.step-body-config > .option-group > .option-hint { width: 0; min-width: 100%; }
 
 /* Configuración + vista previa: dos columnas en ancho suficiente (consulta de contenedor) */
 .step-split-wrap { container-type: inline-size; }
@@ -865,42 +869,42 @@ input[type="range"]::-webkit-slider-thumb {
 /* En ventanas anchas la configuración ocupa una columna fija a la izquierda y el visor el
    resto; en estrechas se apilan en el orden numerado de los pasos. */
 @container (min-width: 860px) {
-  .module-redact .step-split { grid-template-columns: 300px minmax(0, 1fr); }
+  .module-ptool .step-split { grid-template-columns: 300px minmax(0, 1fr); }
 }
 
-.redact-toolbar {
+.ptool-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1.25rem;
 }
-.redact-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
-.redact-tools .num-input { width: 60px; }
-.redact-pages, .redact-zoom { font-size: var(--text-sm); color: var(--text-muted); min-width: 2.5rem; text-align: center; }
-.redact-toolbar .btn-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
-.redact-toolbar .btn-toggle:disabled:hover { border-color: var(--border); color: inherit; }
+.ptool-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.ptool-tools .num-input { width: 60px; }
+.ptool-pages, .ptool-zoom { font-size: var(--text-sm); color: var(--text-muted); min-width: 2.5rem; text-align: center; }
+.ptool-toolbar .btn-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+.ptool-toolbar .btn-toggle:disabled:hover { border-color: var(--border); color: inherit; }
 
-.redact-stage {
+.ptool-stage {
   display: grid;
   min-height: 300px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: #E2E8F0;
 }
-.redact-stage.drag-active { border-color: var(--accent); }
-.redact-empty { place-self: center; padding: 2rem 1rem; font-size: var(--text-sm); color: var(--text-muted); text-align: center; }
-.redact-empty[hidden], .redact-scroll[hidden] { display: none; }
+.ptool-stage.drag-active { border-color: var(--accent); }
+.ptool-empty { place-self: center; padding: 2rem 1rem; font-size: var(--text-sm); color: var(--text-muted); text-align: center; }
+.ptool-empty[hidden], .ptool-scroll[hidden] { display: none; }
 
 /* Área desplazable: con zoom mayor que el ajuste se recorre con las barras */
-.redact-scroll {
+.ptool-scroll {
   max-height: 70vh;
   overflow: auto;
   padding: 0.75rem;
   outline: none;
 }
-.redact-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.ptool-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 
-.redact-page {
+.ptool-page {
   position: relative;
   margin: 0 auto;
   line-height: 0;
@@ -910,18 +914,18 @@ input[type="range"]::-webkit-slider-thumb {
   touch-action: none;
   cursor: crosshair;
 }
-.redact-img { display: block; width: 100%; height: auto; pointer-events: none; }
-.redact-boxes { position: absolute; inset: 0; }
+.ptool-img { display: block; width: 100%; height: auto; pointer-events: none; }
+.ptool-items { position: absolute; inset: 0; }
 
 /* Los cuadros se ven tal como quedarán en el archivo exportado */
-.redact-box {
+.ptool-item {
   position: absolute;
   background: #000000;
   cursor: move;
 }
-.redact-box.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ptool-item.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.redact-handle {
+.ptool-handle {
   position: absolute;
   width: 12px;
   height: 12px;
@@ -930,15 +934,97 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 3px;
   touch-action: none;
 }
-.redact-h-nw { left: -7px;  top: -7px;    cursor: nwse-resize; }
-.redact-h-ne { right: -7px; top: -7px;    cursor: nesw-resize; }
-.redact-h-sw { left: -7px;  bottom: -7px; cursor: nesw-resize; }
-.redact-h-se { right: -7px; bottom: -7px; cursor: nwse-resize; }
-.redact-h-n  { left: calc(50% - 6px); top: -7px;    cursor: ns-resize; }
-.redact-h-s  { left: calc(50% - 6px); bottom: -7px; cursor: ns-resize; }
-.redact-h-w  { top: calc(50% - 6px);  left: -7px;   cursor: ew-resize; }
-.redact-h-e  { top: calc(50% - 6px);  right: -7px;  cursor: ew-resize; }
+.ptool-h-nw { left: -7px;  top: -7px;    cursor: nwse-resize; }
+.ptool-h-ne { right: -7px; top: -7px;    cursor: nesw-resize; }
+.ptool-h-sw { left: -7px;  bottom: -7px; cursor: nesw-resize; }
+.ptool-h-se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.ptool-h-n  { left: calc(50% - 6px); top: -7px;    cursor: ns-resize; }
+.ptool-h-s  { left: calc(50% - 6px); bottom: -7px; cursor: ns-resize; }
+.ptool-h-w  { top: calc(50% - 6px);  left: -7px;   cursor: ew-resize; }
+.ptool-h-e  { top: calc(50% - 6px);  right: -7px;  cursor: ew-resize; }
 
 /* Trabajo sin terminar: una fila por sesión con sus acciones a la derecha */
-.redact-pending-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.redact-pending-actions { display: flex; gap: 0.4rem; }
+.ptool-pending-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.ptool-pending-actions { display: flex; gap: 0.4rem; }
+
+/* ── Firmar: firmas colocadas y panel de dibujo ───────────────────────────── */
+/* Una firma colocada muestra su imagen; al seleccionarla se perfila con línea discontinua */
+.ptool-item.is-stamp { background: transparent; }
+.ptool-item.is-stamp > img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.ptool-item.is-stamp.is-selected { outline: 2px dashed var(--accent); }
+
+.sig-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.sig-draw    { display: flex; flex-direction: column; gap: 0.6rem; flex: 1 1 320px; min-width: 0; }
+.sig-library { display: flex; flex-direction: column; gap: 0.4rem; flex: 1 1 240px; min-width: 0; }
+.sig-library-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--deep);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sig-controls { display: flex; flex-direction: column; gap: 0.5rem; }
+.sig-controls .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 0.4rem; border-radius: 50%; }
+.sig-controls .btn-toggle:disabled,
+.sig-controls .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Lienzo con proporción fija 3:1: los trazos se guardan en unidades lógicas */
+.sigpad {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  border: 1px dashed var(--disabled);
+  border-radius: var(--radius);
+  background: #FFFFFF;
+  cursor: crosshair;
+}
+.sigpad-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.sigpad-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+  color: var(--disabled);
+  pointer-events: none;
+}
+.sigpad-hint[hidden] { display: none; }
+
+/* Biblioteca de firmas guardadas */
+.sig-lib { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sig-thumb {
+  position: relative;
+  width: 120px;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #FFFFFF;
+}
+.sig-thumb.is-active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.sig-pick { display: grid; place-items: center; width: 100%; height: 100%; padding: 4px; border: 0; background: none; cursor: pointer; }
+.sig-pick img { max-width: 100%; max-height: 100%; }
+.sig-del {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.sig-del:hover { color: var(--error); border-color: var(--error); }
