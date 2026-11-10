@@ -1,12 +1,13 @@
-# DISEÑO — Sistema de diseño
+# 🎨 DISEÑO — Sistema de diseño
 
+> [!NOTE]
 > Cómo debe **verse y sentirse** la aplicación. La fuente original de la identidad es `identidad enfcarloseligio.md` (raíz del repositorio); los valores aplicados están en `renderer/styles/global.css` como variables CSS.
 
-## Estilo
+## ✨ Estilo
 
-Moderno, sobrio y profesional. Fondos claros, mucho aire, tarjetas con bordes suaves y un único color de acción. Nada de emojis en la interfaz: los iconos son SVG propios.
+Moderno, sobrio y profesional. Fondos claros, mucho aire, tarjetas con bordes suaves y un único color de acción. Nada de emojis en la **interfaz de la aplicación**: los iconos son SVG propios (los documentos de `docs/` sí los usan para facilitar la lectura).
 
-## Colores
+## 🎨 Colores
 
 | Uso | Variable | Valor |
 |---|---|---|
@@ -31,7 +32,7 @@ Reglas:
 - `--text-muted` para texto secundario; `--disabled` **solo** para estados deshabilitados.
 - Los colores de estado (éxito, advertencia, error, información) tienen su fondo y borde suaves (`--*-bg`, `--*-border`).
 
-## Tipografía
+## 🔤 Tipografía
 
 | Rol | Fuente | Variable |
 |---|---|---|
@@ -42,7 +43,7 @@ Reglas:
 
 Los tamaños son fluidos (`--text-h1` a `--text-xs`, con `clamp`) y se adaptan a escritorio, tableta y móvil.
 
-## Botones
+## 🔘 Botones
 
 | Tipo | Uso | Clase |
 |---|---|---|
@@ -56,7 +57,7 @@ Los tamaños son fluidos (`--text-h1` a `--text-xs`, con `clamp`) y se adaptan a
 
 Cada botón define los estados **normal, hover, active y deshabilitado** según la identidad (colores en `identidad enfcarloseligio.md`).
 
-## Tarjetas y estructura de herramienta
+## 🗂️ Tarjetas y estructura de herramienta
 
 Cada herramienta es una lista de **pasos numerados** en tarjetas con radio de 10 px (`--radius`):
 
@@ -67,7 +68,7 @@ Cada herramienta es una lista de **pasos numerados** en tarjetas con radio de 10
 
 Después, el resultado y la **barra de acción fija** al pie (botón primario + progreso).
 
-## Vistas previas y áreas de trabajo
+## 🔍 Vistas previas y áreas de trabajo
 
 Se distinguen dos tipos, con la misma apariencia base:
 
@@ -83,27 +84,27 @@ Valores comunes (variables en `global.css`):
 - **Zoom** con `−`, porcentaje, `+` y `Restablecer`; navegación de páginas en documentos.
 - Pie con descripción de lo que se muestra (formato, tamaño, peso).
 
-## Iconos
+## 🔣 Iconos
 
 - SVG propios en `renderer/assets/svg/`, cuadrícula de 24 px, **trazo** (no relleno), `currentColor`.
 - Grosor de trazo **2.2**, definido una sola vez en `.ic` (CSS).
 - Uso: `icon(nombre, tamaño)` o `iconLabel(nombre, texto)`; en HTML estático, `<span data-icon="nombre" data-size="N">`.
 - Un icono nuevo se añade a `ICON_LIST`. Guía de reemplazo en `ICONOS.txt`.
 
-## Ancho de la aplicación
+## ↔️ Ancho de la aplicación
 
 Selector en la cabecera:
 - **Contenedor** (por defecto): ancho máximo cómodo de lectura (1140 px; 1280 px desde 1500 px de ventana).
 - **Canvas**: todo el ancho con un margen lateral de 2.5 % (`--canvas-margin`).
 
-## Resolución y calidad estándar
+## 📐 Resolución y calidad estándar
 
 Todas las herramientas que las ofrecen usan los mismos perfiles, con nombre, icono y una línea explicativa debajo:
 
 - **Resolución:** Pantalla 72 · Digital 150 · Estándar 200 · Impresión 300 (por defecto) · Alta definición 400 · Máxima 600 DPI.
 - **Calidad:** Máxima 100 % (por defecto) · Alta 75 % · Media 50 % · Baja 25 %.
 
-## Requisitos de experiencia
+## 🌟 Requisitos de experiencia
 
 - **Responsive:** funciona desde la ventana mínima (820 × 620) hasta pantallas grandes y modo Canvas.
 - **Estados de carga:** vistas previas con aviso «Actualizando…»; operaciones con progreso real.
@@ -113,7 +114,7 @@ Todas las herramientas que las ofrecen usan los mismos perfiles, con nombre, ico
 - **Teclado y foco:** controles alcanzables con teclado y anillo de foco visible (`--focus-ring`).
 - **Arrastrar y soltar:** nunca detener la propagación de `dragenter` / `dragover` (rompe la carga de varios archivos).
 
-## Tono y textos
+## 💬 Tono y textos
 
 - Español profesional, claro y breve; tuteo cercano.
 - Botones y zonas homogéneos: «Seleccionar PDF / PDFs / imagen / imágenes» y «Seleccionar carpeta».

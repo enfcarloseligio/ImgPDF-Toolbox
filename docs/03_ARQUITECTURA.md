@@ -1,12 +1,13 @@
-# ARQUITECTURA
+# 🏗️ ARQUITECTURA
 
+> [!NOTE]
 > Define **cómo** funciona la aplicación. El **qué y por qué** está en [02_REQUISITOS.md](02_REQUISITOS.md).
 
-## Resumen
+## 🔭 Resumen
 
-Aplicación de escritorio **Electron** (Windows) con interfaz en **HTML, CSS y JavaScript sin framework ni empaquetador**. El procesamiento pesado lo hacen programas externos que se invocan como procesos: **Ghostscript** (PDF) e **ImageMagick** (imágenes). Una librería JavaScript pura, **pdf-lib**, se usa solo para ajustes de PDF que no deben reprocesar el contenido (giro de páginas).
+Aplicación de escritorio **Electron** (Windows) con interfaz en **HTML, CSS y JavaScript sin framework ni empaquetador**. El procesamiento pesado lo hacen programas externos que se invocan como procesos: **Ghostscript** (PDF) e **ImageMagick** (imágenes). Una librería JavaScript pura, **pdf-lib**, se usa solo para ediciones de PDF que no deben reprocesar el contenido (giro de páginas y, más adelante, metadatos). Las funciones nuevas se construyen únicamente con Ghostscript e ImageMagick (ver ADR-019).
 
-## Tecnologías
+## 🛠️ Tecnologías
 
 | Capa | Tecnología |
 |---|---|
@@ -19,7 +20,7 @@ Aplicación de escritorio **Electron** (Windows) con interfaz en **HTML, CSS y J
 | Iconos | SVG propios con `currentColor` |
 | Tipografías | Plus Jakarta Sans, Open Sans, Roboto (empaquetadas) |
 
-## Diagrama
+## 🗺️ Diagrama
 
 ```
  Usuario
@@ -36,7 +37,7 @@ Aplicación de escritorio **Electron** (Windows) con interfaz en **HTML, CSS y J
    └── Sistema de archivos (userData, carpeta temporal, carpeta de salida)
 ```
 
-## Estructura de carpetas
+## 📁 Estructura de carpetas
 
 ```
 ImgPDF-Toolbox/                 ← repositorio
@@ -66,7 +67,7 @@ ImgPDF-Toolbox/                 ← repositorio
     └── scripts/                 ←   utilidades de empaquetado
 ```
 
-## Proceso principal (`src/`)
+## ⚙️ Proceso principal (`src/`)
 
 - `main.js` solo registra los handlers de `src/` y crea la ventana.
 - Cada archivo `ipc-*.js` agrupa los handlers de un área. Añadir una función = **handler en `src/` + envoltorio en `preload.js`**.
@@ -75,11 +76,11 @@ ImgPDF-Toolbox/                 ← repositorio
 - **ImageMagick** se invoca con **listas de argumentos** (`runSpawn`), sin pasar por el shell.
 - **Lógica sin Electron:** lo que se puede probar de forma aislada vive en módulos que no importan Electron (`background-removal.js`, `lossless-rotate.js`).
 
-## Preload (`preload.js`)
+## 🌉 Preload (`preload.js`)
 
 `contextIsolation: true` y `nodeIntegration: false`. Expone un objeto `window.api` plano, uno a uno con los canales IPC. El renderer no tiene acceso a Node ni al sistema de archivos salvo mediante esas funciones.
 
-## Renderer (`renderer/`)
+## 🖥️ Renderer (`renderer/`)
 
 Scripts globales cargados por `<script>` en orden. Piezas principales:
 
@@ -97,11 +98,11 @@ Scripts globales cargados por `<script>` en orden. Piezas principales:
 | `modules/*.js` | Una herramienta por archivo, con `renderXxx()` |
 | `app.js` | Arranque y enrutador `moduleMap` |
 
-### Estructura de una herramienta
+### 🧩 Estructura de una herramienta
 
 Cada plantilla es una lista plana de bloques dentro de `<div class="module">`, seguida de `organizeModule(ws)`. El ayudante clasifica los bloques (zona de archivos, carpeta de salida, configuración, vista previa, barra de acción, resultado) y los reordena en tarjetas numeradas. Un bloque de vista previa se marca con `data-step="preview"`.
 
-### Añadir una herramienta
+### ➕ Añadir una herramienta
 
 1. Crear `renderer/modules/<nombre>.js` con `renderXxx()`.
 2. Añadir su `<script>` en `index.html` (antes de `app.js`).
@@ -109,7 +110,7 @@ Cada plantilla es una lista plana de bloques dentro de `<div class="module">`, s
 4. Añadir el handler en el `src/ipc-*.js` que corresponda y su envoltorio en `preload.js`.
 5. Si usa un icono nuevo: crear el SVG y añadirlo a `ICON_LIST`.
 
-## Datos y archivos
+## 💾 Datos y archivos
 
 | Qué | Dónde |
 |---|---|
@@ -120,18 +121,18 @@ Cada plantilla es una lista plana de bloques dentro de `<div class="module">`, s
 | Vistas previas y miniaturas | Carpeta temporal del sistema (`imgpdf_preview`, `imgpdf_thumbs`, `imgpdf_preview_annot`) |
 | Resultados | La carpeta de salida elegida por el usuario |
 
-## Red
+## 🌐 Red
 
 Solo conexiones opcionales y puntuales: consulta de la última versión de ImageMagick y Ghostscript (API de GitHub) y descarga de una tipografía de Google Fonts elegida por el usuario. Ver [07_SEGURIDAD.md](07_SEGURIDAD.md).
 
-## Empaquetado
+## 📦 Empaquetado
 
 - `npm run build` genera el instalador NSIS en `dist/`.
 - `package.json` → `build.files` debe listar **todas** las carpetas de ejecución (`src/**/*`, `renderer/**/*`…); si falta alguna, la app empaquetada falla.
 - `extraResources/` se copia como `bin/` e incluye los instaladores de Ghostscript e ImageMagick con los nombres definidos en `src/ipc-system.js`.
 - Las dependencias de ejecución (p. ej. `pdf-lib`) se incluyen automáticamente.
 
-## Reglas de arquitectura
+## 📏 Reglas de arquitectura
 
 1. **Un canal IPC, una función en `window.api`.** No exponer objetos ni acceso general.
 2. **El renderer nunca ejecuta procesos ni toca archivos directamente.**
@@ -143,13 +144,13 @@ Solo conexiones opcionales y puntuales: consulta de la última versión de Image
 8. **Los estados globales se modifican solo por sus funciones** (`setOutputDir`, `setProcessing`…).
 9. **Nada de `!important` en CSS;** los conflictos se resuelven con orden de cascada o especificidad.
 
-## Flujos clave
+## 🔄 Flujos clave
 
-### Procesamiento por lotes (imágenes)
+### 🖼️ Procesamiento por lotes (imágenes)
 `setupBatchTool` enlaza lista, carpeta de salida, ejecución y resultados → el handler usa `processFiles` (progreso y cancelación por archivo) → ImageMagick con argumentos en lista → resultados con peso antes y después.
 
-### Testar y Firmar
+### ✍️ Testar y Firmar
 Abrir archivo → el motor común rasteriza las páginas a PNG en una sesión (`userData`) → el visor edita elementos como fracciones de página → el avance se guarda solo → exportar pinta los elementos sobre cada página y escribe imágenes o un PDF de imágenes (el contenido tapado no se puede recuperar).
 
-### Rotar sin pérdida
+### 🔁 Rotar sin pérdida
 PDF: `pdf-lib` ajusta `/Rotate` de cada página sin tocar el contenido. JPG: se cambia solo la etiqueta de orientación EXIF (datos intactos). PNG: giro en píxeles sin pérdida.
