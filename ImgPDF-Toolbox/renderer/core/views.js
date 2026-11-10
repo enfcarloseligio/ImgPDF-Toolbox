@@ -23,6 +23,8 @@ const CATEGORIES = {
       { id: 'unlock',           label: 'Desbloquear',  desc: 'Elimina restricciones PDF',       icon: 'unlock' },
       { id: 'pdf-standards',    label: 'Estándares',   desc: 'PDF/A, PDF/X, PDF/UA',            icon: 'clipboard-check' },
       { id: 'redact',           label: 'Testar',       desc: 'Oculta datos con cuadros negros', icon: 'redact' },
+      { id: 'sign-flow',        label: 'Flujo de firma', desc: 'PDF → imágenes → PDF, por rangos', icon: 'convert' },
+      { id: 'sign',             label: 'Firmar',       desc: 'Dibuja y coloca tu firma',        icon: 'sign' },
     ],
   },
   'image-tools': {

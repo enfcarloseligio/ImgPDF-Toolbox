@@ -32,6 +32,9 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 - **Arrastrar y soltar con posición:** suelta archivos donde quieras insertarlos en la lista; también puedes reordenarla con el asa o las flechas.
 - **Calidad sin pérdida cuando la necesitas:** IMG → PDF puede conservar los píxeles exactos de la imagen, PDF → IMG permite elegir la calidad del JPG y el recorte puede guardarse con la calidad original.
 - **Edición de imágenes:** convierte entre formatos, recorta con un editor visual y proporciones estándar, redimensiona, comprime y quita fondos de color uniforme.
+- **Flujo de firma en un paso:** convierte un PDF a imágenes y lo vuelve a armar en PDF —junto, por página o por rangos— con el formato y la resolución que elijas.
+- **Firmar:** dibuja tu firma, guárdala en tu biblioteca y colócala con un clic sobre el PDF, con visor y avance guardado.
+- **Opciones que aprovechan el ancho:** los grupos de opciones se acomodan en la misma fila y se reacomodan al achicar la ventana.
 - **Testar con avance guardado:** oculta datos con cuadros negros sobre un visor; el trabajo se guarda solo para retomarlo tras un cierre inesperado.
 - **Vista previa en vivo** de marcas de agua y foliado.
 - **Tipografías propias:** fuentes del sistema o del catálogo de Google Fonts para marcas de texto y folios.
@@ -54,13 +57,15 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | **Rotar** | Gira todas las páginas, solo pares o solo impares. |
 | **Desbloquear** | Quita restricciones de propietario o abre PDFs con contraseña conocida. |
 | **Testar** | Oculta datos con cuadros negros sobre un visor de páginas, con deshacer, zoom y copia de un cuadro a todas las páginas. El avance se guarda solo y se puede retomar. Exporta cada página como imagen (PNG o JPG), suelta o dentro de un PDF, por lo que el contenido tapado no se puede recuperar. |
+| **Flujo de firma** | Convierte el PDF a imágenes (PNG o JPG, DPI y fondo a elegir) y lo vuelve a armar en PDF en un solo paso: un solo PDF, uno por página o uno por cada N páginas. Cada PDF lleva el número de su primera página (`pp-001`, `pp-003`…), de modo que una hoja fuera de orden se nota al instante. |
+| **Firmar** | Dibuja tu firma a mano (color y grosor), guárdala en «Mis firmas» y colócala con un clic sobre las páginas: se mueve, se redimensiona manteniendo su proporción y se copia a todas las páginas. El avance se guarda solo. Exporta como PDF o imágenes. |
 | **Estándares** | Convierte a PDF/A-1b, 2b, 3b y 4, PDF/X-1a y X-3, PDF/UA-1 y PDF/E-1. |
 
 ### Herramientas de imágenes
 
 | Herramienta | Qué hace |
 |---|---|
-| **IMG → PDF** | Convierte PNG y JPG a PDF. «Original» conserva los píxeles sin recomprimir; el resto aplica compresión proporcional. |
+| **IMG → PDF** | Convierte PNG y JPG a PDF. «Original» conserva los píxeles sin recomprimir; el resto aplica compresión proporcional. Un PDF por imagen, todas en un solo PDF o por rangos (un PDF cada N imágenes, nombrado con su primera imagen). |
 | **Convertir** | Cambia el formato entre PNG, JPG, WebP, AVIF, JPEG XL, TIFF, BMP, GIF e ICO (con tamaños de icono). Controla calidad, modo sin pérdida, fondo de la transparencia y metadatos. Lee además HEIC, SVG y otros. |
 | **Recortar** | Editor visual: mueve y redimensiona el recuadro con 8 asas, dibuja uno nuevo o escribe X, Y, ancho y alto. Proporciones 1:1, 5:4, 4:3, 3:2 y 16:9 con su versión vertical (4:5, 3:4, 2:3, 9:16) y proporción personalizada. Guarda con la calidad original o comprimida. |
 | **Redimensionar** | Por píxeles exactos, por porcentaje o limitando el lado mayor; manteniendo la proporción o libre (puede deformar), con opción de no ampliar. |
@@ -127,9 +132,10 @@ ImgPDF-Toolbox/
 │   ├── src/                   # Lógica del proceso principal
 │   │   ├── process-runner.js  #   Ejecución y cancelación de Ghostscript / ImageMagick
 │   │   ├── progress.js        #   Progreso real por página
-│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes, testado)
+│   │   ├── page-tool.js       #   Motor común de Testar y Firmar (sesiones, autoguardado, exportación)
+│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes, testado, firma, flujo)
 │   └── renderer/              # Interfaz (HTML, CSS y JS sin framework)
-│       ├── core/              #   Estado, iconos, layout por pasos, lotes, editor de recorte, utilidades, vistas
+│       ├── core/              #   Estado, iconos, layout por pasos, lotes, editor de recorte, visor de páginas, panel de firma, utilidades, vistas
 │       ├── modules/           #   Una herramienta por archivo
 │       ├── styles/            #   global.css, modules.css, views.css
 │       └── assets/            #   Iconos SVG, tipografías e icono de la app

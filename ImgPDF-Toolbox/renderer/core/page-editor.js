@@ -1,44 +1,58 @@
 // ═════════════════════════════════════════════════════════════════════════════
-// Archivo:     renderer/core/redact-editor.js
-// Descripción: Visor y editor de cuadros negros para la herramienta «Testar». Muestra una
-//              página (imagen) con zoom y permite dibujar cuadros arrastrando, moverlos,
-//              redimensionarlos con 8 asas, borrarlos, copiarlos a todas las páginas y
-//              deshacer/rehacer. Guarda los cuadros como fracciones (0–1) de la página, de
-//              modo que no dependen del zoom ni de la resolución de exportación.
+// Archivo:     renderer/core/page-editor.js
+// Descripción: Visor y editor de elementos sobre páginas para «Testar» y «Firmar». Muestra
+//              una página (imagen) con zoom y permite colocar, mover, redimensionar, borrar,
+//              copiar a todas las páginas y deshacer/rehacer. Admite dos modos: «box»
+//              (cuadros negros que se dibujan arrastrando, de forma libre) y «stamp» (firmas
+//              que se colocan con un clic y conservan su proporción). Guarda los elementos
+//              como fracciones (0–1) de la página, de modo que no dependen del zoom ni de la
+//              resolución de exportación.
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
-const REDACT_MIN_BOX   = 0.004;   // Tamaño mínimo de un cuadro, como fracción de la página
-const REDACT_MIN_DRAW  = 4;       // Arrastre mínimo, en píxeles de pantalla, para crear un cuadro
-const REDACT_HISTORY   = 200;     // Pasos máximos de deshacer
-const REDACT_ZOOMS     = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
-const REDACT_HANDLES   = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const PAGE_MIN_SIZE    = 0.004;   // Tamaño mínimo de un elemento, como fracción de la página
+const PAGE_MIN_DRAW    = 4;       // Arrastre mínimo, en píxeles de pantalla, para crear un cuadro
+const PAGE_STAMP_WIDTH = 0.28;    // Ancho inicial de una firma, como fracción del ancho de página
+const PAGE_HISTORY     = 200;     // Pasos máximos de deshacer
+const PAGE_ZOOMS       = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+const PAGE_HANDLES     = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const PAGE_CORNERS     = ['nw', 'ne', 'se', 'sw'];   // Las firmas solo se redimensionan por las esquinas
 
 // ── Editor ───────────────────────────────────────────────────────────────────
 
-// Crea el editor dentro de stage.
-//   onChange(all)  se llama cuando cambian los cuadros (para guardar el avance)
-//   onState()      se llama cuando cambia la selección, el historial, el zoom o la página
-function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } = {}) {
+// Crea el editor dentro de stage. Opciones:
+//   mode          'box' (por defecto) o 'stamp'
+//   onChange(all) se llama cuando cambian los elementos (para guardar el avance)
+//   onState()     se llama cuando cambia la selección, el historial, el zoom o la página
+//   getStamp()    (modo stamp) firma activa { sig, aspect } o null; aspect = ancho/alto en píxeles
+//   resolveSrc(sig)  (modo stamp) URL de la imagen de una firma
+//   onNeedStamp() (modo stamp) se llama al hacer clic sin firma activa
+function createPageEditor(stage, {
+  mode = 'box', onChange = () => {}, onState = () => {},
+  getStamp = () => null, resolveSrc = () => '', onNeedStamp = () => {},
+  emptyText = 'Selecciona un archivo para empezar',
+} = {}) {
+  const stamps = mode === 'stamp';
+
   stage.innerHTML = `
-    <div class="redact-empty">Selecciona un archivo para empezar a testar</div>
-    <div class="redact-scroll" tabindex="0" hidden>
-      <div class="redact-page">
-        <img class="redact-img" alt="" draggable="false">
-        <div class="redact-boxes"></div>
+    <div class="ptool-empty">${emptyText}</div>
+    <div class="ptool-scroll" tabindex="0" hidden>
+      <div class="ptool-page">
+        <img class="ptool-img" alt="" draggable="false">
+        <div class="ptool-items"></div>
       </div>
     </div>`;
 
-  const empty   = stage.querySelector('.redact-empty');
-  const scroll  = stage.querySelector('.redact-scroll');
-  const pageEl  = stage.querySelector('.redact-page');
-  const img     = stage.querySelector('.redact-img');
-  const layer   = stage.querySelector('.redact-boxes');
+  const empty   = stage.querySelector('.ptool-empty');
+  const scroll  = stage.querySelector('.ptool-scroll');
+  const pageEl  = stage.querySelector('.ptool-page');
+  const img     = stage.querySelector('.ptool-img');
+  const layer   = stage.querySelector('.ptool-items');
 
-  let all = {};            // índice de página → [{ id, x, y, w, h }]
+  let all = {};            // índice de página → [{ id, x, y, w, h, sig?, ar? }]
   let page = -1;           // Página mostrada
-  let sel = null;          // Id del cuadro seleccionado
+  let sel = null;          // Id del elemento seleccionado
   let zoom = 1;            // 1 = ajustado al ancho del visor
   let nextId = 1;
   let undoStack = [];
@@ -54,7 +68,7 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
 
   function pushHistory(before) {
     undoStack.push(before);
-    if (undoStack.length > REDACT_HISTORY) undoStack.shift();
+    if (undoStack.length > PAGE_HISTORY) undoStack.shift();
     redoStack = [];
   }
 
@@ -76,11 +90,13 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
 
   function render() {
     if (page < 0) { layer.innerHTML = ''; return; }
+    const handles = stamps ? PAGE_CORNERS : PAGE_HANDLES;
     layer.innerHTML = list().map(b => {
       const selected = b.id === sel;
-      return `<div class="redact-box${selected ? ' is-selected' : ''}" data-id="${b.id}"
+      return `<div class="ptool-item${stamps ? ' is-stamp' : ''}${selected ? ' is-selected' : ''}" data-id="${b.id}"
         style="left:${b.x * 100}%;top:${b.y * 100}%;width:${b.w * 100}%;height:${b.h * 100}%">
-        ${selected ? REDACT_HANDLES.map(h => `<span class="redact-handle redact-h-${h}" data-handle="${h}"></span>`).join('') : ''}
+        ${stamps ? `<img src="${resolveSrc(b.sig)}" alt="" draggable="false">` : ''}
+        ${selected ? handles.map(h => `<span class="ptool-handle ptool-h-${h}" data-handle="${h}"></span>`).join('') : ''}
       </div>`;
     }).join('');
   }
@@ -88,10 +104,21 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
   // Posición del puntero como fracción de la página
   function pointInPage(e) {
     const r = img.getBoundingClientRect();
-    return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1), w: r.width, h: r.height };
+    return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
   }
 
   // ── Gestos ─────────────────────────────────────────────────────────────────
+
+  // Redimensiona una firma desde una esquina manteniendo su proporción (b.ar = ancho / alto en
+  // fracciones de página). La esquina opuesta permanece fija.
+  function resizeStamp(b, s, handle, p) {
+    const west = handle.includes('w'), north = handle.includes('n');
+    const ax = west ? s.x + s.w : s.x, ay = north ? s.y + s.h : s.y;
+    const maxW = west ? ax : 1 - ax, maxH = north ? ay : 1 - ay;
+    const w = clamp(Math.abs(p.x - ax), PAGE_MIN_SIZE, Math.min(maxW, maxH * b.ar));
+    const h = w / b.ar;
+    b.x = west ? ax - w : ax; b.y = north ? ay - h : ay; b.w = w; b.h = h;
+  }
 
   function applyDrag(e) {
     const p = pointInPage(e);
@@ -105,44 +132,66 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
     } else if (drag.mode === 'move') {
       b.x = clamp(s.x + (p.x - drag.ax), 0, 1 - s.w);
       b.y = clamp(s.y + (p.y - drag.ay), 0, 1 - s.h);
+    } else if (stamps) {
+      resizeStamp(b, s, drag.mode, p);
     } else {
-      // Redimensionado: cada borde sigue al puntero sin cruzar el borde opuesto
+      // Redimensionado libre: cada borde sigue al puntero sin cruzar el borde opuesto
       let l = s.x, r = s.x + s.w, t = s.y, bt = s.y + s.h;
-      if (drag.mode.includes('w')) l  = clamp(p.x, 0, r - REDACT_MIN_BOX);
-      if (drag.mode.includes('e')) r  = clamp(p.x, l + REDACT_MIN_BOX, 1);
-      if (drag.mode.includes('n')) t  = clamp(p.y, 0, bt - REDACT_MIN_BOX);
-      if (drag.mode.includes('s')) bt = clamp(p.y, t + REDACT_MIN_BOX, 1);
+      if (drag.mode.includes('w')) l  = clamp(p.x, 0, r - PAGE_MIN_SIZE);
+      if (drag.mode.includes('e')) r  = clamp(p.x, l + PAGE_MIN_SIZE, 1);
+      if (drag.mode.includes('n')) t  = clamp(p.y, 0, bt - PAGE_MIN_SIZE);
+      if (drag.mode.includes('s')) bt = clamp(p.y, t + PAGE_MIN_SIZE, 1);
       b.x = l; b.y = t; b.w = r - l; b.h = bt - t;
     }
-    // Se actualiza solo el cuadro en curso para que el gesto sea fluido
+    // Se actualiza solo el elemento en curso para que el gesto sea fluido
     const el = layer.querySelector(`[data-id="${b.id}"]`);
     if (el) Object.assign(el.style, { left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%` });
   }
 
-  function startDrag(e, mode, id) {
+  function startDrag(e, gesture, id) {
     e.preventDefault();
     scroll.focus({ preventScroll: true });
     try { pageEl.setPointerCapture(e.pointerId); } catch (_) { /* puntero no capturable: el gesto continúa sin captura */ }
     const p = pointInPage(e);
-    drag = { mode, id, before: snapshot(), ax: p.x, ay: p.y, px: e.clientX, py: e.clientY, start: id ? { ...find(id) } : null };
+    drag = { mode: gesture, id, before: snapshot(), ax: p.x, ay: p.y, start: id ? { ...find(id) } : null };
+  }
+
+  // Coloca una firma centrada en el punto del clic y empieza a arrastrarla para ajustarla
+  function placeStamp(e, stamp) {
+    startDrag(e, 'move', null);                        // La instantánea del historial se toma antes de añadirla
+    const pageAspect = img.naturalWidth / img.naturalHeight || 1;
+    let w = PAGE_STAMP_WIDTH, h = w * pageAspect / stamp.aspect;
+    if (h > 0.5) { h = 0.5; w = h * stamp.aspect / pageAspect; }
+    const b = {
+      id: nextId++, sig: stamp.sig, w, h, ar: w / h,
+      x: clamp(drag.ax - w / 2, 0, 1 - w), y: clamp(drag.ay - h / 2, 0, 1 - h),
+    };
+    list().push(b);
+    sel = b.id;
+    drag.id = b.id;
+    drag.start = { ...b };
+    render();
   }
 
   pageEl.addEventListener('pointerdown', e => {
     if (page < 0 || e.button !== 0) return;
-    const handle = e.target.closest('.redact-handle')?.dataset.handle;
-    const boxEl  = e.target.closest('.redact-box');
+    const handle = e.target.closest('.ptool-handle')?.dataset.handle;
+    const itemEl = e.target.closest('.ptool-item');
 
-    if (handle && boxEl) {
-      startDrag(e, handle, Number(boxEl.dataset.id));
-    } else if (boxEl) {
-      sel = Number(boxEl.dataset.id);
+    if (handle && itemEl) {
+      startDrag(e, handle, Number(itemEl.dataset.id));
+    } else if (itemEl) {
+      sel = Number(itemEl.dataset.id);
       render();
       onState();
       startDrag(e, 'move', sel);
+    } else if (stamps) {
+      const stamp = getStamp();
+      if (stamp) placeStamp(e, stamp);
+      else onNeedStamp();
     } else {
       // Arrastre sobre una zona libre: se dibuja un cuadro nuevo
-      // (la instantánea del historial se toma antes de añadirlo)
-      startDrag(e, 'draw', null);
+      startDrag(e, 'draw', null);                      // La instantánea del historial se toma antes de añadirlo
       const b = { id: nextId++, x: drag.ax, y: drag.ay, w: 0, h: 0 };
       list().push(b);
       sel = b.id;
@@ -163,7 +212,7 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
     if (d.mode === 'draw') {
       const b = find(d.id);
       const rect = img.getBoundingClientRect();
-      const tooSmall = !b || b.w * rect.width < REDACT_MIN_DRAW || b.h * rect.height < REDACT_MIN_DRAW;
+      const tooSmall = !b || b.w * rect.width < PAGE_MIN_DRAW || b.h * rect.height < PAGE_MIN_DRAW;
       if (tooSmall) {
         all[page] = list().filter(x => x.id !== d.id);
         sel = null;
@@ -204,22 +253,22 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
 
   new ResizeObserver(applySize).observe(scroll);
 
-  // ── Exportación de los cuadros ─────────────────────────────────────────────
-  // Objeto { índice: [{ x, y, w, h }] } sin ids ni páginas vacías
+  // ── Exportación de los elementos ───────────────────────────────────────────
+  // Objeto { índice: [{ x, y, w, h, sig? }] } sin ids internos ni páginas vacías
   function getAll() {
     const out = {};
-    for (const [i, boxes] of Object.entries(all)) {
-      if (boxes.length) out[i] = boxes.map(({ x, y, w, h }) => ({ x, y, w, h }));
+    for (const [i, items] of Object.entries(all)) {
+      if (items.length) out[i] = items.map(({ x, y, w, h, sig }) => (sig ? { x, y, w, h, sig } : { x, y, w, h }));
     }
     return out;
   }
 
   // ── API pública ────────────────────────────────────────────────────────────
   const api = {
-    // Inicia una sesión con los cuadros guardados (o vacía) y reinicia el historial
-    open(boxes = {}) {
+    // Inicia una sesión con los elementos guardados (o vacía) y reinicia el historial
+    open(items = {}) {
       all = {};
-      for (const [i, list] of Object.entries(boxes)) all[i] = list.map(b => ({ id: nextId++, ...b }));
+      for (const [i, boxes] of Object.entries(items)) all[i] = boxes.map(b => ({ id: nextId++, ...b, ar: b.w / b.h }));
       sel = null; undoStack = []; redoStack = []; page = -1;
     },
 
@@ -235,6 +284,9 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
       render();
       onState();
     },
+
+    // Vuelve a dibujar la página actual (p. ej. al cambiar la biblioteca de firmas)
+    refresh() { render(); },
 
     clear() {
       page = -1; all = {}; sel = null; undoStack = []; redoStack = [];
@@ -275,7 +327,7 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
       onState();
     },
 
-    // Quita todos los cuadros de la página actual
+    // Quita todos los elementos de la página actual
     clearPage() {
       if (page < 0 || !list().length) return;
       pushHistory(snapshot());
@@ -286,8 +338,22 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
       onState();
     },
 
-    // Copia el cuadro seleccionado a la misma posición en el resto de páginas (encabezados,
-    // pies de página, sellos que se repiten)
+    // Quita de todas las páginas las firmas de una firma de la biblioteca que se eliminó
+    removeSignature(sig) {
+      let changed = false;
+      for (const i of Object.keys(all)) {
+        const kept = all[i].filter(b => b.sig !== sig);
+        if (kept.length !== all[i].length) { all[i] = kept; changed = true; }
+      }
+      if (!changed) return;
+      if (sel && !find(sel)) sel = null;
+      render();
+      onChange(getAll());
+      onState();
+    },
+
+    // Copia el elemento seleccionado a la misma posición en el resto de páginas (encabezados,
+    // pies de página, sellos y firmas que se repiten)
     copySelectedToAll(pageCount) {
       const b = sel !== null && find(sel);
       if (!b) return 0;
@@ -295,7 +361,7 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
       let copied = 0;
       for (let i = 0; i < pageCount; i++) {
         if (i === page) continue;
-        (all[i] = all[i] || []).push({ id: nextId++, x: b.x, y: b.y, w: b.w, h: b.h });
+        (all[i] = all[i] || []).push({ ...b, id: nextId++ });
         copied++;
       }
       onChange(getAll());
@@ -307,8 +373,8 @@ function createRedactEditor(stage, { onChange = () => {}, onState = () => {} } =
     zoomBy(step) {
       if (step === 0) zoom = 1;
       else {
-        const i = REDACT_ZOOMS.findIndex(z => z >= zoom - 1e-6);
-        zoom = REDACT_ZOOMS[clamp((i < 0 ? REDACT_ZOOMS.length - 1 : i) + step, 0, REDACT_ZOOMS.length - 1)];
+        const i = PAGE_ZOOMS.findIndex(z => z >= zoom - 1e-6);
+        zoom = PAGE_ZOOMS[clamp((i < 0 ? PAGE_ZOOMS.length - 1 : i) + step, 0, PAGE_ZOOMS.length - 1)];
       }
       applySize();
       onState();

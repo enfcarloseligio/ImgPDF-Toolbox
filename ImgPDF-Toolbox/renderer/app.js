@@ -180,6 +180,10 @@ const moduleMap = {
   'remove-bg':       renderRemoveBg,
   // Testado de contenido (PDF e imagen)
   'redact':          renderRedact,
+  // Flujo PDF → imágenes → PDF en un paso
+  'sign-flow':       renderSignFlow,
+  // Firma dibujada sobre un PDF
+  'sign':            renderSign,
   // Estándares y sistema
   'pdf-standards':   renderPdfStandards,
   'update':          renderUpdate,

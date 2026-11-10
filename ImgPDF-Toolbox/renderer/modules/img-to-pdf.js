@@ -1,13 +1,17 @@
 // ═════════════════════════════════════════════════════════════════════════════
 // Archivo:     renderer/modules/img-to-pdf.js
 // Descripción: Módulo «Imágenes → PDF»: convierte imágenes PNG/JPG en documentos PDF con
-//              calidad configurable.
+//              calidad configurable. El resultado puede ser un PDF por imagen, un único PDF
+//              con todas o un PDF por cada N imágenes consecutivas (rangos).
 // ═════════════════════════════════════════════════════════════════════════════
 
 async function renderImgToPdf(ctx = {}) {
   // ── Estado y configuración del módulo ────────────────────────────────────────
-  const cfg = await loadModuleConfig('img-to-pdf', { quality: 100, single: false });
-  let files = [], quality = cfg.quality, single = cfg.single;
+  // «single» (booleano) es el formato de configuración anterior: se traduce a «mode»
+  const cfg = await loadModuleConfig('img-to-pdf', { quality: 100, mode: null, single: false, rangeSize: 2 });
+  let files = [], quality = cfg.quality, rangeSize = cfg.rangeSize;
+  let mode = cfg.mode || (cfg.single ? 'all' : 'each');   // each | all | range
+  const grouped = () => mode !== 'each';                  // El orden de la lista importa
   let lastOutputs = [];   // PDFs generados en la última ejecución (para continuar en PDF → IMG)
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
@@ -23,6 +27,11 @@ async function renderImgToPdf(ctx = {}) {
       <label>Resultado</label>
       <div class="option-row" id="mode-row"></div>
       <p class="option-hint" id="mode-hint"></p>
+    </div>
+    <div class="option-group" id="range-group">
+      <label>Imágenes por PDF</label>
+      <div class="field-row"><span class="field"><input type="number" class="num-input" id="range-size" min="1" step="1"> imágenes</span></div>
+      <p class="option-hint" id="range-hint"></p>
     </div>
     ${fileZoneHtml({ zone: 'zone-i2p', pick: 'pick-imgs', clear: 'clear-i2p', badge: 'i2p-badge', list: 'img-list', kind: 'image', multiple: true })}
     ${outputDirRow('i2p')}
@@ -45,23 +54,45 @@ async function renderImgToPdf(ctx = {}) {
   ], quality, v => { quality = v; },
   v => saveModuleConfig('img-to-pdf', { quality: v }));
 
-  // Un PDF por imagen o todas unidas en un solo PDF (en el orden de la lista)
+  // Un PDF por imagen, todas unidas en uno o un PDF por cada N imágenes (en el orden de la lista)
+  const size = () => Math.max(1, parseInt(rangeSize, 10) || 1);
   const modeHint = () => {
-    document.getElementById('mode-hint').textContent = single
-      ? 'Todas las imágenes se unen en un único PDF, una por página y en el orden de la lista. Puedes reordenarlas arrastrándolas.'
-      : 'Cada imagen genera su propio PDF.';
+    document.getElementById('mode-hint').textContent = {
+      each:  'Cada imagen genera su propio PDF.',
+      all:   'Todas las imágenes se unen en un único PDF, una por página y en el orden de la lista. Puedes reordenarlas arrastrándolas.',
+      range: 'Se crea un PDF por cada grupo de imágenes consecutivas, en el orden de la lista. Puedes reordenarlas arrastrándolas.',
+    }[mode];
+    document.getElementById('range-group').style.display = mode === 'range' ? '' : 'none';
+    rangeHint();
+  };
+  // Con el número de imágenes cargadas se explica cuántos PDF saldrán y cómo se llamarán
+  const rangeHint = () => {
+    const n = files.length, k = size();
+    const pdfs = Math.ceil(n / k);
+    document.getElementById('range-hint').textContent = n
+      ? `${n} imagen(es) → ${pdfs} PDF(s) de ${k} página(s)${n % k ? ` (el último con ${n % k})` : ''}. Cada PDF lleva el nombre de su primera imagen.`
+      : 'Cada PDF lleva el nombre de su primera imagen: si una hoja sale con un número inesperado, alguna imagen quedó fuera de orden.';
   };
   optButtons(document.getElementById('mode-row'), [
-    { label: 'Un PDF por imagen',     value: false },
-    { label: 'Unir en un solo PDF',   value: true  },
-  ], single, v => { single = v; modeHint(); renderList(); },
-  v => saveModuleConfig('img-to-pdf', { single: v }));
+    { label: 'Un PDF por imagen',     value: 'each'  },
+    { label: 'Unir en un solo PDF',   value: 'all'   },
+    { label: 'Por rangos',            value: 'range' },
+  ], mode, v => { mode = v; modeHint(); renderList(); },
+  v => saveModuleConfig('img-to-pdf', { mode: v }));
+
+  document.getElementById('range-size').value = size();
+  document.getElementById('range-size').addEventListener('input', e => {
+    rangeSize = e.target.value;
+    rangeHint();
+    if (parseInt(rangeSize, 10) > 0) saveModuleConfig('img-to-pdf', { rangeSize: size() });
+  });
   modeHint();
 
   // ── Lista de archivos ────────────────────────────────────────────────────────
   const onReorder = newFiles => { files = newFiles; renderList(); updateRun(); };
   const renderList = () => {
-    if (single) renderOrderedFileList('img-list', files, onReorder, { showDrag: true, showArrows: true });
+    rangeHint();
+    if (grouped()) renderOrderedFileList('img-list', files, onReorder, { showDrag: true, showArrows: true });
     else renderFileList('img-list', files, onRemove);
   };
   const onRemove = f => {
@@ -121,18 +152,23 @@ async function renderImgToPdf(ctx = {}) {
     cancel.style.display = 'inline-block';
     document.getElementById('i2p-result').innerHTML = '';
 
-    const res = await runWithProgress('img-to-pdf', 'i2p-progress', () => window.api.convertImgToPdf({ files, quality, single, outputDir: state.outputDir }));
+    const res = await runWithProgress('img-to-pdf', 'i2p-progress', () => window.api.convertImgToPdf({ files, quality, mode, rangeSize: size(), outputDir: state.outputDir }));
     window.api.playBeep();
 
     const ok = res.filter(r => r.ok), err = res.filter(r => !r.ok);
     lastOutputs = ok.map(r => r.out);
+    const merged = ok.reduce((n, r) => n + (r.merged || 0), 0);
+    const title = {
+      each:  `${ok.length} archivo(s) convertido(s)`,
+      all:   `${merged} imagen(es) unidas en un PDF`,
+      range: `${merged} imagen(es) repartidas en ${ok.length} PDF(s)`,
+    }[mode];
     document.getElementById('i2p-result').innerHTML =
-      (ok.length  ? resultBox('success',
-          single ? `${ok[0].merged} imagen(es) unidas en un PDF` : `${ok.length} archivo(s) convertido(s)`,
-          ok.map(r => `${icon('file',14)} ${basename(r.out)}`), true) : '') +
+      (ok.length  ? resultBox('success', title,
+          ok.map(r => `${icon('file',14)} ${basename(r.out)}${r.merged > 1 ? ` — ${r.merged} páginas` : ''}`), true) : '') +
       (err.length ? resultBox('error',   `${err.length} error(es)`, err.map(r => basename(r.file))) : '');
 
-    if (ok.length)  notify.success(single ? `${ok[0].merged} imagen(es) unidas en un PDF.` : `${ok.length} imagen(es) convertida(s) a PDF.`);
+    if (ok.length)  notify.success(title + '.');
     if (err.length) notify.error(`${err.length} archivo(s) no pudieron convertirse.`);
 
     setProcessing(false);

@@ -26,6 +26,8 @@ const ICON_LIST = [
   'eye', 'eye-off', 'monitor', 'globe', 'book', 'printer', 'award', 'crosshair',
   // Herramientas de imagen
   'convert', 'crop', 'resize', 'wand', 'link', 'unlink', 'rotate-box', 'redact',
+  // Firma
+  'sign',
 ];
 
 async function preloadIcons() {
