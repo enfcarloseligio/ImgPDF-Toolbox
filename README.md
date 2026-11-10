@@ -93,6 +93,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 
 1. Descarga el instalador desde la sección [Releases](https://github.com/enfcarloseligio/ImgPDF-Toolbox/releases) y ejecútalo.
 2. Al abrir la aplicación por primera vez se comprueba si **ImageMagick** y **Ghostscript** están instalados. Si falta alguno, la propia app te guía: abre el asistente de instalación (si el instalador viene incluido) o recurre a `winget`.
+3. Si ya instalaste ambos programas y la validación sigue marcando error, usa el botón **Reiniciar aplicación** que aparece en el panel (o ciérrala y ábrela de nuevo) para que detecte los cambios.
 
 > Ghostscript no está en el repositorio de `winget`; si la instalación automática no es posible, descárgalo desde [su sitio oficial](https://www.ghostscript.com/releases/gsdnld.html).
 
@@ -153,7 +154,7 @@ ImgPDF Toolbox no usa servidores propios, no recopila datos ni requiere cuenta. 
 - **Código:** licencia [MIT](LICENSE).
 - **[Ghostscript](https://www.ghostscript.com):** © Artifex Software, licencia AGPL v3. La aplicación lo invoca como programa externo.
 - **[ImageMagick](https://imagemagick.org):** licencia propia de ImageMagick, basada en Apache 2.0. La aplicación lo invoca como programa externo.
-- **Iconos de la interfaz:** diseño propio, con apoyo de [Flaticon UIcons](https://www.flaticon.com/uicons) (licencia gratuita con atribución).
+- **Iconos de la interfaz:** diseño propio, incluidos en `renderer/assets/svg/`.
 - **Tipografías:** Plus Jakarta Sans, Open Sans y Roboto, empaquetadas con la aplicación.
 
 ## Autor

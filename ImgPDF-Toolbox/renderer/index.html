@@ -50,6 +50,11 @@
             <p class="install-desc">Algunas funciones no estarán disponibles hasta instalarlas.</p>
           </div>
           <div id="install-actions"></div>
+          <div class="install-manual" id="install-restart" style="display:none">
+            <p class="manual-title"><span data-icon="info" data-size="16"></span> ¿Ya terminaste de instalar?</p>
+            <p class="manual-desc">Si ya instalaste ImageMagick y Ghostscript pero la validación sigue marcando error, reinicia la aplicación para que detecte los cambios.</p>
+            <button class="btn-accent" id="btn-restart">Reiniciar aplicación</button>
+          </div>
           <div class="install-manual" id="install-manual" style="display:none">
             <p class="manual-title"><span data-icon="download" data-size="16"></span> Instalación manual requerida</p>
             <p class="manual-desc">Ghostscript no pudo instalarse automáticamente. Descárgalo desde su sitio oficial y vuelve a abrir la aplicación.</p>
@@ -91,8 +96,7 @@
     <footer class="app-footer">
       Creado por <a href="#" id="footer-author">@enfcarloseligio</a> ·
       <a href="#" id="footer-site">enfcarloseligio.com</a> ·
-      Requiere <a href="#" id="footer-im">ImageMagick</a> y <a href="#" id="footer-gs">Ghostscript</a> ·
-      Iconos de <a href="#" id="footer-icons">Flaticon</a>
+      Requiere <a href="#" id="footer-im">ImageMagick</a> y <a href="#" id="footer-gs">Ghostscript</a>
     </footer>
 
   </div>

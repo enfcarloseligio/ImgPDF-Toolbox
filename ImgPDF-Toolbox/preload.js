@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('api', {
   // Herramientas externas (ImageMagick y Ghostscript)
   checkTools:            ()           => ipcRenderer.invoke('check-tools'),
   installTool:           (tool)       => ipcRenderer.invoke('install-tool', tool),
+  restartApp:            ()           => ipcRenderer.invoke('restart-app'),
   checkUpdates:          ()           => ipcRenderer.invoke('check-updates'),
   upgradeTool:           (tool)       => ipcRenderer.invoke('upgrade-tool', tool),
   // Conversión y operaciones sobre PDF

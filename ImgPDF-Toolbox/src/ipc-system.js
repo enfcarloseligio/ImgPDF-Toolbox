@@ -81,13 +81,21 @@ async function detectTools() {
 
 ipcMain.handle('check-tools', () => detectTools());
 
+// ── Reiniciar la aplicación ──────────────────────────────────────────────────
+
+// Relanza la app para que el proceso herede el PATH y las rutas recién instaladas.
+ipcMain.handle('restart-app', () => {
+  app.relaunch();
+  app.exit(0);
+});
+
 // ── Instalar herramientas ────────────────────────────────────────────────────
 
 // Comprueba si la herramienta quedó instalada buscando su carpeta en Program Files
 // (el PATH del proceso actual no se refresca tras instalar).
 function isToolInstalled(tool) {
   if (tool === 'imagemagick') return !!findImageMagickDir();
-  return ['C:\Program Files', 'C:\Program Files (x86)'].some(root => {
+  return ['C:\\Program Files', 'C:\\Program Files (x86)'].some(root => {
     try {
       const gs = path.join(root, 'gs');
       return fs.existsSync(gs) && fs.readdirSync(gs).length > 0;
