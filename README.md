@@ -36,7 +36,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 - **Firmar con firmas protegidas:** dibuja o carga tu firma, guárdala cifrada con contraseña y colócala con un clic sobre el PDF, con visor y avance guardado.
 - **Opciones que aprovechan el ancho:** los grupos de opciones se acomodan en la misma fila y se reacomodan al achicar la ventana.
 - **Testar con avance guardado:** oculta datos con cuadros negros sobre un visor; el trabajo se guarda solo para retomarlo tras un cierre inesperado.
-- **Vista previa en vivo** de marcas de agua y foliado.
+- **Vista previa real** de marcas de agua y foliado: la página de tu archivo con la marca aplicada con el mismo proceso que el resultado final, con navegación entre páginas.
 - **Tipografías propias:** fuentes del sistema o del catálogo de Google Fonts para marcas de texto y folios.
 - **Configuración recordada** por herramienta y última carpeta de salida.
 - **Dependencias asistidas:** detecta ImageMagick y Ghostscript, ofrece instalarlos y comprueba si hay versiones nuevas.
@@ -51,8 +51,8 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 | **Unir PDFs** | Fusiona varios documentos en el orden exacto que definas. |
 | **Separar PDF** | Una página por archivo, bloques de N páginas o rangos personalizados (`1-5, 8, 10-12`). |
 | **Comprimir** | Reduce el peso con perfiles de Ghostscript (pantalla, digital, impresión y alta definición). |
-| **Foliar** | Numeración de páginas, folios consecutivos o con prefijo, sellos de recibido con fecha. |
-| **Marca texto** | Marca de agua de texto: orientación, color, opacidad, mosaico y posición. |
+| **Foliar** | Numeración de páginas, folios consecutivos o con prefijo, sellos de recibido con fecha; tipografía, peso y cursiva a elegir. |
+| **Marca texto** | Marca de agua de texto: tipografía y peso, orientación, color, opacidad, mosaico y posición. |
 | **Marca imagen** | Marca de agua con logo o firma: tamaño, opacidad, ángulo, mosaico y márgenes. |
 | **Rotar** | Gira todas las páginas, solo pares o solo impares. |
 | **Desbloquear** | Quita restricciones de propietario o abre PDFs con contraseña conocida. |
@@ -133,7 +133,8 @@ ImgPDF-Toolbox/
 │   │   ├── process-runner.js  #   Ejecución y cancelación de Ghostscript / ImageMagick
 │   │   ├── progress.js        #   Progreso real por página
 │   │   ├── page-tool.js       #   Motor común de Testar y Firmar (sesiones, autoguardado, exportación)
-│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes, testado, firma, flujo)
+│   │   ├── font-resolver.js   #   Variante de una fuente según peso y cursiva (familia, peso, ancho)
+│   │   └── ipc-*.js           #   Handlers por área (sistema, conversiones, PDF, anotaciones, imágenes, testado, firma, flujo, vista previa)
 │   └── renderer/              # Interfaz (HTML, CSS y JS sin framework)
 │       ├── core/              #   Estado, iconos, layout por pasos, lotes, editor de recorte, visor de páginas, panel de firma, utilidades, vistas
 │       ├── modules/           #   Una herramienta por archivo

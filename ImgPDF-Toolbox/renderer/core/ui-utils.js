@@ -526,23 +526,31 @@ function buildFontPicker(opts) {
           style="width:100%;margin-top:0.4rem;border:1px solid var(--border);
                  border-radius:6px;padding:0.35rem 0.5rem;font-size:0.83rem;
                  background:var(--bg);color:var(--deep)">
-          ${fonts.map(f => `<option value="${f.path}">${f.name}</option>`).join('')}
         </select>`;
 
-      opts.onFontPath(fonts[0]?.path || null);
+      // Sin elegir nada se usa la fuente predeterminada (Arial); la lista solo cambia de fuente
+      // cuando el usuario elige una. Buscar filtra la lista sin alterar la fuente elegida.
+      let current = null;
+      const select = document.getElementById(`${opts.pickerId}-select`);
+      const renderOptions = list => {
+        select.innerHTML = '<option value="">Predeterminada (Arial)</option>' +
+          list.map(f => `<option value="${f.path}"${f.path === current ? ' selected' : ''}>${f.name}</option>`).join('');
+        if (!current) select.value = '';
+      };
+      renderOptions(fonts);
+
+      opts.onFontPath(null);
       if (opts.onPreview) opts.onPreview();
 
       document.getElementById(`${opts.pickerId}-search`).addEventListener('input', e => {
-        const q        = e.target.value.toLowerCase();
-        const filtered = fonts.filter(f => f.name.toLowerCase().includes(q));
-        document.getElementById(`${opts.pickerId}-select`).innerHTML =
-          filtered.map(f => `<option value="${f.path}">${f.name}</option>`).join('');
-        opts.onFontPath(filtered[0]?.path || null);
-        if (opts.onPreview) opts.onPreview();
+        const q = e.target.value.toLowerCase();
+        renderOptions(fonts.filter(f => f.name.toLowerCase().includes(q)));
       });
 
-      document.getElementById(`${opts.pickerId}-select`).addEventListener('change', e => {
-        opts.onFontPath(e.target.value);
+      select.addEventListener('change', e => {
+        current = e.target.value || null;
+        opts.onFontPath(current);
+        if (opts.onFontChosen) opts.onFontChosen(current);
         if (opts.onPreview) opts.onPreview();
       });
     });

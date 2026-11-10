@@ -266,6 +266,12 @@ ipcMain.handle('get-system-fonts', async () => {
   return fonts.sort((a, b) => a.name.localeCompare(b.name));
 });
 
+// Familia, peso y cursiva de un archivo de fuente (para ajustar los controles al elegirla)
+ipcMain.handle('get-font-info', (_, file) => {
+  const info = require('./font-resolver').fontInfo(file);
+  return info ? { ok: true, ...info } : { ok: false };
+});
+
 // ── Catálogo de Google Fonts ─────────────────────────────────────────────────
 
 ipcMain.handle('get-google-fonts-catalog', async () => {

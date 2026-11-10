@@ -15,6 +15,7 @@ const {
   getUniqueFilePath,
 } = require('./process-runner');
 const { countUnits, createProgress } = require('./progress');
+const { resolveFont } = require('./font-resolver');
 
 // ── Helpers compartidos ──────────────────────────────────────────────────────
 
@@ -73,6 +74,138 @@ function buildFolioText({ mode, prefix, suffix, separator, digits, startNum,
   }
 }
 
+// ── Anotaciones sobre una imagen ya rasterizada ──────────────────────────────
+// Cada función dibuja una anotación sobre una imagen. exec(cmd) ejecuta un comando de
+// ImageMagick (cadena): el procesamiento real pasa su ejecutor cancelable y la vista previa
+// el suyo, de modo que ambos producen exactamente el mismo resultado.
+
+// Marca de agua de texto: una palabra (con posición) o un mosaico repetido. Devuelve la fuente usada.
+async function applyTextWatermark(exec, tempDir, inputImg, outputTarget, width, height, p) {
+  const gravityMap = {
+    center:       'Center',
+    top_left:     'NorthWest',
+    top_right:    'NorthEast',
+    bottom_left:  'SouthWest',
+    bottom_right: 'SouthEast',
+  };
+  const gravity   = gravityMap[p.position] || 'Center';
+  const alphaVal  = Math.round((p.opacity / 100) * 255);
+  const hexAlpha  = alphaVal.toString(16).padStart(2, '0');
+  const fillColor = `${p.color}${hexAlpha}`;
+  const safeText  = p.text.replace(/"/g, '\\"');
+
+  const scriptFile = path.join(tempDir, `script_${Math.random().toString(36).slice(2)}.mgk`);
+  const lines = [];
+
+  lines.push(`-read`);
+  lines.push(`"${inputImg.replace(/\\/g, '/')}"`);
+
+  // El archivo de fuente es un único peso: se usa la variante de su familia que corresponde al peso pedido
+  const font = resolveFont({ fontPath: p.fontPath, weight: p.fontWeight });
+  if (font.path) {
+    lines.push(`-font`);
+    lines.push(`"${font.path.replace(/\\/g, '/').replace(/"/g, '\\"')}"`);
+  }
+  lines.push(`-pointsize`);
+  lines.push(`${p.fontSize}`);
+  lines.push(`-fill`);
+  lines.push(`"${fillColor}"`);
+
+  if (p.repeatMode === 'single') {
+    lines.push(`-gravity`);
+    lines.push(`${gravity}`);
+    lines.push(`-annotate`);
+    lines.push(`${p.angle}x${p.angle}+0+0`);
+    lines.push(`"${safeText}"`);
+  } else {
+    lines.push(`-gravity`);
+    lines.push(`NorthWest`);
+    const gapH = Math.max(80, parseInt(p.repeatGapH) || 200);
+    const gapV = Math.max(50, parseInt(p.repeatGapV) || 150);
+    const cols = Math.ceil(width / gapH) + 2;
+    const rows = Math.ceil(height / gapV) + 2;
+
+    for (let r = -2; r < rows; r++) {
+      for (let c = -2; c < cols; c++) {
+        const x = Math.round(c * gapH);
+        const y = Math.round(r * gapV);
+        const signX = x >= 0 ? `+${x}` : `${x}`;
+        const signY = y >= 0 ? `+${y}` : `${y}`;
+        lines.push(`-annotate`);
+        lines.push(`${p.angle}x${p.angle}${signX}${signY}`);
+        lines.push(`"${safeText}"`);
+      }
+    }
+  }
+
+  lines.push(`-write`);
+  lines.push(`"${outputTarget.replace(/\\/g, '/')}"`);
+
+  fs.writeFileSync(scriptFile, lines.join('\n'), 'utf8');
+  await exec(`magick -script "${scriptFile.replace(/\\/g, '/')}"`);
+  try { fs.unlinkSync(scriptFile); } catch (_) {}
+  return font;
+}
+
+// Folio o sello: el texto ya generado (textFile) se estampa con la tipografía, el color y la
+// posición elegidos. Devuelve la fuente usada.
+async function annotateFolioImage(exec, tempImg, outTarget, textFile, p) {
+  const gravity  = positionToGravity(p.position);
+  // El archivo de fuente es un único peso y estilo: se usa la variante de su familia que
+  // corresponde al peso y a la cursiva pedidos
+  const font     = resolveFont({ fontPath: p.fontPath, weight: p.fontWeight, italic: p.italic });
+  // ImageMagick descarta las barras invertidas de la ruta (y vuelve en silencio a Arial)
+  const fontFlag = font.path ? `-font "${font.path.replace(/\\/g, '/')}"` : '';
+  await exec(
+    `magick "${tempImg}" ` +
+    `${fontFlag} ` +
+    `-pointsize ${p.fontSize} -fill "${p.color}" ` +
+    `-gravity ${gravity} ` +
+    `-annotate ${p.angle}x${p.angle}+${p.marginX}+${p.marginY} "@${textFile}" ` +
+    `"${outTarget}"`
+  );
+  return font;
+}
+
+// Marca de agua de imagen (logo o firma): una vez con posición o en mosaico
+async function applyImageMark(exec, inputPath, outputPath, docW, docH, p) {
+  const gravity = positionToGravity(p.position);
+  const markW = Math.round((p.sizePercent / 100) * docW);
+
+  const tempMark = inputPath + '_mark_resized.png';
+  await exec(`magick "${p.markFile}" -resize ${markW}x -alpha set -channel Alpha -evaluate multiply ${(p.opacity/100).toFixed(2)} "${tempMark}"`);
+
+  if (p.repeatMode === 'single') {
+    await exec(
+      `magick "${inputPath}" "${tempMark}" ` +
+      `-gravity ${gravity} -geometry +${p.marginX}+${p.marginY} ` +
+      `${p.angle !== 0 ? `-rotate ${p.angle}` : ''} ` +
+      `-composite "${outputPath}"`
+    );
+  } else {
+    const tilePath    = inputPath + '_tile.png';
+    const patternPath = inputPath + '_pattern.png';
+
+    await exec(`magick -size ${p.repeatGapH}x${p.repeatGapV} xc:none "${tempMark}" -gravity Center -composite "${tilePath}"`);
+
+    await exec(`magick -size ${docW}x${docH} "tile:${tilePath}" "${patternPath}"`);
+
+    if (p.angle !== 0) {
+      const rotPath = inputPath + '_pattern_rot.png';
+      await exec(`magick "${patternPath}" -background none -rotate ${p.angle} -gravity center -extent ${docW}x${docH} "${rotPath}"`);
+      await exec(`magick "${inputPath}" "${rotPath}" -composite "${outputPath}"`);
+      try { fs.unlinkSync(rotPath); } catch (_) {}
+    } else {
+      await exec(`magick "${inputPath}" "${patternPath}" -composite "${outputPath}"`);
+    }
+
+    try { fs.unlinkSync(tilePath); } catch (_) {}
+    try { fs.unlinkSync(patternPath); } catch (_) {}
+  }
+
+  try { fs.unlinkSync(tempMark); } catch (_) {}
+}
+
 // Totales de progreso a partir de los archivos y sus unidades (páginas de PDF; 1 por imagen).
 function progressTotals(files, units) {
   const isPdf = f => path.extname(f).toLowerCase() === '.pdf';
@@ -94,19 +227,6 @@ ipcMain.handle('watermark-text', async (event, {
   resetCancelled();
   const results = [];
 
-  const gravityMap = {
-    center:       'Center',
-    top_left:     'NorthWest',
-    top_right:    'NorthEast',
-    bottom_left:  'SouthWest',
-    bottom_right: 'SouthEast',
-  };
-  const gravity   = gravityMap[position] || 'Center';
-  const alphaVal  = Math.round((opacity / 100) * 255);
-  const hexAlpha  = alphaVal.toString(16).padStart(2, '0');
-  const fillColor = `${color}${hexAlpha}`;
-  const safeText  = text.replace(/"/g, '\\"');
-
   const tempDir = path.join(app.getPath('temp'), `imgpdf_wm_${Date.now()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
@@ -114,56 +234,9 @@ ipcMain.handle('watermark-text', async (event, {
   const progress = createProgress(event, 'watermark', progressTotals(files, units));
   progress.start();
 
-  async function applyWatermark(inputImg, outputTarget, width, height) {
-    const scriptFile = path.join(tempDir, `script_${Math.random().toString(36).slice(2)}.mgk`);
-    const lines = [];
-
-    lines.push(`-read`);
-    lines.push(`"${inputImg.replace(/\\/g, '/')}"`);
-
-    if (fontPath) {
-      lines.push(`-font`);
-      lines.push(`"${fontPath.replace(/\\/g, '/').replace(/"/g, '\\"')}"`);
-    }
-    lines.push(`-pointsize`);
-    lines.push(`${fontSize}`);
-    lines.push(`-fill`);
-    lines.push(`"${fillColor}"`);
-
-    if (repeatMode === 'single') {
-      lines.push(`-gravity`);
-      lines.push(`${gravity}`);
-      lines.push(`-annotate`);
-      lines.push(`${angle}x${angle}+0+0`);
-      lines.push(`"${safeText}"`);
-    } else {
-      lines.push(`-gravity`);
-      lines.push(`NorthWest`);
-      const gapH = Math.max(80, parseInt(repeatGapH) || 200);
-      const gapV = Math.max(50, parseInt(repeatGapV) || 150);
-      const cols = Math.ceil(width / gapH) + 2;
-      const rows = Math.ceil(height / gapV) + 2;
-
-      for (let r = -2; r < rows; r++) {
-        for (let c = -2; c < cols; c++) {
-          const x = Math.round(c * gapH);
-          const y = Math.round(r * gapV);
-          const signX = x >= 0 ? `+${x}` : `${x}`;
-          const signY = y >= 0 ? `+${y}` : `${y}`;
-          lines.push(`-annotate`);
-          lines.push(`${angle}x${angle}${signX}${signY}`);
-          lines.push(`"${safeText}"`);
-        }
-      }
-    }
-
-    lines.push(`-write`);
-    lines.push(`"${outputTarget.replace(/\\/g, '/')}"`);
-
-    fs.writeFileSync(scriptFile, lines.join('\n'), 'utf8');
-    await run(`magick -script "${scriptFile.replace(/\\/g, '/')}"`);
-    try { fs.unlinkSync(scriptFile); } catch (_) {}
-  }
+  const params = { text, fontPath, fontWeight, fontSize, opacity, angle, position, color, repeatMode, repeatGapH, repeatGapV };
+  const applyWatermark = (inputImg, outputTarget, width, height) =>
+    applyTextWatermark(run, tempDir, inputImg, outputTarget, width, height, params);
 
   for (let fi = 0; fi < files.length; fi++) {
     const file = files[fi];
@@ -245,11 +318,7 @@ ipcMain.handle('apply-folio', async (event, {
 }) => {
   resetCancelled();
   const results = [];
-  const gravity = positionToGravity(position);
-
-  const fillColor  = color;
-  const fontFlag   = fontPath ? `-font "${fontPath}"` : '';
-  const italicFlag = italic ? '-style Italic' : '';
+  const folioStyle = { fontPath, fontWeight, italic, fontSize, color, position, angle, marginX, marginY };
 
   let globalPageOffset = 0;
 
@@ -288,14 +357,7 @@ ipcMain.handle('apply-folio', async (event, {
         const tempPdf = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
 
         await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
-        await run(
-          `magick "${tempImg}" ` +
-          `${fontFlag} ${italicFlag} ` +
-          `-pointsize ${fontSize} -fill "${fillColor}" ` +
-          `-gravity ${gravity} ` +
-          `-annotate ${angle}x${angle}+${marginX}+${marginY} "@${textFile}" ` +
-          `"${tempPdf}"`
-        );
+        await annotateFolioImage(run, tempImg, tempPdf, textFile, folioStyle);
         pageParts.push(tempPdf);
         progress.tick({ ...info, currentPage: i, currentFilePages: totalPages, currentOut: path.basename(tempPdf) });
       }
@@ -332,7 +394,6 @@ ipcMain.handle('watermark-image', async (event, {
 }) => {
   resetCancelled();
   const results = [];
-  const gravity = positionToGravity(position);
 
   async function getImageSize(imgPath) {
     try {
@@ -343,42 +404,9 @@ ipcMain.handle('watermark-image', async (event, {
     return { w: 1654, h: 2339 };
   }
 
-  async function applyMark(inputPath, outputPath, docW, docH) {
-    const markW = Math.round((sizePercent / 100) * docW);
-
-    const tempMark = inputPath + '_mark_resized.png';
-    await run(`magick "${markFile}" -resize ${markW}x -alpha set -channel Alpha -evaluate multiply ${(opacity/100).toFixed(2)} "${tempMark}"`);
-
-    if (repeatMode === 'single') {
-      await run(
-        `magick "${inputPath}" "${tempMark}" ` +
-        `-gravity ${gravity} -geometry +${marginX}+${marginY} ` +
-        `${angle !== 0 ? `-rotate ${angle}` : ''} ` +
-        `-composite "${outputPath}"`
-      );
-    } else {
-      const tilePath    = inputPath + '_tile.png';
-      const patternPath = inputPath + '_pattern.png';
-
-      await run(`magick -size ${repeatGapH}x${repeatGapV} xc:none "${tempMark}" -gravity Center -composite "${tilePath}"`);
-
-      await run(`magick -size ${docW}x${docH} "tile:${tilePath}" "${patternPath}"`);
-
-      if (angle !== 0) {
-        const rotPath = inputPath + '_pattern_rot.png';
-        await run(`magick "${patternPath}" -background none -rotate ${angle} -gravity center -extent ${docW}x${docH} "${rotPath}"`);
-        await run(`magick "${inputPath}" "${rotPath}" -composite "${outputPath}"`);
-        try { fs.unlinkSync(rotPath); } catch (_) {}
-      } else {
-        await run(`magick "${inputPath}" "${patternPath}" -composite "${outputPath}"`);
-      }
-
-      try { fs.unlinkSync(tilePath); } catch (_) {}
-      try { fs.unlinkSync(patternPath); } catch (_) {}
-    }
-
-    try { fs.unlinkSync(tempMark); } catch (_) {}
-  }
+  const markParams = { markFile, sizePercent, opacity, position, angle, repeatMode, repeatGapH, repeatGapV, marginX, marginY };
+  const applyMark = (inputPath, outputPath, docW, docH) =>
+    applyImageMark(run, inputPath, outputPath, docW, docH, markParams);
 
   const units    = await countUnits(findGhostscript(), files);
   const progress = createProgress(event, 'watermark-image', progressTotals(files, units));
@@ -444,3 +472,8 @@ ipcMain.handle('watermark-image', async (event, {
   progress.done();
   return results;
 });
+
+// ── Exportaciones ────────────────────────────────────────────────────────────
+// Las usa la vista previa real (src/ipc-preview.js).
+
+module.exports = { buildFolioText, applyTextWatermark, annotateFolioImage, applyImageMark };
