@@ -107,6 +107,36 @@
 
 ---
 
+## 🚢 11. Lista de publicación
+
+Se recorre **una vez por versión**, después de las pruebas anteriores y antes de anunciar la versión.
+
+**Funcionalidad**
+- [ ] Las tareas de la versión están completas y probadas.
+- [ ] Los apartados 1 a 10 de este plan pasan (incluida la regresión).
+- [ ] Estados de carga, vacío y error revisados en lo nuevo.
+
+**Interfaz**
+- [ ] Probada en 820 px, 1140 px, 1440 px, 1920 px y en modo Canvas.
+- [ ] Teclado y foco visibles en los controles nuevos.
+
+**Seguridad**
+- [ ] Sin archivos privados ni de contexto del asistente en lo que se sube (`git diff --cached --name-only`).
+- [ ] Entradas nuevas validadas en el proceso principal.
+- [ ] Riesgos nuevos anotados en [07_SEGURIDAD](07_SEGURIDAD.md).
+
+**Código**
+- [ ] La sintaxis de todos los archivos pasa la revisión.
+- [ ] `npm run build` termina sin errores.
+
+**Entrega**
+- [ ] Número de versión subido en `package.json`; README y `docs/` actualizados ([10_MEMORIA](10_MEMORIA.md) incluida).
+- [ ] Commit directo a `main`, etiqueta `vX.Y.Z` creada y subida.
+- [ ] Instalador generado e **instalado desde cero** en un equipo limpio, y probado.
+- [ ] Notas de la versión escritas y Release publicado (decisión del autor).
+
+---
+
 ## 🤖 Pruebas automáticas (futuro)
 
 La lógica que no depende de Electron se puede probar con `node --test`:

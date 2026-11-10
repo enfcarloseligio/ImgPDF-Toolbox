@@ -3,6 +3,20 @@
 > [!NOTE]
 > Reglas para quien programe en este proyecto (personas o asistentes de IA). Complementan [03_ARQUITECTURA.md](03_ARQUITECTURA.md) y [04_DISEÑO.md](04_DISEÑO.md).
 
+## 🔄 Bucle de trabajo por tarea
+
+Cada tarea de [09_TAREAS](09_TAREAS.md) sigue estos pasos, sin saltarse ninguno:
+
+```mermaid
+flowchart LR
+  A["1️⃣ Leer"] --> B["2️⃣ Entender"] --> C["3️⃣ Planificar"] --> D["4️⃣ Implementar"]
+  D --> E["5️⃣ Probar"] --> F["6️⃣ Revisar"] --> G["7️⃣ Corregir"] --> H["8️⃣ Confirmar<br/>(commit)"]
+  H --> I["9️⃣ Actualizar<br/>documentación"]
+```
+
+> [!TIP]
+> La rigurosidad escala con el tamaño del cambio: un retoque de una línea es *cambiar → probar → confirmar*; una función grande o un cambio de arquitectura exige plan por escrito, decisión en [06_DECISIONES](06_DECISIONES.md) y revisión.
+
 ## 🧠 Antes de programar
 
 1. Leer la documentación relevante (`docs/`) y el archivo que se va a tocar.
@@ -56,6 +70,8 @@
 - Antes de dar una función por terminada: revisar la sintaxis de los archivos tocados, probar con archivos reales y recorrer el apartado correspondiente de [08_PLAN_DE_PRUEBAS.md](08_PLAN_DE_PRUEBAS.md).
 - La lógica que no depende de Electron se prueba de forma aislada con Node.
 - Cuando algo falla, corregir antes de seguir con la siguiente tarea.
+- **Revisión antes de publicar una versión:** comparar lo hecho con [02_REQUISITOS](02_REQUISITOS.md), [03_ARQUITECTURA](03_ARQUITECTURA.md), [04_DISEÑO](04_DISEÑO.md), estas reglas y [07_SEGURIDAD](07_SEGURIDAD.md). Comprobar corrección, arquitectura, seguridad, manejo de errores, accesibilidad, diseño responsive, rendimiento y código duplicado. **Que funcione no basta**: se informa primero de los problemas (por gravedad) y después se corrigen.
+- Al reportar un error se indica: qué se esperaba, qué ocurre, pasos para reproducirlo y la causa raíz antes de tocar el código.
 
 ## 🌿 Git y versiones
 
@@ -64,6 +80,8 @@
 - Cada versión: subir el número en `ImgPDF-Toolbox/package.json`, confirmar, **etiquetar `vX.Y.Z`**, subir `main` y la etiqueta, y generar el instalador.
 - Publicar el Release de GitHub requiere decisión del autor.
 - Los archivos de contexto de trabajo no se suben al repositorio (ver `.gitignore`).
+- **Sin coautoría ni atribución de herramientas de IA** en los commits, ni en las descripciones de cambios: la autoría y la responsabilidad son de quien publica.
+- Antes de cada commit se comprueba qué se va a subir (`git diff --cached --name-only`) para que no entren archivos privados.
 
 ## 📚 Documentación
 

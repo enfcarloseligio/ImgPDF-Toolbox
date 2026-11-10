@@ -137,6 +137,7 @@ La versión mayor cierra la ruta: ninguna función nueva grande, sino **solidez*
 
 **🧪 Calidad**
 - [ ] **T-200-9** Pruebas automáticas con `node --test` de la lógica sin Electron (`background-removal`, `lossless-rotate`, conversiones de color, constructores de argumentos) `M`
+- [ ] **T-200-14** Pruebas de extremo a extremo con Playwright para Electron (flujos críticos: instalar/detectar herramientas, convertir, comprimir, Testar y Firmar). Es una dependencia **solo de desarrollo**, no de ejecución, así que no afecta a la ADR-019 `M`
 - [ ] **T-200-10** Auditoría de accesibilidad (teclado, foco, contraste) `M`
 - [ ] **T-200-11** Revisión de rendimiento con lotes grandes (cientos de imágenes, PDFs de cientos de páginas) `M`
 
