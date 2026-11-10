@@ -14,11 +14,12 @@ function batchFilesHtml(p, kind = 'imageAny') {
   return fileZoneHtml({ zone: `zone-${p}`, pick: `pick-${p}`, clear: `clear-${p}`, badge: `${p}-badge`, list: `${p}-list`, kind, multiple: true });
 }
 
-function batchActionsHtml(p, runLabel) {
+function batchActionsHtml(p, runLabel, extraButtons = '') {
   return `${outputDirRow(p)}
     <div class="btn-row">
       <button class="btn-primary" id="run-${p}" disabled style="width:auto">${runLabel}</button>
       <button class="btn-danger"  id="cancel-${p}" style="display:none;width:auto">Cancelar</button>
+      ${extraButtons}
     </div>
     <div class="progress-panel" id="${p}-progress"></div>
     <div id="${p}-result"></div>`;
@@ -59,16 +60,19 @@ function batchResultsHtml(results, doneVerb) {
 //   canRun     () → bool, validación adicional de la configuración
 //   onChange   (files) → void, se llama al cambiar la lista (p. ej. para información)
 // Devuelve { getFiles, sync }: sync() reevalúa el estado del botón tras cambiar la configuración.
-function setupBatchTool(p, { moduleId, kind = 'imageAny', runLabel, busyLabel = 'Procesando...', doneVerb, run, canRun = () => true, onChange = () => {} }) {
+function setupBatchTool(p, { moduleId, kind = 'imageAny', runLabel, busyLabel = 'Procesando...', doneVerb, run, canRun = () => true, onChange = () => {}, target = null }) {
   const $ = id => document.getElementById(id);
   const listId = `${p}-list`;
   let files = [];
+  // target(info) → { width, height } con el tamaño final de cada imagen, que se muestra en su miniatura
+  setImageGalleryTarget(listId, target);
 
   // ── Estado de los controles ────────────────────────────────────────────────
   function sync() {
     $(`run-${p}`).disabled     = !(files.length && state.outputDir && canRun() && !state.isProcessing);
     $(`clear-${p}`).style.display = files.length ? 'inline-block' : 'none';
     $(`${p}-badge`).textContent   = fileCountText(files.length, kind);
+    if (target) refreshImageGallery(listId);
   }
 
   // ── Lista de archivos ──────────────────────────────────────────────────────

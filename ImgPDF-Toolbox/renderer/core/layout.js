@@ -15,7 +15,7 @@ const LAYOUT_STEPS = [
   { key: 'card' },
   { key: 'output',  title: 'Carpeta de salida' },
   { key: 'config',  title: 'Configuración' },
-  { key: 'preview', title: 'Vista previa' },
+  { key: 'preview', title: 'Vista previa del resultado' },
 ];
 
 // Determina a qué paso pertenece un bloque de la plantilla. Un atributo data-step explícito

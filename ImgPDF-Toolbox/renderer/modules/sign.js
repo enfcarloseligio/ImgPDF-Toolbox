@@ -325,7 +325,7 @@ async function renderSign(ctx = {}) {
   return renderPageTool(ctx, {
     // ── Identidad ──────────────────────────────────────────────────────────────
     id: 'sign', api: 'signer', progress: 'signer', pdfOnly: true,
-    title: 'Firmar', titleIcon: 'sign', previewTitle: 'Firma',
+    title: 'Firmar', titleIcon: 'sign', previewTitle: 'Área de trabajo',
 
     // ── Textos ─────────────────────────────────────────────────────────────────
     description: () => 'Dibuja tu firma o carga un PNG con transparencia, guárdala con un nombre y colócala con un clic sobre las páginas del PDF. Tus firmas se guardan cifradas y protegidas con contraseña: solo ves su nombre hasta que las colocas en el documento.',

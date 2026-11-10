@@ -229,10 +229,14 @@ function outputDirRow(id) {
 function renderFileList(containerId, files, onRemove) {
   const list = document.getElementById(containerId);
   if (!list) return;
+  const kind = list.closest('.file-zone')?.dataset.kind;
+  list.classList.remove('igal', 'is-sortable');
   if (!files.length) {
-    list.innerHTML = fileEmptyHtml(list.closest('.file-zone')?.dataset.kind);
+    list.innerHTML = fileEmptyHtml(kind);
     return;
   }
+  // Las imágenes se muestran en miniaturas (core/image-gallery.js)
+  if (kind === 'image' || kind === 'imageAny') return renderImageGallery(list, files, { onRemove });
   list.innerHTML = files.map((f, i) => `
     <div class="file-item">
       <span class="file-name">${icon('file', 14)} ${basename(f)}</span>
@@ -257,9 +261,14 @@ function renderOrderedFileList(containerId, files, onChange, options = {}) {
   const dropScope  = parentZone || list;
   if (parentZone) parentZone.classList.remove('drag-active');
 
+  list.classList.remove('igal', 'is-sortable');
   if (!files.length) {
     list.innerHTML = fileEmptyHtml(parentZone?.dataset.kind);
     return;
+  }
+  // Las imágenes se muestran en miniaturas, ordenables (core/image-gallery.js)
+  if (parentZone?.dataset.kind === 'image' || parentZone?.dataset.kind === 'imageAny') {
+    return renderImageGallery(list, files, { onChange });
   }
 
   list.innerHTML = '';
@@ -628,3 +637,83 @@ function buildFontPicker(opts) {
     document.getElementById(`${opts.pickerId}-gf-load`).addEventListener('click', () => triggerDownload());
   }
 }
+
+// ── Herramientas homólogas (PDF ↔ imagen) ────────────────────────────────────
+
+// Botón de la barra de acción que lleva a la misma herramienta de la otra categoría.
+// P es el prefijo de ids del módulo; kind, el tipo del módulo actual ('pdf' | 'image');
+// label, el nombre de la herramienta (p. ej. «Rotar»).
+function counterpartButtonHtml(P, kind, label) {
+  const target = kind === 'image' ? 'PDF' : 'imagen';
+  return `<button class="btn-secondary" id="goto-${P}" style="width:auto">${iconLabel('arrow-right', `Ir a ${label} ${target}`)}</button>`;
+}
+
+// Enlaza el botón anterior: abre targetModule en la categoría contraria a kind.
+function bindCounterpart(P, kind, targetModule) {
+  document.getElementById(`goto-${P}`)?.addEventListener('click', () =>
+    goToModule(kind === 'image' ? 'pdf-tools' : 'image-tools', targetModule));
+}
+
+// ── Resolución y calidad estándar ────────────────────────────────────────────
+
+// Resoluciones comunes a todas las herramientas, con el mismo formato que los perfiles de
+// Comprimir PDF: nombre en el botón y, debajo, los DPI con una sugerencia de uso. profile es
+// el perfil de Ghostscript equivalente. Por defecto: 300 DPI.
+const DPI_PROFILES = [
+  { dpi: 72,  profile: 'screen',   icon: 'monitor',   label: 'Pantalla',        hint: 'Mínimo peso. Ideal para envío por correo o mensajería.' },
+  { dpi: 150, profile: 'ebook',    icon: 'book',      label: 'Digital',         hint: 'Balance entre peso y calidad. Para leer en pantalla y compartir.' },
+  { dpi: 200, profile: 'standard', icon: 'file',      label: 'Estándar',        hint: 'Buena nitidez con peso moderado. Para documentos de uso diario.' },
+  { dpi: 300, profile: 'printer',  icon: 'printer',   label: 'Impresión',       hint: 'Alta calidad. Para documentos que se imprimirán. Recomendado.' },
+  { dpi: 400, profile: 'prepress', icon: 'award',     label: 'Alta definición', hint: 'Máxima fidelidad. Para planos, letra pequeña y archivo institucional.' },
+  { dpi: 600, profile: 'archive',  icon: 'crosshair', label: 'Máxima',          hint: 'Detalle extremo. Archivos muy pesados; para escaneo de precisión.' },
+];
+
+// Niveles de calidad (compresión con pérdida) comunes a todas las herramientas. Por defecto: 100 %.
+const QUALITY_PROFILES = [
+  { value: 100, icon: 'award',   label: 'Máxima', hint: '100% — Sin pérdida visual. Mayor peso.' },
+  { value: 75,  icon: 'printer', label: 'Alta',   hint: '75% — La diferencia casi no se nota y el archivo pesa menos.' },
+  { value: 50,  icon: 'book',    label: 'Media',  hint: '50% — Buen ahorro de peso; se nota al ampliar.' },
+  { value: 25,  icon: 'monitor', label: 'Baja',   hint: '25% — Peso mínimo; la pérdida de detalle es evidente.' },
+];
+
+const DPI_VALUES     = DPI_PROFILES.map(p => p.dpi);
+const QUALITY_VALUES = QUALITY_PROFILES.map(p => p.value);
+const DEFAULT_DPI_VALUE     = 300;
+const DEFAULT_QUALITY_VALUE = 100;
+
+// Opciones para profilePicker / optButtons.
+const dpiOptions = () => DPI_PROFILES.map(p => ({ icon: p.icon, label: p.label, value: p.dpi, hint: `${p.dpi} DPI — ${p.hint}` }));
+const qualityOptions = () => QUALITY_PROFILES.map(p => ({ icon: p.icon, label: p.label, value: p.value, hint: p.hint }));
+
+// Botones de opciones con una línea de explicación debajo (el hint de la opción activa), como
+// los perfiles de Comprimir PDF. El párrafo se crea tras el contenedor si aún no existe.
+function profilePicker(container, options, current, onChange, onSave) {
+  if (!container) return;
+  let hintEl = container.nextElementSibling;
+  if (!hintEl?.classList.contains('profile-hint')) {
+    hintEl = document.createElement('p');
+    hintEl.className = 'option-hint profile-hint';
+    container.after(hintEl);
+  }
+  const show = v => { const o = options.find(x => x.value === v); hintEl.textContent = o?.hint || ''; };
+  optButtons(container, options, current, v => { onChange(v); show(v); }, onSave);
+  show(current);
+}
+
+// Ajusta un valor guardado (de versiones anteriores) al más cercano de la lista.
+const snapTo = (value, list, fallback) => {
+  const n = Number(value);
+  if (!n) return fallback;
+  return list.reduce((best, v) => (Math.abs(v - n) < Math.abs(best - n) ? v : best), list[0]);
+};
+const snapDpi     = v => snapTo(v, DPI_VALUES, DEFAULT_DPI_VALUE);
+const snapQuality = v => snapTo(v, QUALITY_VALUES, DEFAULT_QUALITY_VALUE);
+
+// Niveles de compresión de imágenes (Comprimir y Recortar), alineados con la escala de calidad
+// 95 / 75 / 50 / 25. En PNG, además de la calidad, se reduce el número de colores.
+const IMAGE_LEVELS = [
+  { value: 'high',     icon: 'award',   label: 'Alta calidad',      hint: 'Calidad 95: la diferencia casi no se nota. En PNG la compresión es sin pérdida.' },
+  { value: 'balanced', icon: 'printer', label: 'Equilibrada',       hint: 'Calidad 75: equilibrio entre peso y calidad. En PNG reduce a 256 colores.' },
+  { value: 'medium',   icon: 'book',    label: 'Reducida',          hint: 'Calidad 50: ahorro notable de peso. En PNG reduce a 128 colores.' },
+  { value: 'max',      icon: 'monitor', label: 'Máxima compresión', hint: 'Calidad 25: el menor peso posible. En PNG reduce a 64 colores; se nota en degradados.' },
+];

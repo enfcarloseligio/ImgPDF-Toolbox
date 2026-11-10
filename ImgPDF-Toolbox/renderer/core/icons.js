@@ -28,6 +28,8 @@ const ICON_LIST = [
   'convert', 'crop', 'resize', 'wand', 'link', 'unlink', 'rotate-box', 'redact',
   // Firma
   'sign',
+  // Ancho del área de trabajo
+  'layout-container', 'layout-canvas',
 ];
 
 async function preloadIcons() {

@@ -1,6 +1,6 @@
 {
   "name": "imgpdf-toolbox",
-  "version": "1.7.3",
+  "version": "1.8.0",
   "description": "Suite ligera para manipular imágenes y PDFs con Ghostscript e ImageMagick",
   "main": "main.js",
   "scripts": {
@@ -53,5 +53,8 @@
       }
     ],
     "afterPack": "scripts/after-pack.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
   }
 }

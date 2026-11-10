@@ -8,9 +8,10 @@
 async function renderResizeImages() {
   // ── Estado y configuración del módulo ────────────────────────────────────────
   const cfg = await loadModuleConfig('resize-images', {
-    mode: 'pixels', percent: 50, maxSide: 1920, keepRatio: true, noEnlarge: false, quality: 95,
+    mode: 'pixels', percent: 50, maxSide: 1920, keepRatio: true, noEnlarge: false, quality: 100,
   });
-  let { mode, percent, maxSide, keepRatio, noEnlarge, quality } = cfg;
+  let { mode, percent, maxSide, keepRatio, noEnlarge } = cfg;
+  let quality = snapQuality(cfg.quality);
   let width = '', height = '';   // Se rellenan con el tamaño de la primera imagen cargada
   let info = null;   // Información de la primera imagen (para el resumen)
 
@@ -62,6 +63,11 @@ async function renderResizeImages() {
     </div>
 
     <div class="summary-box" id="rsz-summary"></div>
+
+    <div class="option-group" data-step="preview">
+      <label>Vista previa del resultado</label>
+      <div id="rsz-preview"></div>
+    </div>
 
     ${batchActionsHtml('rsz', 'Redimensionar imágenes')}
   </div>`;
@@ -183,14 +189,12 @@ async function renderResizeImages() {
   $('rsz-pct').addEventListener('input', e => { percent = num(e.target.value); save({ percent }); updateSummary(); batch.sync(); });
   $('rsz-max').addEventListener('input', e => { maxSide = num(e.target.value); save({ maxSide }); updateSummary(); batch.sync(); });
 
-  optButtons($('rsz-q'), [
-    { label: '100 — Máxima',  value: 100 },
-    { label: '95 — Alta',     value: 95  },
-    { label: '85 — Estándar', value: 85  },
-  ], quality, v => { quality = v; }, v => save({ quality: v }));
+  profilePicker($('rsz-q'), qualityOptions(), quality, v => { quality = v; }, v => save({ quality: v }));
 
   // ── Lista de archivos, ejecución y resultados ────────────────────────────────
   const batch = setupBatchTool('rsz', {
+    // Tamaño final de cada imagen, visible en su miniatura
+    target: info => { const { w, h } = predictSize(info.width, info.height); return w && h ? { width: w, height: h } : null; },
     moduleId: 'resize-images',
     runLabel: 'Redimensionar imágenes',
     busyLabel: 'Redimensionando...',
@@ -202,11 +206,22 @@ async function renderResizeImages() {
       fillOriginalSize();
       updateSummary();
       batch.sync();
+      preview.refresh();
     },
     run: (files, outputDir) => window.api.resizeImages({
       files, mode, width: num(width), height: num(height), percent, keepRatio, noEnlarge, maxSide, quality, outputDir,
     }),
   });
+
+  // ── Vista previa del resultado ───────────────────────────────────────────────
+  const preview = createOutputPreview($('rsz-preview'), {
+    tool: 'resize',
+    getFile: () => batch.getFiles()[0],
+    getParams: () => isValid()
+      ? { mode, width: num(width), height: num(height), percent, keepRatio, noEnlarge, maxSide, quality }
+      : { error: 'Completa las medidas para ver el resultado.' },
+  });
+  refreshOnChange(ws, preview);
 
   updateLock();
   updateMode();

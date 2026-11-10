@@ -16,6 +16,8 @@ const {
   getUniqueFilePath,
 } = require('./process-runner');
 const { countUnits, createProgress, runGsWithProgress } = require('./progress');
+const { PDFDocument, degrees } = require('pdf-lib');
+const { rotateJpegBuffer } = require('./lossless-rotate');
 
 // ── Utilidades compartidas ───────────────────────────────────────────────────
 
@@ -145,8 +147,21 @@ ipcMain.handle('compress-pdf', async (event, { files, profile, outputDir }) => {
   const gs = findGhostscript();
   const results = [];
 
-  const profileMap = { screen: '/screen', ebook: '/ebook', printer: '/printer', prepress: '/prepress' };
-  const gsProfile  = profileMap[profile] || '/ebook';
+  // Cada perfil parte de un preajuste de Ghostscript; los de 200, 400 y 600 DPI fijan además la
+  // resolución de las imágenes (Ghostscript solo las reduce, nunca las amplía)
+  const profileMap = {
+    screen:   { settings: '/screen' },
+    ebook:    { settings: '/ebook' },
+    standard: { settings: '/ebook',    dpi: 200 },
+    printer:  { settings: '/printer' },
+    prepress: { settings: '/prepress', dpi: 400 },
+    archive:  { settings: '/prepress', dpi: 600 },
+  };
+  const selected   = profileMap[profile] || profileMap.printer;
+  const gsProfile  = selected.settings;
+  const dpiArgs    = selected.dpi ? ['Color', 'Gray', 'Mono'].flatMap(t => [
+    `-dDownsample${t}Images=true`, `-d${t}ImageResolution=${t === 'Mono' ? selected.dpi * 2 : selected.dpi}`, `-d${t}ImageDownsampleThreshold=1.0`,
+  ]) : [];
 
   const units    = await countUnits(gs, files);
   const progress = createProgress(event, 'compress', { totalFiles: files.length, totalPages: sumPages(units) });
@@ -162,7 +177,7 @@ ipcMain.handle('compress-pdf', async (event, { files, profile, outputDir }) => {
 
     try {
       await runGsWithProgress(gs, [
-        ...GS_PDFWRITE, '-dCompatibilityLevel=1.4', `-dPDFSETTINGS=${gsProfile}`, `-sOutputFile=${out}`, file,
+        ...GS_PDFWRITE, '-dCompatibilityLevel=1.4', `-dPDFSETTINGS=${gsProfile}`, ...dpiArgs, `-sOutputFile=${out}`, file,
       ], {
         onPage: page => progress.tick({
           currentFile: fi + 1, currentFileName: path.basename(file),
@@ -208,54 +223,41 @@ ipcMain.handle('rotate-files', async (event, { files, angle, target, outputDir }
     const info  = { currentFile: fi + 1, currentFileName: path.basename(file) };
 
     if (!isPdf) {
+      // Imágenes: el giro nunca recomprime. PNG se gira en píxeles (sin pérdida) y JPG solo
+      // cambia su etiqueta de orientación, de modo que los datos de la imagen no se tocan
       const out = getUniqueFilePath(path.join(outputDir, `${name}-rot${angle}${ext}`));
       try {
-        await run(`magick "${file}" -rotate ${angle} "${out}"`);
+        if (ext === '.jpg' || ext === '.jpeg') fs.writeFileSync(out, rotateJpegBuffer(fs.readFileSync(file), angle));
+        else await run(`magick "${file}" -rotate ${angle} "${out}"`);
         progress.tick({ ...info, currentPage: 1, currentFilePages: 1, currentOut: path.basename(out) });
         results.push({ file, out, ok: true });
       } catch (e) {
-        results.push({ file, ok: false, error: String(e) });
+        results.push({ file, ok: false, error: String(e.message || e) });
       }
     } else {
+      // PDF: solo se ajusta el giro de cada página (/Rotate); el contenido, las fuentes y las
+      // imágenes no se vuelven a procesar, así que no se pierde calidad ni texto seleccionable
       try {
-        const totalPages = units[fi]?.pages || 0;
-        const tempDir    = path.join(app.getPath('temp'), `imgpdf_rot_${Date.now()}`);
-        fs.mkdirSync(tempDir, { recursive: true });
+        const doc = await PDFDocument.load(fs.readFileSync(file), { updateMetadata: false });
+        const pages = doc.getPages();
 
-        const pageParts = [];
-
-        for (let i = 1; i <= totalPages; i++) {
-          if (getIsCancelled()) break;
+        pages.forEach((page, i) => {
+          const n = i + 1;
           const shouldRotate =
             target === 'all' ||
-            (target === 'even' && i % 2 === 0) ||
-            (target === 'odd'  && i % 2 !== 0);
+            (target === 'even' && n % 2 === 0) ||
+            (target === 'odd'  && n % 2 !== 0);
+          if (shouldRotate) page.setRotation(degrees((page.getRotation().angle + Number(angle)) % 360));
+          progress.tick({ ...info, currentPage: n, currentFilePages: pages.length, currentOut: `${name}-rot${angle}.pdf` });
+        });
 
-          const tempOut = path.join(tempDir, `pag${String(i).padStart(3,'0')}.pdf`);
-
-          if (shouldRotate) {
-            const tempImg = path.join(tempDir, `pag${String(i).padStart(3,'0')}.png`);
-            await run(`magick -density 200 "${file}[${i-1}]" "${tempImg}"`);
-            await run(`magick "${tempImg}" -rotate ${angle} "${tempOut}"`);
-          } else {
-            await runGsWithProgress(gs, [...GS_PDFWRITE, `-dFirstPage=${i}`, `-dLastPage=${i}`, `-sOutputFile=${tempOut}`, file]);
-          }
-          pageParts.push(tempOut);
-          progress.tick({ ...info, currentPage: i, currentFilePages: totalPages, currentOut: path.basename(tempOut) });
-        }
-
-        if (!getIsCancelled() && pageParts.length > 0) {
-          progress.stage('Ensamblando el PDF final…', info);
-          const out = getUniqueFilePath(path.join(outputDir, `${name}-rot${angle}.pdf`));
-          await runGsWithProgress(gs, [...GS_PDFWRITE, `-sOutputFile=${out}`, ...pageParts]);
-          results.push({ file, out, ok: true });
-        }
-
-        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
-
+        const out = getUniqueFilePath(path.join(outputDir, `${name}-rot${angle}.pdf`));
+        progress.stage('Guardando el PDF…', info);
+        fs.writeFileSync(out, await doc.save());
+        results.push({ file, out, ok: true });
       } catch (e) {
-        results.push({ file, ok: false, error: String(e) });
-        if (getIsCancelled()) break;
+        const encrypted = /encrypt/i.test(String(e && e.message));
+        results.push({ file, ok: false, error: encrypted ? 'El PDF está protegido: usa Desbloquear antes de girarlo.' : String(e.message || e) });
       }
     }
   }

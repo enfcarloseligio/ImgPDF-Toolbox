@@ -85,9 +85,17 @@
           <p class="brand-sub">Conversión y manipulación local · Sin conexión requerida</p>
         </div>
       </div>
-      <div class="tools-status" id="tools-status" title="Estado de herramientas">
-        <span class="status-dot checking"></span>
-        <span class="status-label">Verificando...</span>
+      <div class="header-actions">
+        <div class="layout-toggle" role="group" aria-label="Ancho del área de trabajo">
+          <button type="button" class="layout-btn" data-layout-mode="container" title="Contenedor: ancho limitado, más cómodo de leer">
+            <span data-icon="layout-container" data-size="16"></span> Contenedor</button>
+          <button type="button" class="layout-btn" data-layout-mode="canvas" title="Canvas: todo el ancho de la ventana, ideal para ver mejor los visores">
+            <span data-icon="layout-canvas" data-size="16"></span> Canvas</button>
+        </div>
+        <div class="tools-status" id="tools-status" title="Estado de herramientas">
+          <span class="status-dot checking"></span>
+          <span class="status-label">Verificando...</span>
+        </div>
       </div>
     </header>
 
@@ -107,6 +115,11 @@
   <script src="core/ui-utils.js"></script>
   <script src="core/layout.js"></script>
   <script src="core/batch.js"></script>
+  <script src="core/layout-mode.js"></script>
+  <script src="core/image-gallery.js"></script>
+  <script src="core/image-zoom.js"></script>
+  <script src="core/output-preview.js"></script>
+  <script src="core/color-picker.js"></script>
   <script src="core/crop-editor.js"></script>
   <script src="core/page-editor.js"></script>
   <script src="core/signature-pad.js"></script>

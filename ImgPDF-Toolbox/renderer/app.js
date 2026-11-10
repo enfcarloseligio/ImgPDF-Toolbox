@@ -9,6 +9,7 @@
 
 window.addEventListener('DOMContentLoaded', async () => {
   bindExternalLinks();
+  initLayoutMode();
   await runSplash();
 });
 

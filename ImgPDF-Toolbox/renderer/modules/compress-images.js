@@ -20,7 +20,6 @@ async function renderCompressImages() {
     <div class="option-group wide">
       <label>Nivel de compresión</label>
       <div class="option-row" id="cmi-level"></div>
-      <p class="option-hint" id="cmi-hint"></p>
     </div>
     <div class="option-group">
       <label>Formato de salida</label>
@@ -37,25 +36,19 @@ async function renderCompressImages() {
       <label class="check-row"><input type="checkbox" id="cmi-strip"> Quitar metadatos (EXIF, ubicación GPS, perfil de cámara)</label>
     </div>
 
-    ${batchActionsHtml('cmi', 'Comprimir imágenes')}
+    <div class="option-group" data-step="preview">
+      <label>Vista previa del resultado</label>
+      <div id="cmi-preview"></div>
+    </div>
+
+    ${batchActionsHtml('cmi', 'Comprimir imágenes', counterpartButtonHtml('cmi', 'image', 'Comprimir'))}
   </div>`;
   organizeModule(ws);
+  bindCounterpart('cmi', 'image', 'compress');
 
   // ── Opciones de configuración ────────────────────────────────────────────────
   const save = patch => saveModuleConfig('compress-images', patch);
-  const HINTS = {
-    high:     'Calidad 85: la diferencia casi no se nota. En PNG la compresión es sin pérdida.',
-    balanced: 'Calidad 75: equilibrio entre peso y calidad. En PNG reduce a 256 colores.',
-    max:      'Calidad 60: el menor peso posible. En PNG reduce a 128 colores; puede notarse en degradados.',
-  };
-  const updateHint = () => { document.getElementById('cmi-hint').textContent = HINTS[level]; };
-
-  optButtons(document.getElementById('cmi-level'), [
-    { label: 'Alta calidad',     value: 'high'     },
-    { label: 'Equilibrada',      value: 'balanced' },
-    { label: 'Máxima compresión', value: 'max'      },
-  ], level, v => { level = v; updateHint(); }, v => save({ level: v }));
-  updateHint();
+  profilePicker(document.getElementById('cmi-level'), IMAGE_LEVELS, level, v => { level = v; }, v => save({ level: v }));
 
   optButtons(document.getElementById('cmi-format'), [
     { label: 'Mismo formato', value: 'same' },
@@ -76,11 +69,20 @@ async function renderCompressImages() {
   stripBox.addEventListener('change', e => { strip = e.target.checked; save({ strip }); });
 
   // ── Lista de archivos, ejecución y resultados ────────────────────────────────
-  setupBatchTool('cmi', {
+  const batch = setupBatchTool('cmi', {
+    onChange: () => preview.refresh(),
     moduleId: 'compress-images',
     runLabel: 'Comprimir imágenes',
     busyLabel: 'Comprimiendo...',
     doneVerb: 'comprimida(s)',
     run: (files, outputDir) => window.api.compressImages({ files, level, format, maxSide, strip, outputDir }),
   });
+
+  // ── Vista previa del resultado ───────────────────────────────────────────────
+  const preview = createOutputPreview(document.getElementById('cmi-preview'), {
+    tool: 'compress',
+    getFile: () => batch.getFiles()[0],
+    getParams: () => ({ level, format, maxSide, strip }),
+  });
+  refreshOnChange(ws, preview);
 }

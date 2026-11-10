@@ -37,6 +37,7 @@ function createAnnotationPreview(container, { tool, getParams, getFile }) {
 
   const part = name => container.querySelector(`[data-apv="${name}"]`);
   const nav = container.querySelector('.apv-nav');
+  attachImageZoom(part('stage'), part('img'));
 
   let page = 1, pages = 1;
   let lastFile = null;

@@ -9,9 +9,10 @@
 
 async function renderSignFlow(ctx = {}) {
   // ── Estado y configuración del módulo ────────────────────────────────────────
-  const cfg = await loadModuleConfig('sign-flow', { density: 300, format: 'png', background: '#FFFFFF', jpgQuality: 95, mode: 'all', rangeSize: 2 });
+  const cfg = await loadModuleConfig('sign-flow', { density: 300, format: 'png', background: '#FFFFFF', jpgQuality: 100, mode: 'all', rangeSize: 2 });
   let files = [];
-  let { density, format, background, jpgQuality, mode, rangeSize } = cfg;   // mode: all | each | range
+  let { format, background, mode, rangeSize } = cfg;
+  let density = snapDpi(cfg.density), jpgQuality = snapQuality(cfg.jpgQuality);   // mode: all | each | range
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
   const ws = document.getElementById('workspace');
@@ -60,21 +61,12 @@ async function renderSignFlow(ctx = {}) {
   optButtons($('sf-fmt'), [{ label: 'PNG', value: 'png' }, { label: 'JPG', value: 'jpg' }],
     format, v => { format = v; updateBg(); updateJpgQuality(); }, v => save({ format: v }));
 
-  optButtons($('sf-jpgq'), [
-    { label: '100 — Máxima',  value: 100 },
-    { label: '95 — Alta',     value: 95  },
-    { label: '85 — Estándar', value: 85  },
-  ], jpgQuality, v => { jpgQuality = v; }, v => save({ jpgQuality: v }));
+  profilePicker($('sf-jpgq'), qualityOptions(), jpgQuality, v => { jpgQuality = v; }, v => save({ jpgQuality: v }));
 
   const updateJpgQuality = () => { $('sf-jpgq-group').style.display = format === 'jpg' ? '' : 'none'; };
   updateJpgQuality();
 
-  optButtons($('sf-dpi'), [
-    { label: '300 DPI — Máxima', value: 300 },
-    { label: '200 DPI — Alta',   value: 200 },
-    { label: '150 DPI — Media',  value: 150 },
-    { label: '72 DPI — Baja',    value: 72  },
-  ], density, v => { density = v; }, v => save({ density: v }));
+  profilePicker($('sf-dpi'), dpiOptions(), density, v => { density = v; }, v => save({ density: v }));
 
   // JPG no admite transparencia, por lo que solo ofrece fondos sólidos
   function updateBg() {

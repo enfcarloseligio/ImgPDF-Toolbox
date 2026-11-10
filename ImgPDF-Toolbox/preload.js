@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('api', {
   // Herramientas de imagen
   getImageInfo:          (file)       => ipcRenderer.invoke('get-image-info', file),
   getImagePreview:       (file)       => ipcRenderer.invoke('get-image-preview', file),
+  imageThumbnail:        (file)       => ipcRenderer.invoke('image-thumbnail', file),
+  imageOutputPreview:    (opts)       => ipcRenderer.invoke('image-output-preview', opts),
   getImagePixel:         (opts)       => ipcRenderer.invoke('get-image-pixel', opts),
   listImageFormats:      ()           => ipcRenderer.invoke('list-image-formats'),
   convertImages:         (opts)       => ipcRenderer.invoke('convert-images', opts),

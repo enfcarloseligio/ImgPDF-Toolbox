@@ -146,6 +146,9 @@
 
   /* ── Radios y sombras ── */
   --radius:           10px;
+  --canvas-margin:    2.5%;     /* Margen lateral del modo Canvas */
+  --stage-min:        320px;    /* Alto mínimo de todas las vistas previas y áreas de trabajo */
+  --stage-max:        70vh;     /* Alto máximo de la imagen en vistas previas y áreas de trabajo */
   --radius-lg:        14px;
   --shadow-sm:        0 2px 8px  rgba(15,23,42,0.06);
   --shadow-md:        0 4px 20px rgba(15,23,42,0.10);
@@ -216,6 +219,12 @@ code {
   .app-container { max-width: 1280px; }
 }
 
+/* Modo «Canvas»: sin ancho máximo, con un pequeño margen lateral (core/layout-mode.js) */
+.app-container.is-canvas {
+  max-width: none;
+  padding-inline: var(--canvas-margin);
+}
+
 #view-container {
   width: 100%;
   display: flex;
@@ -236,6 +245,28 @@ code {
 }
 
 .header-brand { display: flex; align-items: center; gap: 0.9rem; }
+.header-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+/* Selector Contenedor / Canvas */
+.layout-toggle {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  box-shadow: var(--shadow-sm);
+}
+.layout-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.3rem 0.8rem;
+  border: 0; border-radius: 99px;
+  background: transparent; color: var(--text);
+  font-family: var(--font-body); font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--t), color var(--t);
+}
+.layout-btn:hover { background: var(--primary-soft); }
+.layout-btn.active { background: var(--primary); color: #F8FAFC; }
 .brand-icon   { font-size: 2rem; line-height: 1; }
 
 .brand-title {
@@ -291,6 +322,8 @@ code {
   padding-bottom: 0.5rem;
   margin-top: auto;
 }
+/* Los enlaces del pie (autor, sitio y dependencias) resaltan en negritas */
+.app-footer a { font-weight: 700; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    7. SPLASH

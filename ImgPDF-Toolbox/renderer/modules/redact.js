@@ -12,10 +12,11 @@ async function renderRedact(ctx = {}) {
   return renderPageTool(ctx, {
     // ── Identidad ──────────────────────────────────────────────────────────────
     id: 'redact', api: 'redact', progress: 'redact',
-    title: 'Testar', titleIcon: 'redact', previewTitle: 'Testado',
+    title: 'Testar', titleIcon: 'redact', previewTitle: 'Área de trabajo',
+    fillColor: true,
 
     // ── Textos ─────────────────────────────────────────────────────────────────
-    description: isPdf => `Oculta datos sensibles dibujando cuadros negros sobre ${isPdf ? 'las páginas del PDF' : 'la imagen'}. Tu avance se guarda solo: si se cierra la aplicación o se va la luz, puedes retomarlo.`,
+    description: isPdf => `Oculta datos sensibles dibujando cuadros (negros por defecto) sobre ${isPdf ? 'las páginas del PDF' : 'la imagen'}. Tu avance se guarda solo: si se cierra la aplicación o se va la luz, puedes retomarlo.`,
     itemNoun: 'cuadro(s)',
     runLabel: 'Exportar testado', doneTitle: 'Archivo testado',
     pdfHint: 'Cada página se guarda como imagen dentro de un PDF: bajo los cuadros no queda texto ni imagen que recuperar.',
