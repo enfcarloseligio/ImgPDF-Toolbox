@@ -44,8 +44,9 @@ async function renderWatermark(ctx = {}) {
   angle = orientationAngles[orientation] ?? angle;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
+  let preview = null;   // Vista previa real (se crea al construir la interfaz)
   const ws = document.getElementById('workspace');
-  ws.innerHTML = `<div class="module">
+  ws.innerHTML = `<div class="module module-apv">
     <div class="module-title">${icon('droplet',22)} Marca de agua</div>
     <p class="module-desc">Estampa texto personalizado, orientado y posicionado sobre ${kind === 'image' ? 'imágenes' : 'PDFs'}.</p>
 
@@ -131,15 +132,10 @@ async function renderWatermark(ctx = {}) {
       <div class="option-row" id="position-row"></div>
     </div>
 
-    <!-- Vista previa interactiva -->
+    <!-- Vista previa real -->
     <div class="option-group" data-step="preview">
       <label>Vista previa</label>
-      <div class="wm-preview-container">
-        <div class="wm-preview-box" id="wm-preview-box"></div>
-        <p style="font-size:0.72rem;color:var(--text-muted);text-align:center">
-          Vista aproximada — el resultado final dependerá del tamaño real del documento
-        </p>
-      </div>
+      <div id="wm-preview"></div>
     </div>
 
     <!-- Archivos -->
@@ -156,78 +152,16 @@ async function renderWatermark(ctx = {}) {
   </div>`;
   organizeModule(ws);
 
-  // ── Vista previa interactiva ────────────────────────────────────────────────
-  async function updatePreview() {
-    const box = document.getElementById('wm-preview-box');
-    if (!box) return;
-
-    box.innerHTML = '';
-
-    const boxW = box.clientWidth  || 450;
-    const boxH = box.clientHeight || 180;
-    const previewSize = Math.max(10, Math.min(fontSize * 0.35, 36));
-    const alphaHex = Math.round((opacity / 100) * 255).toString(16).padStart(2, '0');
-    const fillColor = `${color}${alphaHex}`;
-
-    let activeFontFamily = 'sans-serif';
-    if (fontPath) {
-      const faceName = `WM_Font_${Date.now()}`;
-      try {
-        const fontFace = new FontFace(faceName, `url("file://${fontPath.replace(/\\/g, '/')}")`);
-        await fontFace.load();
-        document.fonts.add(fontFace);
-        activeFontFamily = `"${faceName}", sans-serif`;
-      } catch (_) {}
-    }
-
-    const gravityMap = {
-      center:       { x: '50%', y: '50%', tx: '-50%', ty: '-50%' },
-      top_left:     { x: '10%', y: '15%', tx: '0',    ty: '0'    },
-      top_right:    { x: '90%', y: '15%', tx: '-100%', ty: '0'   },
-      bottom_left:  { x: '10%', y: '85%', tx: '0',    ty: '-100%'},
-      bottom_right: { x: '90%', y: '85%', tx: '-100%', ty: '-100%'},
-    };
-
-    if (repeatMode === 'single') {
-      const g = gravityMap[position] || gravityMap.center;
-      const el = document.createElement('span');
-      el.className = 'wm-preview-label';
-      el.textContent = text || 'MARCA';
-      el.style.cssText = `
-        left: ${g.x}; top: ${g.y};
-        transform: translate(${g.tx}, ${g.ty}) rotate(${angle}deg);
-        font-size: ${previewSize}px;
-        font-weight: ${fontWeight};
-        font-family: ${activeFontFamily};
-        color: ${fillColor};
-        white-space: nowrap;
-      `;
-      box.appendChild(el);
-    } else {
-      const scaleH = Math.max(60, repeatGapH * 0.35);
-      const scaleV = Math.max(40, repeatGapV * 0.35);
-      const cols = Math.ceil(boxW / scaleH) + 2;
-      const rows = Math.ceil(boxH / scaleV) + 2;
-
-      for (let r = -1; r < rows; r++) {
-        for (let c = -1; c < cols; c++) {
-          const el = document.createElement('span');
-          el.className = 'wm-preview-label';
-          el.textContent = text || 'MARCA';
-          el.style.cssText = `
-            left: ${c * scaleH}px; top: ${r * scaleV}px;
-            transform: rotate(${angle}deg);
-            font-size: ${previewSize}px;
-            font-weight: ${fontWeight};
-            font-family: ${activeFontFamily};
-            color: ${fillColor};
-            white-space: nowrap;
-          `;
-          box.appendChild(el);
-        }
-      }
-    }
-  }
+  // ── Vista previa real ───────────────────────────────────────────────────────
+  // Se genera con el mismo proceso que el archivo final, sobre la primera página del primer archivo
+  function updatePreview() { preview?.refresh(); }
+  preview = createAnnotationPreview(document.getElementById('wm-preview'), {
+    tool: 'watermark',
+    getFile: () => files[0],
+    getParams: () => text.trim()
+      ? { text, fontPath, fontWeight, fontSize, opacity, angle, position, color, repeatMode, repeatGapH, repeatGapV }
+      : { error: 'Escribe el texto de la marca de agua para ver la vista previa.' },
+  });
 
   // ── Atajos de texto ─────────────────────────────────────────────────────────
   ['CONFIDENCIAL','COPIA','BORRADOR','RECIBIDO','PRELIMINAR'].forEach(s => {
@@ -272,11 +206,24 @@ async function renderWatermark(ctx = {}) {
     renderFontPicker();
   });
 
+  // Al elegir una fuente de la lista (p. ej. «Arial Bold») el peso se ajusta al de esa fuente; el
+  // selector de peso decide después qué variante de la familia se usa
+  async function syncWeightFromFont(file) {
+    const info = file ? await window.api.getFontInfo(file) : null;
+    if (!info?.ok) return;
+    fontWeight = info.weight;
+    const select = document.getElementById('wm-weight');
+    if (select) select.value = String(Math.round(info.weight / 100) * 100);
+    saveModuleConfig('watermark', { fontWeight });
+    updatePreview();
+  }
+
   function renderFontPicker() {
     buildFontPicker({
       pickerId: 'font-picker', fontSource, getFontWeight: () => fontWeight,
       systemFonts, gfCatalog,
       onFontPath: p => { fontPath = p; },
+      onFontChosen: syncWeightFromFont,
       onFontsLoaded: f => { systemFonts.length = 0; systemFonts.push(...f); },
       onPreview: updatePreview,
     });
@@ -392,6 +339,7 @@ async function renderWatermark(ctx = {}) {
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
+    updatePreview();   // Cambia el primer archivo de la lista: cambia la vista previa
     document.getElementById('run-wm').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-wm').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('wm-badge').textContent   = fileCountText(files.length, kind);

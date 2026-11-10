@@ -35,8 +35,9 @@ async function renderWatermarkImage(ctx = {}) {
   let marginY     = cfg.marginY;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
+  let preview = null;   // Vista previa real (se crea al construir la interfaz)
   const ws = document.getElementById('workspace');
-  ws.innerHTML = `<div class="module">
+  ws.innerHTML = `<div class="module module-apv">
     <div class="module-title">${icon('tag',22)} Marca de agua — Imagen</div>
     <p class="module-desc">Superpone una imagen (PNG con transparencia recomendado) sobre ${kind === 'image' ? 'imágenes' : 'PDFs'}.</p>
 
@@ -104,15 +105,10 @@ async function renderWatermarkImage(ctx = {}) {
       </div>
     </div>
 
-    <!-- Vista previa -->
+    <!-- Vista previa real -->
     <div class="option-group" data-step="preview">
-      <label>Vista previa aproximada</label>
-      <div class="wm-preview-container">
-        <div class="wm-preview-box" id="wmi-preview-box"></div>
-        <p style="font-size:0.72rem;color:var(--text-muted);text-align:center">
-          Vista aproximada — el resultado final depende del tamaño real del documento
-        </p>
-      </div>
+      <label>Vista previa</label>
+      <div id="wmi-preview"></div>
     </div>
 
     <!-- Archivos destino -->
@@ -255,81 +251,15 @@ async function renderWatermarkImage(ctx = {}) {
     saveModuleConfig('watermark-image',{marginY}); updatePreview();
   });
 
-  // ── Vista previa ─────────────────────────────────────────────────────────────
-  function updatePreview() {
-    const box = document.getElementById('wmi-preview-box');
-    if (!box) return;
-    box.querySelectorAll('.wmi-preview-mark').forEach(el => el.remove());
+  // ── Vista previa real ───────────────────────────────────────────────────────
+  // Se genera con el mismo proceso que el archivo final, sobre la primera página del primer archivo
+  function updatePreview() { preview?.refresh(); }
+  preview = createAnnotationPreview(document.getElementById('wmi-preview'), {
+    tool: 'watermark-image',
+    getFile: () => files[0],
+    getParams: () => ({ markFile, sizePercent, opacity, position, angle, repeatMode, repeatGapH, repeatGapV, marginX, marginY }),
+  });
 
-    const boxW = box.clientWidth  || 400;
-    const boxH = box.clientHeight || 180;
-    const markW = Math.round((sizePercent / 100) * boxW);
-    const alphaVal = (opacity / 100).toFixed(2);
-
-    const gravityMap = {
-      top_left:     { left: '2%',  top: '5%'  },
-      top_right:    { right:'2%',  top: '5%'  },
-      center:       { left: '50%', top: '50%', transform:'translate(-50%,-50%)' },
-      bottom_left:  { left: '2%',  bottom:'5%'},
-      bottom_right: { right:'2%',  bottom:'5%'},
-    };
-
-    if (repeatMode === 'single') {
-      const g = gravityMap[position] || gravityMap.bottom_right;
-      const el = document.createElement('div');
-      el.className = 'wmi-preview-mark';
-      el.style.cssText = `position:absolute;width:${markW}px;opacity:${alphaVal};
-        transform:rotate(${angle}deg)${g.transform||''};pointer-events:none;
-        ${g.left   ? `left:${g.left};`   : ''}
-        ${g.right  ? `right:${g.right};` : ''}
-        ${g.top    ? `top:${g.top};`     : ''}
-        ${g.bottom ? `bottom:${g.bottom};`:''}`;
-
-      if (markFile) {
-        const img = document.createElement('img');
-        img.src = toFileUrl(markFile);
-        img.style.cssText = 'width:100%;height:auto;display:block';
-        el.appendChild(img);
-      } else {
-        el.style.background = 'rgba(10,102,194,0.25)';
-        el.style.height = `${Math.round(markW * 0.6)}px`;
-        el.style.border = '2px dashed var(--primary)';
-        el.style.borderRadius = '4px';
-        el.innerHTML = `<span style="font-size:0.68rem;color:var(--primary);padding:0.25rem;display:block;text-align:center">Imagen</span>`;
-      }
-      box.appendChild(el);
-
-    } else {
-      const scaleH = repeatGapH * (boxW / 800);
-      const scaleV = repeatGapV * (boxH / 600);
-      const cols = Math.ceil(boxW / scaleH) + 1;
-      const rows = Math.ceil(boxH / scaleV) + 1;
-      const mW   = Math.round((sizePercent / 100) * scaleH * 0.8);
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const el = document.createElement('div');
-          el.className = 'wmi-preview-mark';
-          el.style.cssText = `position:absolute;width:${mW}px;opacity:${alphaVal};
-            left:${c * scaleH}px;top:${r * scaleV}px;
-            transform:rotate(${angle}deg);pointer-events:none;`;
-
-          if (markFile) {
-            const img = document.createElement('img');
-            img.src = toFileUrl(markFile);
-            img.style.cssText = 'width:100%;height:auto;display:block';
-            el.appendChild(img);
-          } else {
-            el.style.background = 'rgba(10,102,194,0.2)';
-            el.style.height = `${Math.round(mW * 0.6)}px`;
-            el.style.border = '1px dashed var(--primary)';
-            el.style.borderRadius = '3px';
-          }
-          box.appendChild(el);
-        }
-      }
-    }
-  }
   requestAnimationFrame(updatePreview);
 
   // ── Lista de archivos destino ──────────────────────────────────────────────────────
@@ -367,6 +297,7 @@ async function renderWatermarkImage(ctx = {}) {
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
+    updatePreview();   // Cambia el primer archivo de la lista: cambia la vista previa
     document.getElementById('run-wmi').disabled = !(files.length && markFile && state.outputDir && !state.isProcessing);
     document.getElementById('clear-wmi').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('wmi-badge').textContent   = fileCountText(files.length, kind);

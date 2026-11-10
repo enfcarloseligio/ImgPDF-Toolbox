@@ -52,8 +52,9 @@ async function renderFolio() {
   let marginY    = cfg.marginY;
 
   // ── Plantilla de la interfaz ─────────────────────────────────────────────────
+  let preview = null;   // Vista previa real (se crea al construir la interfaz)
   const ws = document.getElementById('workspace');
-  ws.innerHTML = `<div class="module">
+  ws.innerHTML = `<div class="module module-apv">
     <div class="module-title">${icon('hash',22)} Foliado y Numeración</div>
     <p class="module-desc">Estampa números de página, folios consecutivos o sellos de recibido sobre PDFs.</p>
 
@@ -122,14 +123,10 @@ async function renderFolio() {
       </div>
     </div>
 
-    <!-- Vista previa -->
+    <!-- Vista previa real -->
     <div class="option-group" data-step="preview">
       <label>Vista previa del folio</label>
-      <div class="folio-preview-box" id="folio-preview-box">
-        <div class="folio-preview-doc">
-          <span class="folio-preview-text" id="folio-preview-text"></span>
-        </div>
-      </div>
+      <div id="folio-preview"></div>
     </div>
 
     <!-- Archivos -->
@@ -342,6 +339,19 @@ async function renderFolio() {
   renderFolioConfig();
 
   // ── Fuente ──────────────────────────────────────────────────────────────────
+  // Al elegir una fuente de la lista (p. ej. «Arial Bold Italic») el peso y la cursiva se ajustan a
+  // los de esa fuente; los controles deciden después qué variante de la familia se usa
+  async function syncStyleFromFont(file) {
+    const info = file ? await window.api.getFontInfo(file) : null;
+    if (!info?.ok) return;
+    fontWeight = info.weight;
+    italic = info.italic;
+    document.getElementById('folio-weight').value = String(Math.round(info.weight / 100) * 100);
+    document.getElementById('folio-italic').checked = italic;
+    saveModuleConfig('folio', { fontWeight, italic });
+    updatePreview();
+  }
+
   optButtons(document.getElementById('folio-font-source-row'), [
     { icon: 'monitor', label: 'Sistema', value: 'system' },
     { icon: 'globe', label: 'Google Fonts', value: 'google' },
@@ -352,6 +362,8 @@ async function renderFolio() {
       pickerId: 'folio-font-picker', fontSource, getFontWeight: () => fontWeight,
       systemFonts, gfCatalog,
       onFontPath: p => { fontPath = p; updatePreview(); },
+    onFontChosen: syncStyleFromFont,
+      onFontChosen: syncStyleFromFont,
       onFontsLoaded: f => { systemFonts.length = 0; systemFonts.push(...f); },
       onPreview: updatePreview,
     });
@@ -361,6 +373,7 @@ async function renderFolio() {
     pickerId: 'folio-font-picker', fontSource, getFontWeight: () => fontWeight,
     systemFonts, gfCatalog,
     onFontPath: p => { fontPath = p; updatePreview(); },
+    onFontChosen: syncStyleFromFont,
     onFontsLoaded: f => { systemFonts.length = 0; systemFonts.push(...f); },
     onPreview: updatePreview,
   });
@@ -400,66 +413,18 @@ async function renderFolio() {
     position = val; saveModuleConfig('folio',{position}); updatePreview();
   });
 
-  // ── Vista previa ────────────────────────────────────────────────────────────
-  function buildFolioText(pageNum, totalPages) {
-    const pad = n => String(n).padStart(digits, '0');
-    const dateStr = formatFolioDate();
-
-    switch (mode) {
-      case 'pagina':        return `${prefix || 'Página'} ${pageNum}`;
-      case 'pagina-total':  return `${prefix || 'Página'} ${pageNum} ${suffix || 'de'} ${totalPages}`;
-      case 'folio':         return `${prefix || 'FOLIO:'} ${pad(startNum + pageNum - 1)}`;
-      case 'folio-prefijo': return `${prefix}${separator}${pad(startNum + pageNum - 1)}${suffix}`;
-      case 'folio-abierto': return (prefix || 'EXP-{n}-2026').replace('{n}', pad(startNum + pageNum - 1));
-      case 'recibido':      return `${prefix || 'RECIBIDO:'} ${dateStr}`;
-      default:              return `${pageNum}`;
-    }
-  }
-
-  function formatFolioDate() {
-    const d = useToday ? new Date() : (customDate ? new Date(customDate + 'T12:00:00') : new Date());
-    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    const mesesCorto = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    const dd  = String(d.getDate()).padStart(2,'0');
-    const mm  = String(d.getMonth()+1).padStart(2,'0');
-    const yy  = d.getFullYear();
-    const mes = meses[d.getMonth()];
-    const mc  = mesesCorto[d.getMonth()];
-    switch (dateFormat) {
-      case 'DD/MM/AAAA':    return `${dd}/${mm}/${yy}`;
-      case 'AAAA-MM-DD':    return `${yy}-${mm}-${dd}`;
-      case 'D de Mes AAAA': return `${d.getDate()} de ${mes} de ${yy}`;
-      case 'Mes D AAAA':    return `${mes} ${d.getDate()}, ${yy}`;
-      case 'DD-MMM-AAAA':   return `${dd}-${mc}-${yy}`;
-      default:              return `${dd}/${mm}/${yy}`;
-    }
-  }
-
-  function updatePreview() {
-    const el = document.getElementById('folio-preview-text');
-    if (!el) return;
-    const previewText = buildFolioText(1, 24);
-    const previewSize = Math.max(10, Math.min(fontSize * 0.6, 28));
-    el.textContent     = previewText;
-    el.style.fontSize  = `${previewSize}px`;
-    el.style.fontWeight = fontWeight;
-    el.style.fontStyle  = italic ? 'italic' : 'normal';
-    el.style.color      = color;
-
-    const posMap = {
-      top_left:      { top:'8%',  left:'5%',  transform:'none' },
-      top_center:    { top:'8%',  left:'50%', transform:'translateX(-50%)' },
-      top_right:     { top:'8%',  right:'5%', left:'auto', transform:'none' },
-      mid_left:      { top:'50%', left:'5%',  transform:'translateY(-50%)' },
-      center:        { top:'50%', left:'50%', transform:'translate(-50%,-50%)' },
-      mid_right:     { top:'50%', right:'5%', left:'auto', transform:'translateY(-50%)' },
-      bottom_left:   { bottom:'8%', top:'auto', left:'5%',  transform:'none' },
-      bottom_center: { bottom:'8%', top:'auto', left:'50%', transform:'translateX(-50%)' },
-      bottom_right:  { bottom:'8%', top:'auto', right:'5%', left:'auto', transform:'none' },
-    };
-    const pos = posMap[position] || posMap.bottom_right;
-    Object.assign(el.style, { position:'absolute', top:'', bottom:'', left:'', right:'', transform:'', ...pos });
-  }
+  // ── Vista previa real ───────────────────────────────────────────────────────
+  // Se genera con el mismo proceso que el archivo final, sobre la página elegida del primer PDF
+  function updatePreview() { preview?.refresh(); }
+  preview = createAnnotationPreview(document.getElementById('folio-preview'), {
+    tool: 'folio',
+    getFile: () => files[0],
+    getParams: () => ({
+      mode, prefix, suffix, separator, digits, startNum,
+      italic, dateFormat, customDate, useToday,
+      fontSize, fontWeight, color, position, angle, marginX, marginY, fontPath,
+    }),
+  });
 
   requestAnimationFrame(updatePreview);
 
@@ -497,6 +462,7 @@ async function renderFolio() {
 
   // ── Estado del botón de ejecución ────────────────────────────────────────────
   function updateRun() {
+    updatePreview();   // Cambia el primer archivo de la lista: cambia la vista previa
     document.getElementById('run-folio').disabled = !(files.length && state.outputDir && !state.isProcessing);
     document.getElementById('clear-folio').style.display = files.length ? 'inline-block' : 'none';
     document.getElementById('folio-badge').textContent   = fileCountText(files.length, 'pdf');

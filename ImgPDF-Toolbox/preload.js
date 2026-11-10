@@ -53,6 +53,8 @@ contextBridge.exposeInMainWorld('api', {
   redactSave:            (opts)       => ipcRenderer.invoke('redact-save', opts),
   redactDiscard:         (opts)       => ipcRenderer.invoke('redact-discard', opts),
   redactExport:          (opts)       => ipcRenderer.invoke('redact-export', opts),
+  // Vista previa real de marcas y foliado
+  previewAnnotation:     (opts)       => ipcRenderer.invoke('preview-annotation', opts),
   signFlow:              (opts)       => ipcRenderer.invoke('sign-flow', opts),
   // Firmar (firmas dibujadas sobre un PDF, con avance guardado)
   signerListSessions:    ()           => ipcRenderer.invoke('signer-list-sessions'),
@@ -75,6 +77,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Fuentes tipográficas
   getSystemFonts:        ()           => ipcRenderer.invoke('get-system-fonts'),
+  getFontInfo:           (file)       => ipcRenderer.invoke('get-font-info', file),
   getGoogleFontsCatalog: ()           => ipcRenderer.invoke('get-google-fonts-catalog'),
   downloadGoogleFont:    (opts)       => ipcRenderer.invoke('download-google-font', opts),
   // Compresión, rotación, marcas de agua y desbloqueo
