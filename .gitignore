@@ -85,3 +85,6 @@ ehthumbs_vista.db
 # Temporary script test files
 temp_*.pdf
 *.tmp
+
+# Carpeta de contexto personal (guías y plantillas de trabajo; no se sube)
+gitignore/

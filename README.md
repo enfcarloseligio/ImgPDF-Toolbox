@@ -21,6 +21,7 @@ Suite de escritorio ligera y de código abierto para convertir, manipular y opti
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Privacidad](#privacidad)
 - [Créditos y licencias](#créditos-y-licencias)
+- [Documentación](#documentación)
 - [Autor](#autor)
 
 ---
@@ -159,6 +160,10 @@ ImgPDF Toolbox no usa servidores propios, no recopila datos ni requiere cuenta. 
 - **[ImageMagick](https://imagemagick.org):** licencia propia de ImageMagick, basada en Apache 2.0. La aplicación lo invoca como programa externo.
 - **Iconos de la interfaz:** diseño propio, incluidos en `renderer/assets/svg/`.
 - **Tipografías:** Plus Jakarta Sans, Open Sans y Roboto, empaquetadas con la aplicación.
+
+## Documentación
+
+La documentación del proyecto (requisitos, arquitectura, diseño, reglas, tareas, decisiones, pruebas y seguridad) está en la carpeta [`docs/`](docs/01_LEEME.md).
 
 ## Autor
 
