@@ -584,7 +584,8 @@ code {
 /* ═══════════════════════════════════════════════════════════════════════════
    ICONOS SVG (core/icons.js) — heredan color del texto vía currentColor
    ═══════════════════════════════════════════════════════════════════════════ */
-.ic { display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
+/* El grosor del trazo se define aquí (la regla de CSS prevalece sobre el atributo del SVG) */
+.ic { display: inline-block; vertical-align: -0.2em; flex-shrink: 0; stroke-width: 2.2; }
 
 .splash-logo, .brand-icon { color: var(--primary); display: inline-flex; align-items: center; justify-content: center; }
 .splash-logo { color: var(--accent); }

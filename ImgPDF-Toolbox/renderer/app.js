@@ -104,6 +104,11 @@ async function installToolAction(tool, btnId, scanId) {
   } else {
     btn.textContent = 'Error'; btn.disabled = false;
     notify.error(`Fallo al instalar ${tool}.`);
+    // El asistente terminó pero no se detectó la herramienta: suele resolverse reiniciando
+    if (res.cancelled) {
+      document.getElementById('install-restart').style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
+      document.getElementById('btn-restart').onclick = () => window.api.restartApp();
+    }
     if (tool === 'ghostscript') {
       document.getElementById('install-manual').style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
     }
@@ -210,7 +215,6 @@ function bindFooterLinks() {
     'footer-site':   'https://enfcarloseligio.com/',
     'footer-im':     'https://imagemagick.org',
     'footer-gs':     'https://www.ghostscript.com',
-    'footer-icons':  'https://www.flaticon.com/uicons',
   };
   for (const [id, url] of Object.entries(links)) {
     document.getElementById(id)?.addEventListener('click', e => {
