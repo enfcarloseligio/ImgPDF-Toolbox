@@ -88,5 +88,6 @@ flowchart LR
 - Cada versión actualiza el README y, si cambia algo estructural, los documentos de `docs/`.
 - [09_MEMORIA.md](09_MEMORIA.md) se actualiza al cerrar cada sesión de trabajo importante.
 - Las decisiones técnicas duraderas se registran en [05_DECISIONES.md](05_DECISIONES.md).
-- Los documentos de `docs/` **sí** pueden usar emojis, tablas, avisos y diagramas para facilitar la lectura; la interfaz de la aplicación, no.
+- La documentación debe ser **atractiva y fácil de leer**, empezando por el `README.md`: portada con insignias y navegación, encabezados con emoji, avisos (`> [!NOTE]`), tablas y diagramas `mermaid`, y cada comando en su propio bloque. Los documentos de `docs/` **sí** pueden usar emojis; la interfaz de la aplicación, no.
+- En los encabezados a los que se enlaza, usar emojis de **un solo carácter** (✨ 🧰 📥…): los que llevan selector de variación (🛠️ ⚙️) rompen los enlaces internos.
 - Toda función nueva se construye con Ghostscript e ImageMagick (excepción: `pdf-lib` para ediciones estructurales; ver ADR-019 en [05_DECISIONES](05_DECISIONES.md)).
